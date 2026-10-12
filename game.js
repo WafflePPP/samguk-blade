@@ -886,7 +886,7 @@ function drawArcFx(f, p) {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R, a1, a2); ctx.arc(0, 0, R * 0.55, a2, a1, true); ctx.closePath(); ctx.fill(); ctx.restore(); return;
   }
   ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
-  ctx.globalAlpha = Math.max(0, 0.22 * (1 - p * 1.5)); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, R, -f.half, f.half);   // 범위 윤곽 (바깥 호 + 좌우 경계)
+  ctx.globalAlpha = Math.max(0, 0.5 * (1 - p * 1.5)); ctx.strokeStyle = c[0]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, R, -f.half, f.half);   // 범위 윤곽 (바깥 호 + 좌우 경계)
   if (f.half < 1.4) { ctx.moveTo(0, 0); ctx.lineTo(Math.cos(-f.half) * R, Math.sin(-f.half) * R); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(f.half) * R, Math.sin(f.half) * R); } ctx.stroke();
   const trail = (ri, col, aMul) => { const n = 12; for (let i = 0; i < n; i++) { const s0 = a1 + (a2 - a1) * i / n, s1 = a1 + (a2 - a1) * (i + 1) / n + 0.02; ctx.globalAlpha = fade * Math.pow((i + 1) / n, 2) * (aMul || 0.9); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, R, s0, s1); ctx.arc(0, 0, R * ri, s1, s0, true); ctx.closePath(); ctx.fill(); } };
   const head = (ri, w, col) => { ctx.globalAlpha = fade; ctx.strokeStyle = col; ctx.lineWidth = w * fade + 1; ctx.beginPath(); ctx.moveTo(Math.cos(a2) * R * ri, Math.sin(a2) * R * ri); ctx.lineTo(Math.cos(a2) * R, Math.sin(a2) * R); ctx.stroke(); };
@@ -3621,7 +3621,7 @@ function playerStyle(alpha, face) {
 }
 // 영웅 본체 그리기: 보병은 몸만, 기마(여포)는 적토마 + 기수. lift = 말이 솟구친 높이
 // PC 아웃라인: 영웅(말·무기 포함)을 오프스크린에 그려 실루엣을 만들고, 바깥으로 OUTLINE_W 만큼 번진 테두리만 남겨서 모든 유닛 위에 덧그림 → 몬스터와 구분되고 몬스터에 가려져도 테두리는 보인다.
-const OUTLINE_W = 3, OUTLINE_COLOR = '#6fe9ff', OLN = 440;
+const OUTLINE_W = 2.5, OUTLINE_COLOR = '#ffffff', OUTLINE_ALPHA = 0.5, OLN = 440;
 let shadowOff = false;
 const olA = document.createElement('canvas'), olB = document.createElement('canvas'); olA.width = olA.height = olB.width = olB.height = OLN;
 function drawPcOutline() {
@@ -3634,7 +3634,7 @@ function drawPcOutline() {
   for (let i = 0; i < 16; i++) { const an = i / 16 * TAU; b.drawImage(olA, Math.cos(an) * OUTLINE_W, Math.sin(an) * OUTLINE_W); }
   b.globalCompositeOperation = 'source-in'; b.fillStyle = OUTLINE_COLOR; b.fillRect(0, 0, OLN, OLN);
   b.globalCompositeOperation = 'destination-out'; b.drawImage(olA, 0, 0); b.globalCompositeOperation = 'source-over';
-  ctx.save(); if (state === 'lose') ctx.globalAlpha = 0.6; ctx.drawImage(olB, px - OLN / 2, py - OLN / 2); ctx.restore();
+  ctx.save(); ctx.globalAlpha = OUTLINE_ALPHA * (state === 'lose' ? 0.6 : 1); ctx.drawImage(olB, px - OLN / 2, py - OLN / 2); ctx.restore();
 }
 function pcDashing(a) { return !!(a && (a.type === 'dash' || a.type === 's2' || (a.type === 'rush' && a.ph === 'dash') || (a.type === 'zult' && a.t >= ZU_WIND) || (a.type === 'tag' && a.id === 'lubu' && a.t >= 0.1 && a.t < 0.3))); }
 const lungeEase = p => Math.PI / 2 * Math.sin(Math.PI * clamp(p, 0, 1));   // 속도 곡선: 0 -> 최대 -> 0 (평균 1)
