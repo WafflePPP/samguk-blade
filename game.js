@@ -863,8 +863,9 @@ function ghost(x, y, face, hero, extra) { fx.push({ k: 'ghost', x, y, face, hero
 // ---------- 타격 이펙트: 장수의 무기·주문 컨셉별 HIT 연출 ----------
 //  관우 청룡언월도 = 비취빛 초승달 베기 / 상마 방천화극 = 붉은 사선 난도 + 균열 / 하마·조운 창·화극 = 관통 직선 / 초선 = 꽃잎 소용돌이 / 전위 쌍철극 = 엑스(X) 참격 + 충격파 / 황충 활 = 금빛 방사형 화살 충격
 const HIT_SCALE = 0.5;   // 타격 이펙트 전체 크기 배율
-const HIT_STYLE = { guan: 'blade', lubu: 'heavy', lubu2: 'pierce', zhao: 'pierce', diao: 'petal', dian: 'twin', huang: 'arrow' };
-const HIT_COL = { guan: ['#aaffe6', '#2fd0a0'], lubu: ['#ffb27a', '#c9302c'], lubu2: ['#ff8a7a', '#9a1c1c'], zhao: ['#f4fbff', '#7fd0ff'], diao: ['#ffd0ea', '#ff6aa8'], dian: ['#ffd29a', '#ff6a2a'], huang: ['#fff0b0', '#ffb030'] };
+const HIT_STYLE = { guan: 'blade', lubu: 'heavy', lubu2: 'pierce', zhao: 'pierce', diao: 'petal', dian: 'twin', huang: 'arrow', mbAxe: 'heavy', mbSpear: 'pierce' };   // mbAxe / mbSpear = 몬스터 보스(도끼·창)의 궤적
+const HIT_COL = { mbAxe: ['#ffd9a0', '#e0602c'], mbSpear: ['#ece4ff', '#8a5ae0'], guan: ['#aaffe6', '#2fd0a0'], lubu: ['#ffb27a', '#c9302c'], lubu2: ['#ff8a7a', '#9a1c1c'], zhao: ['#f4fbff', '#7fd0ff'], diao: ['#ffd0ea', '#ff6aa8'], dian: ['#ffd29a', '#ff6a2a'], huang: ['#fff0b0', '#ffb030'] };
+const bossTrailId = e => e.type === 'guanBoss' ? 'guan' : e.type === 'zhaoBoss' ? 'zhao' : e.type === 'boss' ? 'lubu' : e.d.weapon === 'spear' ? 'mbSpear' : 'mbAxe';   // 보스 몬스터의 무기 궤적 종류
 function hitFx(e, o, crit, big) {
   const hid = o.ai ? (o.by && o.by.hero) : HERO.id, st = HIT_STYLE[hid]; if (!st || fx.length > 260) return;
   const ang = o.from ? angTo(o.from, e) : 0, c = HIT_COL[hid], x = e.x, y = e.y - e.r, sz = HIT_SCALE * (big ? 1.45 : 1) * (crit ? 1.2 : 1) * Math.max(0.8, Math.min(1.6, e.r / 26));
@@ -2359,7 +2360,7 @@ function resolveAttack(e) {
     if (c.ult) { e.ultT = 0; ring(e.x, e.y, c.r, 0.6, e.d.auraCol || '#7fffd0', 18); ring(e.x, e.y, 260, 0.45, '#fff', 10); sparks(e.x, e.y - 10, 40, e.d.auraCol || '#7fffd0', 800, 0.8); doShake(22); sfx('boom'); }
   } else if (c.kind === 'cone') {
     if (dist(e, P) <= c.r + P.r && angDiff(e.face, angTo(e, P)) <= c.half) hurtPlayer(c.dmg, e);
-    arcFx(e.x, e.y, e.face, c.r, c.half, 0.2, e.d.foot ? (e.d.fxCol || '#bfffe6') : '#ff9a8a', 1, 'foe'); sfx('enemy'); if (c.heavy) { doShake(9); ring(e.x + Math.cos(e.face) * c.r * 0.45, e.y + Math.sin(e.face) * c.r * 0.45, c.r * 0.3, 0.35, '#ff6a4a', 8); } e.swing = { t: 0, half: c.half, r: c.r };
+    arcFx(e.x, e.y, e.face, c.r, c.half, 0.2, e.d.foot ? (e.d.fxCol || '#bfffe6') : '#ff9a8a', 1, e.boss ? bossTrailId(e) : 'foe'); sfx('enemy'); if (c.heavy) { doShake(9); ring(e.x + Math.cos(e.face) * c.r * 0.45, e.y + Math.sin(e.face) * c.r * 0.45, c.r * 0.3, 0.35, '#ff6a4a', 8); } e.swing = { t: 0, half: c.half, r: c.r };
     if (c.chain && c.step < c.chain - 1 && !(c.contDist && c.step + 1 >= (c.mandatory || 1) && dist(e, P) > c.contDist)) {   // 연속 베기: 다음 타로 이어짐 (contDist 가 있으면 관우가 그 거리 안일 때만, 멀어졌으면 연속기를 중단)
       c.step++; c.windup = c.winds[c.step]; c.r = c.rs[c.step]; c.half = c.halfs[c.step];
       if (c.fixedAim) c.track = 0.0001; else e.face = angTo(e, P); const lg = c.lunge != null ? c.lunge : 300; e.kx += Math.cos(e.face) * lg; e.ky += Math.sin(e.face) * lg; if (c.gap) { c.delay = c.gap; e.state = 'pause'; } else e.state = 'wind'; e.t = 0; return;   // 베기 사이에 딜레이(gap)
@@ -2376,7 +2377,7 @@ function resolveAttack(e) {
   } else if (c.kind === 'cross') {   // 십자 참격
     const ang = e.face + c.off, ca = Math.cos(ang), sa = Math.sin(ang), dx = P.x - e.x, dy = P.y - e.y, lx = dx * ca + dy * sa, ly = -dx * sa + dy * ca, hw = c.w / 2 + P.r;
     if ((Math.abs(lx) <= c.len && Math.abs(ly) <= hw) || (Math.abs(ly) <= c.len && Math.abs(lx) <= hw)) hurtPlayer(c.dmg, e);
-    fx.push({ k: 'beam', x: e.x, y: e.y, ang, len: c.len, w: c.w, t: 0, dur: 0.35 }); fx.push({ k: 'beam', x: e.x, y: e.y, ang: ang + Math.PI / 2, len: c.len, w: c.w, t: 0, dur: 0.35 });
+    fx.push({ k: 'beam', hid: e.boss ? bossTrailId(e) : '', x: e.x, y: e.y, ang, len: c.len, w: c.w, t: 0, dur: 0.35 }); fx.push({ k: 'beam', hid: e.boss ? bossTrailId(e) : '', x: e.x, y: e.y, ang: ang + Math.PI / 2, len: c.len, w: c.w, t: 0, dur: 0.35 });
     ring(e.x, e.y, 120, 0.3, '#ffd34d', 8); doShake(12); sfx('boom');
   } else if (c.kind === 'rain') {   // 술사의 낙뢰: 지정한 지점의 원 안에서 피해
     const tx = c.tx != null ? c.tx : P.x, ty = c.ty != null ? c.ty : P.y;
