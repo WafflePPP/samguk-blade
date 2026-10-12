@@ -72,7 +72,9 @@ addEventListener('keydown', e => {
   if (state === 'account') { accountKey(e.code); return; }
   if (state === 'info') { infoKey(e.code); return; }
   if (state === 'title' && e.code === 'KeyI') { openInfo(); return; }
-  if (state === 'title' && e.code === 'Escape') { state = 'account'; accPopup = false; return; }
+  if (state === 'title' && e.code === 'Escape') { if (helpOpen) helpOpen = false; else { state = 'account'; accPopup = false; } return; }
+  if (state === 'title' && (e.code === 'KeyH' || e.code === 'Slash')) { helpOpen = !helpOpen; return; }
+  if (state === 'title' && helpOpen) return;
   if (state === 'waves') { wavesKey(e.code); return; }
   if (state === 'duelMenu') { duelMenuKey(e.code); return; }
   if (state === 'raidMenu') { raidMenuKey(e.code); return; }
@@ -153,7 +155,13 @@ cv.addEventListener('pointerdown', e => {
   const { x, y } = pt(e);
   if (state === 'account') { accountClick(x, y); return; }
   if (state === 'info') { infoClick(x, y); return; }
-  if (state === 'title') { if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; } if (inRect(x, y, INFO_BTN)) { openInfo(); return; } for (let i = 0; i < 2; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[i === 0 ? 'yeonui' : 'duel'] = false; lobbySel = i; enterMode(i); return; } }
+  if (state === 'title') {
+    if (helpOpen) { for (let i = 0; i < 2; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[i === 0 ? 'yeonui' : 'duel'] = false; helpOpen = false; lobbySel = i; enterMode(i); return; } helpOpen = false; return; }
+    if (inRect(x, y, HELP_BTN)) { helpOpen = true; sfx('hit'); return; }
+    if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; }
+    if (inRect(x, y, INFO_BTN)) { openInfo(); return; }
+    if (inRect(x, y, LOBBY_HERO_BOX)) { lobbyHero = HERO_IDS[(Math.max(0, HERO_IDS.indexOf(lobbyHero || selHero)) + 1) % HERO_IDS.length]; lobbyHeroT = 0; sfx('hit'); return; }
+  }
   if (state === 'waves') { wavesClick(x, y); return; }
   if (state === 'duelMenu') { duelMenuClick(x, y); return; }
   if (state === 'raidMenu') { raidMenuClick(x, y); return; }
@@ -336,7 +344,7 @@ function applyLabels() { for (const b of BTN) if (HERO.skills[b.id]) b.label = H
 function applyHero() { HERO = heroDef(selHero); curHero = selHero; applyLabels(); applyFoeTheme(); }
 // 시작 화면의 영웅 선택 카드 / 승패 화면의 '영웅 선택' 버튼
 const CARD = { w: 380, h: 116, gap: 20, y: 214 };   // 로비 스테이지 입장 버튼 크기·위치
-const cardRect = i => ({ x: W / 2 - (STAGE_HEROES.length * CARD.w + (STAGE_HEROES.length - 1) * CARD.gap) / 2 + i * (CARD.w + CARD.gap), y: CARD.y, w: CARD.w, h: CARD.h });
+const cardRect = i => ({ x: W / 2 - 491 + i * 250, y: 616, w: 232, h: 84 });   // 로비 하단 내비게이션 항목 (0~2 = 모드, 3 = 장수 정보)
 const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 function cardAt(x, y) { for (let i = 0; i < STAGE_HEROES.length; i++) if (inRect(x, y, cardRect(i))) return i; return -1; }
 const OVERLAY_BTN = { x: W / 2 + 10, y: 500, w: 240, h: 48 }, OVERLAY_RETRY = { x: W / 2 - 250, y: 500, w: 240, h: 48 };   // 전투 종료 화면 버튼: 다시 시작(대기실) / 로비 — 버튼 이외의 화면을 눌러도 아무 일도 없다
@@ -904,11 +912,8 @@ function drawAccPopup() {
 }
 
 // (영웅 성장 화면은 '장수 정보' 페이지로 통합되었다)
-const ACC_BTN = { x: W - 270, y: 18, w: 252, h: 34 };
-function drawLobbyAccount() {   // 로비 오른쪽 위: 계정 변경 / 장수 정보 버튼
-  if (!ACC) return;
-  for (const [b, label, col] of [[ACC_BTN, '계정 : ' + ACC.name + '  (변경)', '#9ad4ff']]) { ctx.fillStyle = 'rgba(10,12,20,.85)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text(label, b.x + b.w / 2, b.y + 23, 15, col, 'center'); }
-}
+const ACC_BTN = { x: 14, y: 14, w: 300, h: 64 }, HELP_BTN = { x: W - 62, y: 16, w: 46, h: 46 }, HELP_PANEL = { x: W / 2 - 340, y: 100, w: 680, h: 480 };
+let helpOpen = false, lobbyHero = null, lobbyHeroT = 0;   // 로비 도움말 창 / 가운데 대표 영웅 (누르면 다음 영웅)
 function resetPlayer() {
   P = {
     x: WORLD.w / 2, y: WORLD.h / 2 + 100, r: HERO_STATS.r, hp: maxHpNow(), maxhp: maxHpNow(), atk: HERO_STATS.atk + FLAT.atk, speed: speedNow(), face: -Math.PI / 2,
@@ -1594,7 +1599,7 @@ function tutClick(x, y) {
   const s = TUT.steps[TUT.i]; if (s && s.ok && inRect(x, y, TUT_OK)) { tutEvent('ok'); return true; }
   return false;
 }
-const tutBtnRect = i => { const r = cardRect(i); return { x: r.x + r.w / 2 - 120, y: r.y + r.h + 4, w: 240, h: 26 }; };
+const tutBtnRect = i => ({ x: W / 2 - 320 + 20, y: 420 + i * 46, w: 280, h: 36 });   // 도움말 창 안의 튜토리얼 버튼
 function drawTutorial() {
   if (!TUT || state !== 'play') return; const s = TUT.steps[TUT.i]; if (!s) return;
   const big = !!s.ok, pw = 900, px = W / 2 - pw / 2, py = 86, ph = big ? 270 : 92;
@@ -1619,7 +1624,7 @@ function drawTutorial() {
   ctx.restore();
 }
 // ===== 장수 정보 페이지 (로비 > 장수 정보): PC 별 능력치 · 스킬 · 고유 성장 단계를 한눈에 보고, 레벨을 바꿔 가며 성장 결과를 미리 본다 =====
-const INFO_BTN = { x: W / 2 - 482, y: 380, w: 964, h: 118 }, INFO_BACK = { x: 12, y: 664, w: 80, h: 30 };
+const INFO_BTN = { x: W / 2 - 491 + 3 * 250, y: 616, w: 232, h: 84 }, INFO_BACK = { x: 12, y: 664, w: 80, h: 30 };
 let infoSel = 0, infoLv = 1;
 const infoPc = () => HERO_IDS[infoSel];
 const infoTab = i => ({ x: 40 + i * 201, y: 82, w: 195, h: 46 });
@@ -4424,63 +4429,85 @@ const LOBBY_STAGES = [
   { title: '비무장 모드', line: '1~3명 PC 대전 (적도 같은 인원)  ·  제한 시간 3분', start: '1~3명 선택  ·  태그 없이 시작부터 전투  ·  레벨 보정 양쪽 동일', col: '#4fb0ff' },
   { title: '레이드 모드', line: '여포 봉선 8단계 보스전  ·  1~3명 동시 전투', start: '1명 조작 + AI 동료 2명  ·  태그 없음  ·  온라인은 준비 중', col: '#e0504a' },
 ];
-// 로비 장수 정보 배너: 로비의 큰 카드로 확대 — PC 4명의 레벨·경험치·다음 성장 단계를 미리 보여 주고 누르면 장수 정보 페이지로
-function drawLobbyInfoBanner() {
-  const b = INFO_BTN, sel = lobbySel === STAGE_HEROES.length;
-  ctx.fillStyle = sel ? 'rgba(40,40,22,.94)' : 'rgba(10,12,20,.86)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.fillStyle = '#9dff9d'; ctx.fillRect(b.x, b.y, 8, b.h);
-  ctx.strokeStyle = sel ? '#ffd34d' : 'rgba(255,255,255,.3)'; ctx.lineWidth = sel ? 4 : 2; ctx.strokeRect(b.x, b.y, b.w, b.h);
-  if (sel) { ctx.strokeStyle = `rgba(255,211,77,${0.25 + 0.2 * Math.sin(T * 5)})`; ctx.lineWidth = 8; ctx.strokeRect(b.x - 5, b.y - 5, b.w + 10, b.h + 10); }
-  text('장수 정보', b.x + 28, b.y + 46, 34, sel ? '#d8ffd8' : '#9dff9d', 'left');
-  text('능력치 · 스킬 · 영웅 성장 · 레벨 미리보기', b.x + 28, b.y + 72, 14, '#cfd3e6', 'left', false);
-  text('총 Lv ' + (ACC ? HERO_IDS.reduce((t, id) => t + heroRec(ACC, id).lv, 0) : 0) + (IS_TOUCH ? '' : '   ·   I 키'), b.x + 28, b.y + 100, 15, '#ffd34d', 'left');
-  HERO_IDS.forEach((pid, k) => {
-    const x = b.x + 306 + k * 108, y = b.y + 12, w = 102, h = 94, rec = ACC ? heroRec(ACC, pid) : { lv: 1, xp: 0 }, g = GROWTH[pid], nt = g.tiers.find(t => t.lv > rec.lv);
-    ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.strokeRect(x, y, w, h);
-    ctx.save(); ctx.beginPath(); ctx.arc(x + 28, y + 34, 20, 0, TAU); ctx.clip(); ctx.translate(x + 28, y + 37); ctx.scale(0.68, 0.68); drawPortraitIcon(HEROES[pid], 0, 0); ctx.restore(); ctx.strokeStyle = '#d4a73a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 28, y + 34, 20, 0, TAU); ctx.stroke();
-    text(PC_NAME[pid], x + 54, y + 30, 16, '#ffe9a0', 'left'); text('Lv ' + rec.lv, x + 54, y + 48, 12, rec.lv >= MAX_LV ? '#ffd34d' : '#9dff9d', 'left');
-    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x + 10, y + 62, w - 20, 6); ctx.fillStyle = '#4fd36a'; ctx.fillRect(x + 11, y + 63, (w - 22) * (rec.lv >= MAX_LV ? 1 : rec.xp / xpNeed(rec.lv)), 4);
-    text(fitStr(nt ? '다음 Lv ' + nt.lv + ' [' + nt.name + ']' : '성장 단계 모두 해금', w - 20, 10.5), x + 10, y + 84, 10.5, nt ? '#9dff9d' : '#ffd34d', 'left', false);
-  });
-}
-// 로비 모드 카드의 엠블럼 (카드 왼쪽 위): 로그라이크 = 깃발 / 비무장 = 교차한 검 / 레이드 = 방천화극
-function drawModeEmblem(i, x, y, sel) {
-  const col = ['#e0b13a', '#4fb0ff', '#ff6a5a'][i];
-  ctx.save(); ctx.translate(x, y); ctx.fillStyle = 'rgba(8,6,16,.85)'; ctx.beginPath(); ctx.arc(0, 0, 25, 0, TAU); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = sel ? 3 : 2; ctx.beginPath(); ctx.arc(0, 0, 25, 0, TAU); ctx.stroke();
-  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (i === 0) { ctx.beginPath(); ctx.moveTo(-8, 15); ctx.lineTo(-8, -15); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-8, -14); ctx.lineTo(13, -9 + Math.sin(T * 4) * 1.5); ctx.lineTo(-8, 0); ctx.closePath(); ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1; }
-  else if (i === 1) { for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-13 * d, 14); ctx.lineTo(13 * d, -14); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-8 * d, 8); ctx.lineTo(-13 * d, 3); ctx.stroke(); } }
-  else { ctx.beginPath(); ctx.moveTo(-10, 16); ctx.lineTo(10, -14); ctx.stroke(); ctx.lineWidth = 2.2; ctx.beginPath(); ctx.arc(8, -8, 6, Math.PI * 0.2, Math.PI * 1.2); ctx.stroke(); ctx.beginPath(); ctx.arc(2, -1, 6, Math.PI * 1.2, Math.PI * 2.2); ctx.stroke(); }
+// ===== 로비 (참고: 모바일 게임의 깔끔한 로비) — 위: 프로필 · 로고 · 도움말 / 가운데: 대표 영웅 + 말풍선 / 아래: 내비게이션 바 =====
+const LOBBY_HERO_BOX = { x: W / 2 - 360, y: 96, w: 360, h: 500 };
+const LOBBY_LINES = {
+  guan: ['의리로 천하를 지키겠소.', '청룡언월도가 울고 있구려.'], lubu: ['천하무쌍, 나를 막을 자 누구냐!', '적토마가 달리고 싶어 하오.'], zhao: ['창 한 자루면 충분하오.', '백만 대군 속이라도 가겠소.'],
+  diao: ['모두 무사히 돌아오세요.', '연꽃이 장군을 지켜줄 거예요.'], dian: ['주공께는 한 걸음도 못 갑니다!', '쌍철극이 피를 원하는군.'], huang: ['백 보 밖이라도 빗나가지 않소.', '노장의 활솜씨를 보여주지.'],
+};
+function navIcon(i, x, y, col) {   // 내비게이션 아이콘 (선으로 그린 약식): 0 깃발 / 1 교차한 검 / 2 방천화극 / 3 두루마리
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (i === 0) { ctx.beginPath(); ctx.moveTo(-9, 17); ctx.lineTo(-9, -16); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-9, -15); ctx.lineTo(15, -9 + Math.sin(T * 4) * 1.5); ctx.lineTo(-9, 1); ctx.closePath(); ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1; }
+  else if (i === 1) { for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-14 * d, 16); ctx.lineTo(14 * d, -16); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-9 * d, 9); ctx.lineTo(-15 * d, 4); ctx.stroke(); } }
+  else if (i === 2) { ctx.beginPath(); ctx.moveTo(-11, 18); ctx.lineTo(11, -15); ctx.stroke(); ctx.lineWidth = 2.4; ctx.beginPath(); ctx.arc(9, -9, 7, Math.PI * 0.2, Math.PI * 1.2); ctx.stroke(); ctx.beginPath(); ctx.arc(2, -1, 7, Math.PI * 1.2, Math.PI * 2.2); ctx.stroke(); }
+  else { ctx.strokeRect(-11, -14, 22, 28); ctx.lineWidth = 2; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(-6, -7 + k * 7); ctx.lineTo(6, -7 + k * 7); ctx.stroke(); } }
   ctx.restore();
 }
-function drawTitle() {
-  drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.36)'; ctx.fillRect(0, 0, W, H);   // 로그인 화면과 같은 노을 진 야영지 배경
-  ctx.save(); ctx.shadowColor = 'rgba(255,170,60,.75)'; ctx.shadowBlur = 24; text('三國 猛將傳', W / 2, 100, 80, '#ffd34d', 'center'); ctx.restore();
-  ctx.strokeStyle = 'rgba(255,211,77,.5)'; ctx.lineWidth = 1.5; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(W / 2 + sx * 190, 136); ctx.lineTo(W / 2 + sx * 430, 136); ctx.stroke(); }
-  text('삼국 맹장전', W / 2, 142, 26, '#fff', 'center');
-  text('관우 · 여포(상마 ↔ 하마 전환) · 조운 · 초선(힐러) · 전위 · 황충(궁수) 중 최대 3인을 태그하며 웨이브를 돌파하고 보스를 쓰러뜨리는 액션 RPG', W / 2, 172, 16, '#cfd3e6', 'center', false);
-  text('LOBBY  ·  입장할 모드를 선택하세요', W / 2, 200, 18, '#ffe9a0', 'center');
-  LOBBY_STAGES.forEach((st, i) => {
-    const r = cardRect(i), sel = i === lobbySel, cx = r.x + r.w / 2;
-    { const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, sel ? 'rgba(62,46,18,.92)' : 'rgba(22,16,34,.86)'); g.addColorStop(1, sel ? 'rgba(30,22,12,.92)' : 'rgba(10,8,20,.9)'); ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, r.h); }
-    ctx.fillStyle = st.col; ctx.fillRect(r.x, r.y, 8, r.h); ctx.fillRect(r.x, r.y, r.w, 3);
-    ctx.strokeStyle = 'rgba(255,211,77,.18)'; ctx.lineWidth = 1; ctx.strokeRect(r.x + 5, r.y + 5, r.w - 10, r.h - 10);
-    drawModeEmblem(i, r.x + 44, r.y + 36, sel);
-    ctx.strokeStyle = sel ? '#ffd34d' : 'rgba(255,255,255,.3)'; ctx.lineWidth = sel ? 4 : 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
-    if (sel) { ctx.strokeStyle = `rgba(255,211,77,${0.25 + 0.2 * Math.sin(T * 5)})`; ctx.lineWidth = 8; ctx.strokeRect(r.x - 5, r.y - 5, r.w + 10, r.h + 10); }
-    text(st.title, cx + 28, r.y + 44, 34, sel ? '#ffe9a0' : '#dfe3f5', 'center');
-    text(fitStr(st.line, r.w - 30, 16), cx + 4, r.y + 76, 16, '#ffb27a', 'center', false);
-    text(fitStr(st.start, r.w - 30, 15), cx + 4, r.y + 104, 15, '#cfd3e6', 'center', false);
-  });
-  if (ACC) STAGE_HEROES.forEach((_, i) => { if (i > 1) return; const b = tutBtnRect(i), done = ACC.tut && ACC.tut[i === 0 ? 'yeonui' : 'duel']; ctx.fillStyle = 'rgba(10,12,20,.8)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = done ? '#7a8aa0' : '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(done ? '▶ 튜토리얼 다시 보기' : '▶ 튜토리얼 (처음 입장 시 진행)', b.x + b.w / 2, b.y + 19, 13, done ? '#aab4c8' : '#ffe9a0', 'center', false); });
-  drawLobbyInfoBanner();
-  text(IS_TOUCH ? '스테이지 버튼을 터치하면 입장합니다' : '모드를 클릭하거나  ← →  로 고르고  Enter  로 입장', W / 2, 530, 20, `rgba(255,211,77,${0.6 + 0.4 * Math.sin(T * 4)})`, 'center');
-  // 조작 가이드
-  ctx.fillStyle = 'rgba(12,8,22,.66)'; ctx.fillRect(W / 2 - 520, 546, 1040, 150); ctx.strokeStyle = 'rgba(255,211,77,.35)'; ctx.lineWidth = 1.5; ctx.strokeRect(W / 2 - 520, 546, 1040, 150);
-  text('조작 가이드', W / 2, 568, 16, '#ffd34d', 'center');
+const NAV_SHORT = ['웨이브 50 · 5층마다 보스', '1~3 대 1~3 · 3분 대전', '여포 봉선 8단계 보스전'];
+const NAV_COL = ['#e0b13a', '#4fb0ff', '#ff6a5a', '#9dff9d'];
+function drawLobbyNav() {
+  const by = 596;   // 바 바탕
+  { const g = ctx.createLinearGradient(0, by, 0, H); g.addColorStop(0, 'rgba(8,6,18,.72)'); g.addColorStop(1, 'rgba(4,3,10,.94)'); ctx.fillStyle = g; ctx.fillRect(0, by, W, H - by); }
+  ctx.fillStyle = 'rgba(255,211,77,.55)'; ctx.fillRect(0, by, W, 2);
+  const n = STAGE_HEROES.length + 1;
+  for (let i = 0; i < n; i++) {
+    const r = cardRect(i), sel = lobbySel === i, col = NAV_COL[i], title = i < STAGE_HEROES.length ? LOBBY_STAGES[i].title : '장수 정보';
+    ctx.fillStyle = sel ? 'rgba(60,44,16,.88)' : 'rgba(18,14,30,.7)'; ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = sel ? '#ffd34d' : 'rgba(255,255,255,.22)'; ctx.lineWidth = sel ? 3 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = col; ctx.fillRect(r.x, r.y + r.h - 4, r.w, 4);
+    if (sel) { ctx.strokeStyle = 'rgba(255,211,77,' + (0.2 + 0.18 * Math.sin(T * 5)) + ')'; ctx.lineWidth = 7; ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8); }
+    navIcon(i, r.x + 38, r.y + 38, sel ? '#ffe9a0' : col);
+    text(title, r.x + 72, r.y + 36, 21, sel ? '#ffe9a0' : '#e6e9f5', 'left');
+    const sub = i < STAGE_HEROES.length ? NAV_SHORT[i] : '총 Lv ' + (ACC ? HERO_IDS.reduce((t, id) => t + heroRec(ACC, id).lv, 0) : 0) + (IS_TOUCH ? '' : '  ·  I');
+    text(fitStr(sub, r.w - 82, 12.5), r.x + 72, r.y + 60, 12.5, sel ? '#ffd9a0' : '#aab3c8', 'left', false);
+  }
+  const sel = lobbySel;   // 선택한 항목의 한 줄 설명 (바 위쪽)
+  if (sel < STAGE_HEROES.length) { const st = LOBBY_STAGES[sel]; text(st.start, W / 2, 586, 14, 'rgba(255,233,160,.9)', 'center', false); }
+  text(IS_TOUCH ? '항목을 터치하면 입장합니다' : '← →  선택   ·   Enter  입장   ·   H  도움말', W / 2, 716, 11.5, 'rgba(255,255,255,.45)', 'center', false);
+}
+function drawLobbyHero() {   // 가운데 대표 영웅 (누르면 다음 영웅) + 말풍선
+  const id = lobbyHero || selHero || HERO_IDS[0], h = HEROES[id]; lobbyHeroT += 1 / 60;
+  const fx0 = W / 2 - 170, fy0 = 560;
+  const sp = ctx.createRadialGradient(fx0, fy0 + 8, 10, fx0, fy0 + 8, 190); sp.addColorStop(0, 'rgba(255,214,140,.38)'); sp.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = sp; ctx.save(); ctx.translate(fx0, fy0 + 8); ctx.scale(1, 0.28); ctx.translate(-fx0, -(fy0 + 8)); ctx.fillRect(fx0 - 200, fy0 - 200, 400, 400); ctx.restore();
+  ctx.save(); ctx.translate(fx0, fy0); const sc = h.mounted ? 1.7 : 2.1; ctx.scale(sc, sc); drawCardFigure(h, 0, 0); ctx.restore();
+  // 이름표
+  const nm = PC_NAME[id] + '  Lv ' + (ACC ? heroRec(ACC, id).lv : 1);
+  ctx.font = '700 17px ' + FONT; const tw = ctx.measureText(nm).width + 34;
+  ctx.fillStyle = 'rgba(10,8,20,.7)'; ctx.fillRect(fx0 - tw / 2, 232, tw, 30); ctx.fillStyle = '#ffd34d'; ctx.fillRect(fx0 - tw / 2, 232, 4, 30); text(nm, fx0 + 2, 253, 17, '#ffe9a0', 'center');
+  // 말풍선
+  const lines = LOBBY_LINES[id] || ['준비되었소.'], line = lines[Math.floor(lobbyHeroT / 6) % lines.length];
+  ctx.font = '600 17px ' + FONT; const bw = ctx.measureText(line).width + 44, bx = fx0 + 130, by = 300;
+  ctx.fillStyle = 'rgba(250,248,240,.93)'; ctx.beginPath(); ctx.moveTo(bx + 12, by); ctx.lineTo(bx + bw - 12, by); ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + 12); ctx.lineTo(bx + bw, by + 38); ctx.quadraticCurveTo(bx + bw, by + 50, bx + bw - 12, by + 50); ctx.lineTo(bx + 12, by + 50); ctx.quadraticCurveTo(bx, by + 50, bx, by + 38); ctx.lineTo(bx - 14, by + 40); ctx.lineTo(bx, by + 28); ctx.lineTo(bx, by + 12); ctx.quadraticCurveTo(bx, by, bx + 12, by); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#2a2438'; ctx.font = '600 17px ' + FONT; ctx.textAlign = 'left'; ctx.fillText(line, bx + 22, by + 31); ctx.textAlign = 'left';
+}
+function drawLobbyAccount() {   // 왼쪽 위 프로필 카드 (누르면 계정 선택) / 오른쪽 위 도움말 버튼
+  if (!ACC) return;
+  const b = ACC_BTN, top = HERO_IDS.reduce((m, id) => heroRec(ACC, id).lv > heroRec(ACC, m).lv ? id : m, HERO_IDS[0]), tot = HERO_IDS.reduce((t, id) => t + heroRec(ACC, id).lv, 0);
+  ctx.fillStyle = 'rgba(10,8,20,.72)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.fillStyle = '#ffd34d'; ctx.fillRect(b.x, b.y, 4, b.h); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h);
+  ctx.save(); ctx.beginPath(); ctx.arc(b.x + 40, b.y + 32, 24, 0, TAU); ctx.clip(); ctx.translate(b.x + 40, b.y + 37); ctx.scale(0.8, 0.8); drawPortraitIcon(HEROES[top], 0, 0); ctx.restore();
+  ctx.strokeStyle = '#d4a73a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x + 40, b.y + 32, 24, 0, TAU); ctx.stroke();
+  text(ACC.name, b.x + 76, b.y + 29, 20, '#fff', 'left'); text('총 Lv ' + tot + '   ·   최고 ' + (ACC.best || 0) + '층', b.x + 76, b.y + 51, 12.5, '#aab3c8', 'left', false);
+  text('변경 ▾', b.x + b.w - 12, b.y + 22, 11.5, '#9ad4ff', 'right', false);
+  const hb = HELP_BTN; ctx.fillStyle = 'rgba(10,8,20,.72)'; ctx.fillRect(hb.x, hb.y, hb.w, hb.h); ctx.strokeStyle = helpOpen ? '#ffd34d' : 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.strokeRect(hb.x, hb.y, hb.w, hb.h); text('?', hb.x + hb.w / 2, hb.y + 32, 26, '#ffe9a0', 'center');
+}
+function drawHelpPanel() {
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
+  const p = HELP_PANEL; ctx.fillStyle = 'rgba(14,10,26,.96)'; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(p.x, p.y, p.w, p.h); ctx.strokeStyle = 'rgba(255,211,77,.3)'; ctx.lineWidth = 1; ctx.strokeRect(p.x + 8, p.y + 8, p.w - 16, p.h - 16);
+  text('도움말 · 조작 가이드', W / 2, p.y + 46, 28, '#ffe9a0', 'center');
   const G = IS_TOUCH
-    ? ['왼쪽 화면 드래그 : 이동 (가상 조이스틱)      공격 버튼 : 누를 때마다 1 → 2 → 3단계', '스킬 · 궁극기(쿨타임 30초) · 회피 버튼      왼쪽 TAG 버튼 : 선택한 영웅으로 교체', 'AUTO : 자동 전투 (생명력 10% 이하 자동 태그)      붉은 범위 표시 = 적 공격 예고 — 회피로 피하세요!', '비무장 모드 : 왼쪽 아군 초상화를 눌러 조작 영웅 변경 (태그 없음)']
-    : ['WASD / 방향키 : 이동      J / 마우스 클릭 : 공격 (1 → 2 → 3단계)      K · L : 스킬      ; : 궁극기 (쿨타임 30초)', 'Space : 회피 (무적)      Z · X · C : 선택한 영웅 순서대로 태그      T / Tab : 오토 전투 (생명력 10% 이하 자동 태그)', '붉은 범위 표시 = 적 공격 예고 — 회피로 피하세요!', '비무장 모드 : 왼쪽 아군 초상화를 누르거나 Q 로 조작 영웅 변경 (태그 없음)'];
-  G.forEach((t, i) => text(t, W / 2, 594 + i * 24, 15, '#dfe3f5', 'center', false));
+    ? ['왼쪽 화면 드래그 : 이동 (가상 조이스틱)', '공격 버튼 : 누를 때마다 1 → 2 → 3단계', '스킬 · 궁극기(쿨타임 30초) · 회피 버튼', '왼쪽 TAG 버튼 : 선택한 영웅으로 교체 (로그라이크)', 'AUTO : 자동 전투 (생명력 10% 이하 자동 태그)', '붉은 범위 표시 = 적 공격 예고 — 회피로 피하세요!', '비무장·레이드 : 왼쪽 영웅 초상화를 눌러 조작 영웅 변경']
+    : ['WASD / 방향키 : 이동      J / 마우스 클릭 : 공격 (1 → 2 → 3단계)', 'K · L : 스킬      ; : 궁극기 (쿨타임 30초)      Space : 회피 (무적)', 'Z · X · C : 선택한 영웅 순서대로 태그 (로그라이크)', 'T / Tab : 오토 전투 (생명력 10% 이하 자동 태그)', '붉은 범위 표시 = 적 공격 예고 — 회피로 피하세요!', '비무장·레이드 : 왼쪽 영웅 초상화를 누르거나 Q 로 조작 영웅 변경'];
+  G.forEach((t, i) => text(t, W / 2, p.y + 92 + i * 28, 15, '#dfe3f5', 'center', false));
+  text('튜토리얼 다시 보기', W / 2, p.y + 304, 17, '#ffd34d', 'center');
+  [['로그라이크 모드', 'yeonui'], ['비무장 모드', 'duel']].forEach(([nm, key], i) => { const r = tutBtnRect(i), done = ACC && ACC.tut && ACC.tut[key]; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = done ? '#7a8aa0' : '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text('▶ ' + nm + (done ? '' : '  (처음 입장 시 진행)'), r.x + r.w / 2, r.y + 24, 15, done ? '#cfd3e6' : '#ffe9a0', 'center', false); });
+  text('아무 곳이나 누르거나 Esc / H 로 닫기', W / 2, p.y + p.h - 22, 12.5, 'rgba(255,255,255,.55)', 'center', false);
+}
+function drawTitle() {
+  drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.22)'; ctx.fillRect(0, 0, W, H);   // 로그인 화면과 같은 노을 진 야영지 배경
+  ctx.save(); ctx.shadowColor = 'rgba(255,170,60,.75)'; ctx.shadowBlur = 16; text('三國 猛將傳', W / 2, 54, 40, '#ffd34d', 'center'); ctx.restore();
+  drawLobbyHero();
+  drawLobbyNav();
+  if (helpOpen) drawHelpPanel();
 }
 // 적토 돌격 질주 중 화면 가장자리에서 중심으로 흐르는 속도선
 function drawSpeedLines() {
@@ -4497,7 +4524,7 @@ function render() {
   ctx.clearRect(0, 0, W, H);
   if (state === 'account') { drawAccount(); return; }
   if (state === 'info') { drawInfo(); return; }
-  if (state === 'title') { drawTitle(); drawLobbyAccount(); return; }
+  if (state === 'title') { drawTitle(); if (!helpOpen) drawLobbyAccount(); return; }
   if (state === 'pick') { drawPick(); return; }
   if (state === 'duelMenu') { drawDuelMenu(); return; }
   if (state === 'raidMenu') { raidMsgT = Math.max(0, raidMsgT - 1 / 60); drawRaidMenu(); return; }
