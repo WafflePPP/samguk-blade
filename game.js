@@ -153,6 +153,8 @@ cv.addEventListener('pointerdown', e => {
   e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) { }
   tryFullscreen(); sfx('enemy');
   const { x, y } = pt(e);
+  if (iconTip) { iconTip = null; return; }   // 아이콘 상세 팝업이 열려 있으면 어디를 눌러도 닫기만 한다
+  { const hit = (state === 'play' || state === 'upgrade') ? ICON_HITS.find(r => inRect(x, y, r)) : null; if (hit) { iconTip = { tip: hit.tip, x: hit.x, y: hit.y, t0: T }; sfx('hit'); return; } }
   if (state === 'account') { accountClick(x, y); return; }
   if (state === 'info') { infoClick(x, y); return; }
   if (state === 'title') {
@@ -3565,18 +3567,34 @@ function debuffList(u) {
   const o = [], isP = u === P, a = isP ? u.act : null;
   const stun = isP ? (a && a.type === 'stun' ? Math.max(0, a.dur - a.t) : 0) : (u.state === 'stun' ? Math.max(0, u.t) : 0);
   const hurt = isP ? (a && a.type === 'hurt' ? Math.max(0, a.dur - a.t) : 0) : (u.state === 'hit' ? Math.max(0, u.t) : 0);
-  if (stun > 0) o.push({ k: 'stun', t: stun }); else if (hurt > 0) o.push({ k: 'hurt', t: hurt });
-  if (u.slowT > 0) o.push({ k: 'slow', t: u.slowT });
-  if ((u.drN || 0) > 0) o.push({ k: 'resist', n: Math.min(u.drN, DR_STEPS.length), t: u.drN >= DR_STEPS.length ? Math.max(0, u.drT || 0) : 0, busy: u.drBusy > 0 });
+  const remS = () => isP ? (u.act && u.act.type === 'stun' ? Math.max(0, u.act.dur - u.act.t) : 0) : (u.state === 'stun' ? Math.max(0, u.t) : 0), remH = () => isP ? (u.act && u.act.type === 'hurt' ? Math.max(0, u.act.dur - u.act.t) : 0) : (u.state === 'hit' ? Math.max(0, u.t) : 0);
+  if (stun > 0) o.push({ k: 'stun', t: stun, tip: () => ({ title: '스턴', col: '255,225,74', lines: ['이동·공격·회피를 할 수 없는 상태입니다.', '남은 시간 ' + remS().toFixed(1) + '초'] }) });
+  else if (hurt > 0) o.push({ k: 'hurt', t: hurt, tip: () => ({ title: '경직 (히트 리커버리)', col: '255,154,74', lines: ['공격을 맞아 잠시 행동할 수 없는 상태입니다.', '남은 시간 ' + remH().toFixed(1) + '초'] }) });
+  if (u.slowT > 0) o.push({ k: 'slow', t: u.slowT, tip: () => ({ title: '둔화', col: '127,208,255', lines: ['이동속도가 감소했습니다.', '남은 시간 ' + Math.max(0, u.slowT).toFixed(1) + '초'] }) });
+  if ((u.drN || 0) > 0) o.push({ k: 'resist', n: Math.min(u.drN, DR_STEPS.length), t: u.drN >= DR_STEPS.length ? Math.max(0, u.drT || 0) : 0, busy: u.drBusy > 0, tip: () => { const n = Math.min(u.drN || 0, DR_STEPS.length); return { title: '상태 이상 저항  ' + n + ' / ' + DR_STEPS.length + '회', col: '201,160,255', lines: ['경직·스턴·둔화를 겪을수록 지속시간이 줄어듭니다.', '효율  1회 100% → 2회 80% → 3회 60% → 4회 40% → 5회 이후 20%', '다음 상태 이상의 효율  ' + Math.round(DR_STEPS[Math.min(u.drN || 0, DR_STEPS.length - 1)] * 100) + '%', (u.drN || 0) >= DR_STEPS.length ? '초기화까지 ' + Math.ceil(Math.max(0, u.drT || 0)) + '초' : '5회가 되면 60초 뒤 초기화됩니다', u.drBusy > 0 ? '지금 걸린 상태 이상이 끝난 뒤 새로 걸릴 때 다음 횟수로 넘어갑니다.' : ''].filter(Boolean) }; } });
   return o;
 }
 const DEBUFF_W = 26;
+const BUFF_DESC = { guard: '3단 공격이 적중하면 방어력이 올라갑니다 (관우).', ultGuard: '궁극기를 쓰는 동안과 그 직후 방어력이 올라갑니다.', run: '3단 공격 성공 시 이동속도가 올라갑니다 (여포 상마 · 질주).', atk: '3단 콤보를 끝까지 성공시키면 공격력이 올라갑니다 (전위).', postAtk: '궁극기 사용 후 공격력이 올라갑니다.', spd: '궁극기 사용 후 공격속도가 올라갑니다.', aspd: '3단 공격이 성공하면 공격속도가 올라갑니다.', floor: '전투당 1회, 지속 시간 동안 생명력이 1 밑으로 내려가지 않습니다 (전위).', undy: '불사의 광기: 공격력 증가와 흡혈 (전위).', bless: '월하 축복: 아군의 공격력·방어력이 올라갑니다 (초선).' };
+const BCHIP_DESC = { '강': '체력이 줄어 보스가 강해진 단계입니다. 단계가 오를수록 아래 효과가 커집니다.', '피': '보스 공격의 피해가 증가했습니다.', '속': '보스 스킬의 시전(선딜·후딜)이 빨라졌습니다.', '쿨': '스킬과 스킬 사이의 대기 시간이 줄었습니다.', '연': '스킬이 끝난 뒤 곧바로 다음 스킬을 이어서 쓸 확률입니다.', '갑': '슈퍼아머: 일반 공격에는 경직되지 않습니다 (스턴은 가능).', '난': '웨이브 난이도 단계입니다 (몬스터 체력·피해 배율).', '페': '보스 페이즈입니다.' };
+// 아이콘을 누르면 상세 정보 팝업 (모든 모드 공통): 그리는 동안 탭 영역(ICON_HITS)을 모으고, 눌린 아이콘의 tip() 을 팝업으로 보여줌
+let ICON_HITS = [], iconTip = null;
+function wrapStr(str, w, font) { ctx.font = font; const out = []; let cur = ''; for (const ch of str) { if (ctx.measureText(cur + ch).width > w && cur) { out.push(cur); cur = ch; } else cur += ch; } if (cur) out.push(cur); return out; }
+function drawIconTip() {
+  if (!iconTip) return; if (T - iconTip.t0 > 6) { iconTip = null; return; }
+  const tp = iconTip.tip(), w = 270, lines = []; for (const l of tp.lines) lines.push(...wrapStr(l, w - 28, '500 12.5px ' + FONT));
+  const h = 40 + lines.length * 18 + 8; let x = clamp(iconTip.x, 8, W - w - 8), y = iconTip.y + 34; if (y + h > H - 8) y = iconTip.y - h - 6;
+  ctx.save(); ctx.fillStyle = 'rgba(12,10,24,.96)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgb(' + (tp.col || '255,211,77') + ')'; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h); ctx.fillStyle = 'rgb(' + (tp.col || '255,211,77') + ')'; ctx.fillRect(x, y, 5, h);
+  ctx.restore(); text(tp.title, x + 16, y + 25, 15, '#ffe9a0', 'left'); lines.forEach((l, i) => text(l, x + 16, y + 46 + i * 18, 12.5, '#e6e9f5', 'left', false));
+  text('아무 곳이나 누르면 닫힙니다', x + w - 8, y + h - 6, 9.5, 'rgba(255,255,255,.4)', 'right', false);
+}
 const BUFF_GLYPH = { wine: '술', hit: '연', guard: '방', ultGuard: '방', run: '질', atk: '공', postAtk: '공', spd: '속', aspd: '속', floor: '불', undy: '광', bless: '복' };   // 버프 아이콘 글자
 function drawIconItems(list, x, y, noLabel) {   // (x, y) 부터 오른쪽으로 21px 아이콘(버프·디버프) + 남은 시간(작은 글씨)
   if (!list.length) return 0;
   list.forEach((d, i) => {
     const ix = x + i * DEBUFF_W, cx = ix + 10, cy = y + 10;
     const col = (d.k === 'buff' || d.k === 'bchip') ? 'rgb(' + d.rgb + ')' : d.k === 'stun' ? '#ffe14a' : d.k === 'hurt' ? '#ff9a4a' : d.k === 'slow' ? '#7fd0ff' : '#c9a0ff';
+    if (d.tip) ICON_HITS.push({ x: ix - 3, y: y - 3, w: 27, h: 27, tip: d.tip });
     ctx.fillStyle = 'rgba(10,12,20,.82)'; ctx.fillRect(ix, y, 21, 21); ctx.strokeStyle = col; ctx.lineWidth = d.k === 'resist' && d.busy ? 2.2 : 1.4; ctx.strokeRect(ix + 0.5, y + 0.5, 20, 20);
     ctx.save(); ctx.translate(cx + 0.5, cy + 0.5); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
     if (d.k === 'buff' || d.k === 'bchip') { ctx.globalAlpha = 0.3; ctx.fillRect(-8.5, -8.5, 17, 17); ctx.globalAlpha = 1; ctx.font = '800 12px ' + FONT; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(d.g || BUFF_GLYPH[d.id] || '+', 0, 4.2); }
@@ -3592,7 +3610,7 @@ function drawIconItems(list, x, y, noLabel) {   // (x, y) 부터 오른쪽으로
 }
 const drawDebuffIcons = (u, x, y) => drawIconItems(debuffList(u), x, y);
 function drawRowBuffs(u, H, mine, x, y) {   // 영웅 줄 옆: 버프·디버프 아이콘 + 남은 시간만 (모든 영웅 동일)
-  const bl = buffInfoOf(u, H), items = [...debuffList(u), ...bl.map(b => ({ k: 'buff', id: b.id, rgb: b.rgb, t: b.left }))], dw = items.length * DEBUFF_W;
+  const bl = buffInfoOf(u, H), items = [...debuffList(u), ...bl.map(b => ({ k: 'buff', id: b.id, rgb: b.rgb, t: b.left, tip: () => { const cur = buffInfoOf(u, H).find(q => q.id === b.id) || b; return { title: cur.t, col: b.rgb, lines: [BUFF_DESC[b.id] || '', '남은 시간 ' + Math.max(0, cur.left).toFixed(1) + '초'].filter(Boolean) }; } }))], dw = items.length * DEBUFF_W;
   if (items.length) drawIconItems(items, mine ? x + 206 : x - 6 - dw, y + 1);
   // 상세 버프 설명(텍스트)은 하단 상세 정보에서 (조작 영웅)
 }
@@ -4029,7 +4047,7 @@ function drawTopInfo(boss) {
   ctx.restore();
   if (boss) {   // 2번째 줄: 보스가 받은 디버프 + 보스 강화·버프 — 약식 아이콘 (아이콘 아래 = 수치 / 남은 시간)
     const GL = [[/^강화 (\d+)\/(\d+)/, '강', m => m[1] + '/' + m[2]], [/^피해 (.+)$/, '피', m => m[1]], [/^시전속도 (.+)$/, '속', m => m[1]], [/^스킬 대기 (.+)$/, '쿨', m => m[1]], [/^연속 패턴 (.+)$/, '연', m => m[1]], [/^슈퍼아머/, '갑', () => ''], [/^난이도 (\d+)/, '난', m => m[1]], [/^(\d)페이즈/, '페', m => m[1]]];
-    const bi = bossBuffChips(boss).map(c => { for (const [re, g, f] of GL) { const m = re.exec(c.t); if (m) return { k: 'bchip', g, lab: f(m), rgb: c.c, t: 0 }; } return { k: 'bchip', g: '+', lab: '', rgb: c.c, t: 0 }; });
+    const bi = bossBuffChips(boss).map(c => { for (const [re, g, f] of GL) { const m = re.exec(c.t); if (m) return { k: 'bchip', g, lab: f(m), rgb: c.c, t: 0, tip: () => { const cc = bossBuffChips(boss).find(q => re.test(q.t)) || c; return { title: '보스 · ' + cc.t, col: c.c, lines: [BCHIP_DESC[g] || ''].filter(Boolean) }; } }; } return { k: 'bchip', g: '+', lab: '', rgb: c.c, t: 0, tip: () => ({ title: c.t, col: c.c, lines: [] }) }; });
     const items = [...debuffList(boss), ...bi], wI = items.length * DEBUFF_W - (DEBUFF_W - 21);
     drawIconItems(items, W / 2 - wI / 2, 53);
   }
@@ -4548,7 +4566,7 @@ function drawSpeedLines() {
   ctx.restore();
 }
 function render() {
-  ctx.clearRect(0, 0, W, H);
+  ctx.clearRect(0, 0, W, H); ICON_HITS = []; if (iconTip && !(state === 'play' || state === 'upgrade')) iconTip = null;
   if (state === 'account') { drawAccount(); return; }
   if (state === 'info') { drawInfo(); return; }
   if (state === 'title') { drawTitle(); if (!helpOpen) drawLobbyAccount(); return; }
@@ -4557,7 +4575,7 @@ function render() {
   if (state === 'raidMenu') { raidMsgT = Math.max(0, raidMsgT - 1 / 60); drawRaidMenu(); return; }
   if (state === 'waves') { drawWaves(); return; }
   if (state === 'upgrade') { drawWorld(); drawHUD(); drawUpgrade(); return; }
-  drawWorld(); drawSpeedLines(); drawTagOverlay(); drawHUD(); if (state === 'play') { if (MINIMAP_ON) drawMinimap(); drawHeroPointer(); drawTutorial(); }
+  drawWorld(); drawSpeedLines(); drawTagOverlay(); drawHUD(); drawIconTip(); if (state === 'play') { if (MINIMAP_ON) drawMinimap(); drawHeroPointer(); drawTutorial(); }
   if (flashT > 0) { ctx.fillStyle = `rgba(255,255,255,${Math.min(0.8, flashT * 2)})`; ctx.fillRect(0, 0, W, H); }
   if (paused && state === 'play') drawPauseOverlay();
   if (mode === 'duel' && duel) { if (state === 'win' && winT > 1.0 || state === 'lose' && winT > 0.6) drawOverlay(duel.title, duel.sub, duel.col); }
