@@ -2963,9 +2963,9 @@ function wrapLeft(str, x, y, maxW, size, col, maxLines = 2, lh = size + 3) {
 }
 const PICK_NOTE = id => id === 'lubu' ? '상마: ' + HEROES.lubu.sub + ' · ' + HEROES.lubu.sub2 + '  /  하마: ' + HEROES.lubu2.sub : HEROES[id].sub + (HEROES[id].sub2 ? ' · ' + HEROES[id].sub2 : '');
 // ===== 새 장수 선택 화면 (왼쪽 영웅 목록 · 가운데 영웅 · 오른쪽 정보 패널 · 아래 파티 슬롯 + 시작) — 온라인 대전만 아래 기존 화면을 쓴다 =====
-const newPickUI = () => !(pickFor === 'duel' && pickOnline);
+const newPickUI = () => true;   // 모든 모드(온라인 대전 포함)가 같은 장수 선택 화면을 쓴다
 let pickFocus = null, pickTab = 0;
-const PK = { back: { x: 14, y: 14, w: 56, h: 56 }, list: i => ({ x: 22, y: 92 + i * 80, w: 184, h: 72 }), arrL: { x: 224, y: 270, w: 42, h: 84 }, arrR: { x: 598, y: 270, w: 42, h: 84 }, toggle: { x: 262, y: 520, w: 340, h: 46 }, tab: i => ({ x: 700 + i * 172, y: 184, w: 160, h: 38 }), slot: i => ({ x: 24 + i * 162, y: 604, w: 152, h: 100 }), go: { x: W - 304, y: 610, w: 280, h: 86 }, panel: { x: 680, y: 92, w: 576, h: 484 } };
+const PK = { back: { x: 14, y: 14, w: 56, h: 56 }, list: i => ({ x: 22, y: 92 + i * 80, w: 184, h: 72 }), arrL: { x: 224, y: 270, w: 42, h: 84 }, arrR: { x: 598, y: 270, w: 42, h: 84 }, toggle: { x: 262, y: 520, w: 340, h: 46 }, tab: i => ({ x: 700 + i * 172, y: 184, w: 160, h: 38 }), slot: i => ({ x: 24 + i * 162, y: 604, w: 152, h: 100 }), go: { x: W - 304, y: 610, w: 280, h: 86 }, on: { url: { x: 530, y: 600, w: 200, h: 34 }, create: { x: 738, y: 600, w: 100, h: 34 }, join: { x: 846, y: 600, w: 100, h: 34 } }, panel: { x: 680, y: 92, w: 576, h: 484 } };
 function backBtn(b) { ctx.fillStyle = 'rgba(10,8,20,.8)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2.5; ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(b.x + b.w / 2 + 7, b.y + 14); ctx.lineTo(b.x + b.w / 2 - 7, b.y + b.h / 2); ctx.lineTo(b.x + b.w / 2 + 7, b.y + b.h - 14); ctx.stroke(); }
 const pickSlotLabels = () => (pickFor === 'duel' || pickFor === 'raid') ? ['조작', '아군 AI', '아군 AI'] : ['시작', '태그 Z', '태그 X'];
 function pickCycleFocus(d) { const i = Math.max(0, HERO_IDS.indexOf(pickFocus || HERO_IDS[0])); pickFocus = HERO_IDS[(i + d + HERO_IDS.length) % HERO_IDS.length]; sfx('hit'); }
@@ -2976,21 +2976,40 @@ function pickClickNew(x, y) {
   if (inRect(x, y, PK.toggle)) { togglePick(pickFocus || HERO_IDS[0]); sfx('hit'); return; }
   for (let i = 0; i < 2; i++) if (inRect(x, y, PK.tab(i))) { pickTab = i; sfx('hit'); return; }
   for (let i = 0; i < 3; i++) if (inRect(x, y, PK.slot(i))) { if (duelPick[i]) { pickFocus = duelPick[i]; if (duelPick.length > 0) { togglePick(duelPick[i]); } } sfx('hit'); return; }
+  if (pickFor === 'duel' && pickOnline) {   // 온라인 대전: 서버 · 방 만들기 · 방 참가 · 대전 시작
+    if (!NET.ws && inRect(x, y, PK.on.url)) { netPromptUrl(); return; }
+    if (!NET.ws && duelPick.length >= 1 && inRect(x, y, PK.on.create)) { netCreate(); return; }
+    if (!NET.ws && duelPick.length >= 1 && inRect(x, y, PK.on.join)) { netPromptJoin(); return; }
+    if (NET.role === 'host' && inRect(x, y, PK.go)) netStartHost();
+    return;
+  }
   if (inRect(x, y, PK.go) && duelPick.length >= pickNeed()) pickStart();
 }
 function pickKeyNew(code) {
   const m = /^Digit([1-6])$/.exec(code); if (m) { pickFocus = HERO_IDS[+m[1] - 1]; togglePick(pickFocus); return; }
   if (code === 'ArrowLeft' || code === 'ArrowUp') pickCycleFocus(-1); else if (code === 'ArrowRight' || code === 'ArrowDown') pickCycleFocus(1);
   else if (code === 'Space') togglePick(pickFocus || HERO_IDS[0]); else if (code === 'Tab' || code === 'KeyF') pickTab = 1 - pickTab;
-  else if (code === 'Enter') { if (duelPick.length >= pickNeed()) pickStart(); } else if (code === 'Escape') pickBack();
+  else if (code === 'Enter') { if (pickFor === 'duel' && pickOnline) netStartHost(); else if (duelPick.length >= pickNeed()) pickStart(); } else if (code === 'Escape') pickBack();
+}
+function drawPickOnline() {   // 아래 가운데: 서버 · 방 만들기 · 방 참가 / 방 코드·상태 / 상대 팀(적용 레벨)
+  const L = PK.on, busy = !!NET.ws, none = duelPick.length < 1;
+  const bx = (r, label, col, dis, sz) => { ctx.globalAlpha = dis ? 0.45 : 1; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h); text(fitStr(label, r.w - 12, sz), r.x + r.w / 2, r.y + r.h / 2 + 5, sz, col, 'center'); ctx.globalAlpha = 1; };
+  bx(L.url, '서버: ' + NET.url.replace(/^wss?:\/\//, ''), '#9ad4ff', busy, 12); bx(L.create, '방 만들기', '#7dff9a', busy || none, 15); bx(L.join, '방 참가', '#4fb0ff', busy || none, 15);
+  if (NET.code) { text('방 코드  ' + NET.code, 530, 662, 21, '#ffd34d', 'left'); if (NET.status) text(fitStr(NET.status, 240, 12), 706, 662, 12, '#ffe9a0', 'left', false); }
+  else text(fitStr(NET.status || '방을 만들거나 친구의 방 코드로 참가하세요', 430, 13), 530, 660, 13, '#ffe9a0', 'left', false);
+  const lvT = NET.paired ? netLvTable(NET.team, NET.peerTeam) : {};
+  text('상대 팀', 530, 694, 12, '#ff9a8a', 'left');
+  if (NET.paired && NET.peerTeam.length) NET.peerTeam.forEach((fid, i) => { const x = 612 + i * 118, ap = lvT[fid] || 1, og = (NET.peerLv || {})[fid] || 1; ctx.save(); ctx.beginPath(); ctx.arc(x, 688, 17, 0, TAU); ctx.clip(); ctx.translate(x, 691); ctx.scale(0.6, 0.6); drawPortraitIcon(HEROES[fid], 0, 0); ctx.restore(); ctx.strokeStyle = '#ff6a5a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, 688, 17, 0, TAU); ctx.stroke(); text('Lv ' + ap, x + 22, 693, 13, '#fff', 'left'); if (og !== ap) text('(원 ' + og + ')', x + 22, 706, 10, '#9aa3b8', 'left', false); });
+  else text(NET.paired ? '상대가 영웅을 고르는 중...' : '상대가 방에 들어오면 상대 팀의 영웅과 레벨이 표시됩니다', 612, 693, 12, '#8a90a6', 'left', false);
+  if (NET.role === 'guest' && NET.paired) text('방장이 대전을 시작하기를 기다리는 중...', 530, 640, 13, '#ffe9a0', 'left', false);
 }
 function drawPickNew() {
   if (!pickFocus) pickFocus = duelPick[0] || HERO_IDS[0];
   drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.62)'; ctx.fillRect(0, 0, W, H);
   const duelP = pickFor === 'duel', id = pickFocus, h = HEROES[id], inT = duelPick.indexOf(id), rec = ACC ? heroRec(ACC, id) : { lv: 1, xp: 0 }, lv = rec.lv;
   backBtn(PK.back);
-  const ttl = pickFor === 'raid' ? '레이드  ·  여포 봉선' : pickFor === 'duel' ? '비무장 모드 (오프라인)' : '로그라이크  ·  W' + waveSel + '부터';
-  text(ttl, 90, 40, 24, '#ffd34d', 'left'); text('장수 선택  —  최대 3명 · ' + (pickFor === 'yeonui' ? '선택한 순서대로 시작 영웅과 태그(Z/X/C)' : '첫 번째 영웅을 직접 조작, 나머지는 AI 동료'), 90, 62, 13, '#cfd3e6', 'left', false);
+  const ttl = pickFor === 'raid' ? '레이드  ·  여포 봉선' : pickFor === 'duel' ? '비무장 모드 (' + (pickOnline ? '온라인' : '오프라인') + ')' : '로그라이크  ·  W' + waveSel + '부터';
+  text(ttl, 90, 40, 24, '#ffd34d', 'left'); text('장수 선택  —  최대 3명 · ' + (pickFor === 'yeonui' ? '선택한 순서대로 시작 영웅과 태그(Z/X/C)' : '첫 번째 영웅을 직접 조작, 나머지는 AI 동료') + (pickFor === 'duel' && pickOnline ? '  ·  같은 영웅이 양 팀에 있으면 낮은 쪽 레벨로 맞춰 적용' : ''), 90, 62, 13, '#cfd3e6', 'left', false);
   // 왼쪽 영웅 목록
   HERO_IDS.forEach((hid, i) => {
     const r = PK.list(i), hh = HEROES[hid], foc = hid === id, k = duelPick.indexOf(hid), rc = ACC ? heroRec(ACC, hid) : { lv: 1 };
@@ -3030,10 +3049,11 @@ function drawPickNew() {
     if (hid) { ctx.save(); ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 54, 22, 0, TAU); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + 58); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[hid], 0, 0); ctx.restore(); text(PC_NAME[hid] + '  Lv ' + (ACC ? heroRec(ACC, hid).lv : 1), r.x + r.w / 2, r.y + 92, 13, '#fff', 'center', false); }
     else text('+', r.x + r.w / 2, r.y + 66, 38, 'rgba(255,255,255,.3)', 'center');
   }
-  if (duelP) { foeSync(); text('상대 (AI)', 560, 624, 12, '#ff9a8a', 'left'); duelFoes.forEach((fid, i) => { const x = 590 + i * 70; ctx.save(); ctx.beginPath(); ctx.arc(x, 664, 22, 0, TAU); ctx.clip(); ctx.translate(x, 668); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[fid], 0, 0); ctx.restore(); ctx.strokeStyle = '#ff6a5a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, 664, 22, 0, TAU); ctx.stroke(); text('Lv ' + (ACC ? heroRec(ACC, fid).lv : 1), x, 702, 11, '#cfd3e6', 'center', false); }); if (!duelFoes.length) text('영웅을 고르면 상대 팀이 표시됩니다', 560, 664, 13, '#8a90a6', 'left', false); }
+  if (duelP && pickOnline) drawPickOnline();
+  else if (duelP) { foeSync(); text('상대 (AI)', 560, 624, 12, '#ff9a8a', 'left'); duelFoes.forEach((fid, i) => { const x = 590 + i * 70; ctx.save(); ctx.beginPath(); ctx.arc(x, 664, 22, 0, TAU); ctx.clip(); ctx.translate(x, 668); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[fid], 0, 0); ctx.restore(); ctx.strokeStyle = '#ff6a5a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, 664, 22, 0, TAU); ctx.stroke(); text('Lv ' + (ACC ? heroRec(ACC, fid).lv : 1), x, 702, 11, '#cfd3e6', 'center', false); }); if (!duelFoes.length) text('영웅을 고르면 상대 팀이 표시됩니다', 560, 664, 13, '#8a90a6', 'left', false); }
   else text(pickFor === 'raid' ? '보스 : 여포 봉선 (8단계)' : '시작 웨이브 W' + waveSel, 560, 650, 15, '#ffb27a', 'left', false);
-  { const g = PK.go, ok = duelPick.length >= pickNeed(); ctx.globalAlpha = ok ? 1 : 0.4; ctx.fillStyle = 'rgba(80,24,18,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3.5; ctx.strokeRect(g.x, g.y, g.w, g.h);
-    text(duelP ? '전투 시작' : pickFor === 'raid' ? '레이드 시작' : '출전', g.x + g.w / 2, g.y + 40, 30, '#ffe9a0', 'center'); text(duelPick.length + ' / 3 선택  ·  Enter', g.x + g.w / 2, g.y + 68, 13, '#ffd9a0', 'center', false); ctx.globalAlpha = 1; }
+  { const g = PK.go, on = duelP && pickOnline, ok = on ? (NET.role === 'host' && NET.paired && netReady()) : duelPick.length >= pickNeed(); ctx.globalAlpha = ok ? 1 : 0.4; ctx.fillStyle = 'rgba(80,24,18,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3.5; ctx.strokeRect(g.x, g.y, g.w, g.h);
+    text(on ? (NET.role === 'guest' && NET.paired ? '방장 대기 중' : '대전 시작') : duelP ? '전투 시작' : pickFor === 'raid' ? '레이드 시작' : '출전', g.x + g.w / 2, g.y + 40, 30, '#ffe9a0', 'center'); text(duelPick.length + ' / 3 선택  ·  Enter', g.x + g.w / 2, g.y + 68, 13, '#ffd9a0', 'center', false); ctx.globalAlpha = 1; }
 }
 function drawPick() {
   if (newPickUI()) { drawPickNew(); return; }
