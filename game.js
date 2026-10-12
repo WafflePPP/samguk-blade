@@ -4012,7 +4012,6 @@ function drawTopInfo(boss) {
   segs.push({ k: 'txt', t: RAID ? '레이드' : '로그라이크 W' + (waveIdx + 1) + '/' + WAVES.length, f: '700 14px ' + FONT, c: '#fff' });
   if (boss) {
     segs.push({ k: 'sep' }); segs.push({ k: 'txt', t: boss.d.name, f: '700 15px ' + FONT, c: '#ffe9a0' });
-    for (const c of bossBuffChips(boss)) segs.push({ k: 'pill', t: short(c.t), c: c.c });
   }
   segs.push({ k: 'sep' });
   const w = curWave(), mm = Math.floor(clock / 60), ss = String(Math.floor(clock % 60)).padStart(2, '0');
@@ -4028,6 +4027,12 @@ function drawTopInfo(boss) {
     x += sg.w + gap;
   }
   ctx.restore();
+  if (boss) {   // 2번째 줄: 보스 강화·버프 알약
+    const chips = bossBuffChips(boss).map(c => ({ t: short(c.t), c: c.c }));
+    ctx.save(); ctx.font = '600 11px ' + FONT; const pad = 7, g2 = 5, hh = 18, ws2 = chips.map(c => ctx.measureText(c.t).width + pad * 2), tot2 = ws2.reduce((a, v) => a + v, 0) + g2 * Math.max(0, chips.length - 1); let px = W / 2 - tot2 / 2; const py = 54;
+    chips.forEach((c, i) => { ctx.fillStyle = 'rgba(10,12,20,.78)'; ctx.fillRect(px, py, ws2[i], hh); ctx.strokeStyle = 'rgba(' + c.c + ',.85)'; ctx.lineWidth = 1.2; ctx.strokeRect(px + 0.5, py + 0.5, ws2[i] - 1, hh - 1); ctx.fillStyle = 'rgb(' + c.c + ')'; ctx.textAlign = 'center'; ctx.fillText(c.t, px + ws2[i] / 2, py + 13); px += ws2[i] + g2; });
+    ctx.restore();
+  }
 }
 function drawBossBuffs(b, cx, y) {
   const chips = bossBuffChips(b); if (!chips.length) return;
