@@ -859,6 +859,36 @@ function ring(x, y, r, dur, color, lw = 8) { fx.push({ k: 'ring', x, y, r, t: 0,
 function arcFx(x, y, face, r, half, dur, color, dir) { fx.push({ k: 'arc', x, y, face, r, half, t: 0, dur, color, dir }); }
 function sparks(x, y, n, color, spd = 300, life = 0.4) { for (let i = 0; i < n; i++) { const a = rand(0, TAU), s = rand(spd * .3, spd); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0, dur: rand(life * .5, life), color, sz: rand(2, 5) }); } }
 function ghost(x, y, face, hero, extra) { fx.push({ k: 'ghost', x, y, face, hero, t: 0, dur: 0.3, ...extra }); }
+// ---------- 타격 이펙트: 장수의 무기·주문 컨셉별 HIT 연출 ----------
+//  관우 청룡언월도 = 비취빛 초승달 베기 / 상마 방천화극 = 붉은 사선 난도 + 균열 / 하마·조운 창·화극 = 관통 직선 / 초선 = 꽃잎 소용돌이 / 전위 쌍철극 = 엑스(X) 참격 + 충격파 / 황충 활 = 금빛 방사형 화살 충격
+const HIT_STYLE = { guan: 'blade', lubu: 'heavy', lubu2: 'pierce', zhao: 'pierce', diao: 'petal', dian: 'twin', huang: 'arrow' };
+const HIT_COL = { guan: ['#aaffe6', '#2fd0a0'], lubu: ['#ffb27a', '#c9302c'], lubu2: ['#ff8a7a', '#9a1c1c'], zhao: ['#f4fbff', '#7fd0ff'], diao: ['#ffd0ea', '#ff6aa8'], dian: ['#ffd29a', '#ff6a2a'], huang: ['#fff0b0', '#ffb030'] };
+function hitFx(e, o, crit, big) {
+  const hid = o.ai ? (o.by && o.by.hero) : HERO.id, st = HIT_STYLE[hid]; if (!st || fx.length > 260) return;
+  const ang = o.from ? angTo(o.from, e) : 0, c = HIT_COL[hid], x = e.x, y = e.y - e.r, sz = (big ? 1.45 : 1) * (crit ? 1.2 : 1) * Math.max(0.8, Math.min(1.6, e.r / 26));
+  fx.push({ k: 'hfx', st, x, y, ang, t: 0, dur: big ? 0.36 : 0.27, sz, c1: c[0], c2: c[1], sd: Math.random() * TAU });
+  const n = big ? 9 : 5, fwd = o.from ? ang : rand(0, TAU);
+  if (st === 'heavy' || st === 'twin') { for (let i = 0; i < n; i++) { const a = fwd + rand(-0.9, 0.9), sp = rand(200, 520); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.25, 0.5), color: i % 2 ? c[0] : c[1], sz: rand(3, 6) }); } if (big) ring(e.x, e.y, 70 * sz, 0.28, c[1], 6); if (!o.ai) { P.freeze = Math.max(P.freeze, big ? 0.075 : 0.05); doShake(big ? 6 : 4); } }
+  else if (st === 'pierce') { for (let i = 0; i < n; i++) { const a = fwd + rand(-0.25, 0.25), sp = rand(380, 780); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.2, 0.4), color: i % 2 ? c[0] : c[1], sz: rand(2, 4) }); } streak(x - Math.cos(ang) * 30, y - Math.sin(ang) * 30, ang, 110 * sz, 4, 0.2, c[0]); }
+  else if (st === 'blade') { for (let i = 0; i < n; i++) { const a = ang + Math.PI / 2 * (i % 2 ? 1 : -1) + rand(-0.4, 0.4), sp = rand(240, 520); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.25, 0.45), color: i % 2 ? c[0] : c[1], sz: rand(2, 5) }); } }
+  else if (st === 'petal') { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(80, 260); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, t: 0, dur: rand(0.4, 0.7), color: i % 2 ? c[0] : c[1], sz: rand(3, 6) }); } }
+  else { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(260, 560); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.2, 0.4), color: i % 2 ? c[0] : c[1], sz: rand(2, 4) }); } if (big) ring(e.x, e.y, 60 * sz, 0.25, c[1], 4); }
+}
+function drawHitFx(f, p) {
+  const s = f.sz, e = 1 - (1 - p) * (1 - p);
+  ctx.save(); ctx.translate(f.x, f.y); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round'; ctx.globalAlpha = 1 - p;
+  const line = (x0, y0, x1, y1, w, col) => { ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, w); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); };
+  if (p < 0.35) { ctx.globalAlpha = (1 - p / 0.35) * 0.9; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 20 * s * (1 - p), 0, TAU); ctx.fill(); ctx.globalAlpha = 1 - p; }
+  switch (f.st) {
+    case 'blade': ctx.rotate(f.ang); ctx.strokeStyle = f.c2; ctx.lineWidth = 9 * s * (1 - p) + 1; ctx.beginPath(); ctx.arc(-34 * s, 0, 66 * s * (0.55 + 0.45 * e), -0.95, 0.95); ctx.stroke(); ctx.strokeStyle = f.c1; ctx.lineWidth = 3.5 * s * (1 - p) + 1; ctx.beginPath(); ctx.arc(-34 * s, 0, 66 * s * (0.55 + 0.45 * e), -0.8, 0.8); ctx.stroke(); break;
+    case 'heavy': ctx.rotate(f.ang); { const L = 70 * s * (0.4 + 0.6 * e); line(-L, -L * 0.8, L, L * 0.8, 11 * s * (1 - p), f.c2); line(-L * 0.8, -L * 0.6, L * 0.8, L * 0.6, 4 * s * (1 - p), f.c1); line(-L * 0.55, L * 0.7, L * 0.55, -L * 0.2, 6 * s * (1 - p), f.c2); } break;
+    case 'pierce': ctx.rotate(f.ang); { const L = 150 * s * e; line(-26 * s, 0, L, 0, 7 * s * (1 - p), f.c2); line(-14 * s, 0, L * 0.9, 0, 3 * s * (1 - p), f.c1); line(-4 * s, -11 * s, L * 0.55, -11 * s, 2.5 * s * (1 - p), f.c2); line(-4 * s, 11 * s, L * 0.55, 11 * s, 2.5 * s * (1 - p), f.c2); } break;
+    case 'petal': for (let i = 0; i < 8; i++) { const a = f.sd + i * 0.785 + p * 2.4, r = (14 + 64 * e) * s, px = Math.cos(a) * r, py = Math.sin(a) * r; ctx.save(); ctx.translate(px, py); ctx.rotate(a + 1.2); ctx.fillStyle = i % 2 ? f.c1 : f.c2; ctx.beginPath(); ctx.ellipse(0, 0, 11 * s * (1 - p * 0.5), 5 * s * (1 - p * 0.5), 0, 0, TAU); ctx.fill(); ctx.restore(); } line(-16 * s * (1 - p), 0, 16 * s * (1 - p), 0, 3, '#fff'); line(0, -16 * s * (1 - p), 0, 16 * s * (1 - p), 3, '#fff'); break;
+    case 'twin': ctx.rotate(f.ang + Math.PI / 4); { const L = 78 * s * (0.45 + 0.55 * e); line(-L, 0, L, 0, 10 * s * (1 - p), f.c2); line(0, -L, 0, L, 10 * s * (1 - p), f.c2); line(-L * 0.85, 0, L * 0.85, 0, 3.5 * s * (1 - p), f.c1); line(0, -L * 0.85, 0, L * 0.85, 3.5 * s * (1 - p), f.c1); } break;
+    default: for (let i = 0; i < 10; i++) { const a = f.sd + i * (TAU / 10), r0 = (10 + 22 * e) * s, r1 = r0 + (i % 2 ? 26 : 50) * s * (1 - p * 0.5); line(Math.cos(a) * r0, Math.sin(a) * r0, Math.cos(a) * r1, Math.sin(a) * r1, (i % 2 ? 2.5 : 4) * s * (1 - p), i % 2 ? f.c1 : f.c2); }
+  }
+  ctx.restore();
+}
 function dmgText(x, y, txt, col, size = 22) { dts.push({ x: x + rand(-12, 12), y, txt, col, size, t: 0 }); }
 function doShake(n) { shake = Math.max(shake, n); }
 
@@ -960,6 +990,7 @@ function hitEnemy(e, dmg, o = {}) {
   else if (recT > 0 && e.state !== 'stun') { e.t = e.state === 'hit' ? Math.max(e.t, recT) : recT; e.state = 'hit'; e.cur = null; }
   dmgText(e.x, e.y - e.r * 2.6, d, crit ? '#ffe14a' : '#ffffff', crit ? 32 : 22);
   sparks(e.x, e.y - e.r, crit ? 10 : 6, crit ? '#ffe14a' : '#fff4d0', 280);
+  hitFx(e, o, crit, crit || d >= 100 || !!o.stun || (o.kb || 0) >= 500);
   if (!o.ai) {   // (플레이어가 때렸을 때만) 분노·HIT·역경직·화면 흔들림. 비무장 모드에서는 분노 획득 x4
   if (mode === 'yeonui') RS.dmg[curHero] = (RS.dmg[curHero] || 0) + d;
   P.hits++; P.hitsT = 3; P.bestHits = Math.max(P.bestHits, P.hits);
@@ -3687,6 +3718,7 @@ function drawFx(layer) {
     }
     else if (f.k === 'spark' && layer === 1) { ctx.globalAlpha = 1 - p; ctx.fillStyle = f.color; ctx.fillRect(f.x - f.sz / 2, f.y - f.sz / 2, f.sz, f.sz); ctx.globalAlpha = 1; }
     else if (f.k === 'horse' && layer === 1) drawHorse({ x: f.x, y: f.y, r: f.r, face: Math.atan2(f.vy, f.vx), flash: 0, state: 'chase', walk: f.t * 14, spawnT: 0, alpha: 1 - clamp((f.t - 0.9) / 0.7, 0, 1), d: f.d || TYPES.boss }, 0);
+    else if (f.k === 'hfx' && layer === 1) drawHitFx(f, p);
     else if (f.k === 'beam' && layer === 1) { ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang); ctx.globalAlpha = 1 - p; ctx.fillStyle = '#fff3b0'; const w = f.w * (1 - p * 0.6); ctx.fillRect(-f.len, -w / 2, f.len * 2, w); ctx.restore(); }
     else if (f.k === 'streak' && layer === 1) { ctx.globalAlpha = (1 - p) * 0.9; ctx.strokeStyle = f.color; ctx.lineWidth = f.w; ctx.lineCap = 'round'; const ln = f.len * (0.6 + 0.4 * p); ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x + Math.cos(f.ang) * ln, f.y + Math.sin(f.ang) * ln); ctx.stroke(); ctx.globalAlpha = 1; }
     else if (f.k === 'fire' && layer === 1) {   // 바닥 불길: 커졌다가 위로 일렁이며 사라짐
