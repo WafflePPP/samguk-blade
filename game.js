@@ -72,7 +72,7 @@ addEventListener('keydown', e => {
   if (state === 'account') { accountKey(e.code); return; }
   if (state === 'info') { infoKey(e.code); return; }
   if (state === 'title' && e.code === 'KeyI') { openInfo(); return; }
-  if (state === 'title' && e.code === 'Escape') { state = 'account'; return; }
+  if (state === 'title' && e.code === 'Escape') { state = 'account'; accPopup = false; return; }
   if (state === 'waves') { wavesKey(e.code); return; }
   if (state === 'duelMenu') { duelMenuKey(e.code); return; }
   if (state === 'pick') { pickKey(e.code); return; }
@@ -152,7 +152,7 @@ cv.addEventListener('pointerdown', e => {
   const { x, y } = pt(e);
   if (state === 'account') { accountClick(x, y); return; }
   if (state === 'info') { infoClick(x, y); return; }
-  if (state === 'title') { if (inRect(x, y, ACC_BTN)) { state = 'account'; return; } if (inRect(x, y, INFO_BTN)) { openInfo(); return; } for (let i = 0; i < STAGE_HEROES.length; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[i === 0 ? 'yeonui' : 'duel'] = false; lobbySel = i; enterMode(i); return; } }
+  if (state === 'title') { if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; } if (inRect(x, y, INFO_BTN)) { openInfo(); return; } for (let i = 0; i < STAGE_HEROES.length; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[i === 0 ? 'yeonui' : 'duel'] = false; lobbySel = i; enterMode(i); return; } }
   if (state === 'waves') { wavesClick(x, y); return; }
   if (state === 'duelMenu') { duelMenuClick(x, y); return; }
   if (state === 'pick') { pickClick(x, y); return; }
@@ -750,12 +750,26 @@ function drawXpSummary() {   // 승패 화면: 이번 판 경험치 · 레벨업
   }
 }
 
-// ----- 계정 선택 화면 (로비 진입 전) -----
-const ACC_CARD = { w: 220, h: 300, gap: 18, y: 200 };
-const accRect = i => ({ x: W / 2 - (MAX_ACC * ACC_CARD.w + (MAX_ACC - 1) * ACC_CARD.gap) / 2 + i * (ACC_CARD.w + ACC_CARD.gap), y: ACC_CARD.y, w: ACC_CARD.w, h: ACC_CARD.h });
-const accBtnRen = i => { const r = accRect(i); return { x: r.x + 10, y: r.y + r.h - 42, w: 96, h: 30 }; }, accBtnDel = i => { const r = accRect(i); return { x: r.x + r.w - 106, y: r.y + r.h - 42, w: 96, h: 30 }; };
-function selectAcc(a) { ACC = a; saveSave(); state = 'title'; refreshMeta(); sfx('skill'); }
+// ----- 로그인 화면 + 계정 선택 팝업 (로비 진입 전) -----
+//  state === 'account' : 로그인 화면 (배경 = 삼국지 야영지 노을). [로그인] = 마지막 계정으로 입장 / [계정 선택] = 팝업 (계정 선택·생성·이름 변경·삭제)
+let accPopup = false;
+const LOGIN_BTN = { x: W / 2 - 180, y: 468, w: 360, h: 64 }, ACCSEL_BTN = { x: W / 2 - 180, y: 548, w: 360, h: 54 };
+const POP = { x: W / 2 - 400, y: 90, w: 800, h: 540 }, POP_ROW = { y: 186, h: 76, gap: 8 }, POP_CLOSE = { x: POP.x + POP.w - 46, y: POP.y + 10, w: 36, h: 36 };
+const accRect = i => ({ x: POP.x + 24, y: POP_ROW.y + i * (POP_ROW.h + POP_ROW.gap), w: POP.w - 48, h: POP_ROW.h });
+const accBtnRen = i => { const r = accRect(i); return { x: r.x + r.w - 214, y: r.y + r.h / 2 - 17, w: 98, h: 34 }; }, accBtnDel = i => { const r = accRect(i); return { x: r.x + r.w - 108, y: r.y + r.h / 2 - 17, w: 98, h: 34 }; };
+function selectAcc(a) { ACC = a; accPopup = false; saveSave(); state = 'title'; refreshMeta(); sfx('skill'); }
+function loginNow() {
+  if (ACC && SAVE.accounts.includes(ACC)) { selectAcc(ACC); return; }
+  if (SAVE.accounts.length === 1) { selectAcc(SAVE.accounts[0]); return; }
+  accPopup = true; sfx('skill');   // 계정이 없거나 마지막 계정이 없으면 팝업에서 고르거나 만든다
+}
 function accountClick(x, y) {
+  if (!accPopup) {
+    if (inRect(x, y, LOGIN_BTN)) { loginNow(); return; }
+    if (inRect(x, y, ACCSEL_BTN)) { accPopup = true; sfx('skill'); return; }
+    return;
+  }
+  if (inRect(x, y, POP_CLOSE) || !inRect(x, y, POP)) { accPopup = false; return; }
   for (let i = 0; i < MAX_ACC; i++) {
     const a = SAVE.accounts[i];
     if (a) {
@@ -765,24 +779,110 @@ function accountClick(x, y) {
     } else if (inRect(x, y, accRect(i))) { const nm = promptName('계정 ' + (SAVE.accounts.length + 1)); if (nm) { const na = newAcc(nm); SAVE.accounts.push(na); saveSave(); selectAcc(na); } return; }
   }
 }
-function accountKey(code) { const m = /^Digit([1-5])$/.exec(code); if (!m) return; const i = +m[1] - 1, a = SAVE.accounts[i]; if (a) selectAcc(a); else accountClick(accRect(i).x + 5, accRect(i).y + 5); }
+function accountKey(code) {
+  if (!accPopup) { if (code === 'Enter' || code === 'Space') loginNow(); else if (code === 'KeyA') { accPopup = true; sfx('skill'); } return; }
+  if (code === 'Escape') { accPopup = false; return; }
+  const m = /^Digit([1-5])$/.exec(code); if (!m) return; const i = +m[1] - 1, a = SAVE.accounts[i]; if (a) selectAcc(a); else accountClick(accRect(i).x + 5, accRect(i).y + 5);
+}
+// --- 배경: 노을 진 산맥 위의 야영지 (정적 층은 한 번만 그려 두고, 구름·깃발·모닥불·불씨만 매 프레임 움직임) ---
+let loginBg = null; const loginFx = { embers: [], clouds: null };
+function loginRng(seed) { let v = seed; return () => { v = (v * 16807) % 2147483647; return v / 2147483647; }; }
+function buildLoginBg() {
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), R = loginRng(77);
+  const sky = g.createLinearGradient(0, 0, 0, 470); sky.addColorStop(0, '#080b24'); sky.addColorStop(0.45, '#2b1a42'); sky.addColorStop(0.78, '#8c3a48'); sky.addColorStop(1, '#e58a4a'); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 140; i++) { g.globalAlpha = 0.25 + R() * 0.6; g.fillStyle = '#fff'; const sz = R() < 0.1 ? 2 : 1; g.fillRect(R() * W, R() * 260, sz, sz); } g.globalAlpha = 1;
+  const mg = g.createRadialGradient(930, 165, 20, 930, 165, 260); mg.addColorStop(0, 'rgba(255,240,200,.55)'); mg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = mg; g.fillRect(560, 0, 720, 460);
+  g.fillStyle = '#f6edcf'; g.beginPath(); g.arc(930, 165, 66, 0, TAU); g.fill(); g.fillStyle = 'rgba(190,170,130,.35)'; for (const [dx, dy, r] of [[-20, -10, 14], [18, 14, 10], [-6, 30, 8], [26, -22, 7]]) { g.beginPath(); g.arc(930 + dx, 165 + dy, r, 0, TAU); g.fill(); }
+  const ridge = (base, amp, col, seed, jag) => { const r = loginRng(seed), ph = [r() * 6, r() * 6, r() * 6]; g.fillStyle = col; g.beginPath(); g.moveTo(0, H); for (let x = 0; x <= W; x += 8) { const y = base - amp * (0.55 * Math.sin(x * 0.006 + ph[0]) + 0.3 * Math.sin(x * 0.015 + ph[1]) + 0.15 * Math.sin(x * 0.04 + ph[2])) - (jag ? Math.abs(Math.sin(x * 0.09 + ph[1])) * jag : 0); g.lineTo(x, y); } g.lineTo(W, H); g.closePath(); g.fill(); };
+  ridge(430, 70, '#4a2a4a', 11, 14); ridge(480, 60, '#2d1d3d', 23, 10);
+  // 멀리 보이는 성벽과 망루
+  g.fillStyle = '#241833'; g.fillRect(150, 440, 260, 30); for (let x = 150; x < 410; x += 20) g.fillRect(x, 432, 12, 10); g.fillRect(250, 392, 56, 78); g.beginPath(); g.moveTo(240, 394); g.lineTo(278, 366); g.lineTo(316, 394); g.closePath(); g.fill(); g.fillRect(268, 410, 20, 24);
+  ridge(540, 50, '#1a1228', 37, 8);
+  // 야영 천막
+  g.fillStyle = '#120c1e'; for (const [x, y, w, h] of [[520, 560, 90, 46], [640, 566, 74, 38], [1010, 556, 100, 50], [900, 568, 70, 34], [400, 572, 80, 40]]) { g.beginPath(); g.moveTo(x - w / 2, y); g.lineTo(x, y - h); g.lineTo(x + w / 2, y); g.closePath(); g.fill(); g.fillRect(x - 1, y - h - 12, 2, 12); }
+  // 오른쪽 언덕 위의 장수 (기마 실루엣 + 방천화극)
+  const hill = () => { g.fillStyle = '#0a0612'; g.beginPath(); g.moveTo(760, H); g.lineTo(790, 600); g.quadraticCurveTo(900, 520, 1040, 560); g.quadraticCurveTo(1180, 590, W, 560); g.lineTo(W, H); g.closePath(); g.fill(); }; hill();
+  g.save(); g.translate(930, 535); g.fillStyle = '#0a0612'; g.strokeStyle = '#0a0612'; g.lineCap = 'round';
+  g.beginPath(); g.ellipse(0, 0, 34, 15, -0.08, 0, TAU); g.fill();                 // 말 몸통
+  g.beginPath(); g.moveTo(26, -6); g.lineTo(46, -34); g.lineTo(58, -30); g.lineTo(48, -4); g.closePath(); g.fill();   // 목·머리
+  g.beginPath(); g.moveTo(-32, -4); g.quadraticCurveTo(-52, 6, -46, 28); g.lineWidth = 5; g.stroke();                   // 꼬리
+  g.lineWidth = 5; for (const [x0, x1] of [[-22, -28], [-10, -12], [14, 18], [26, 34]]) { g.beginPath(); g.moveTo(x0, 8); g.lineTo(x1, 38); g.stroke(); }   // 다리
+  g.fillRect(-6, -48, 14, 34);                                                  // 기수 몸
+  g.beginPath(); g.arc(1, -56, 7, 0, TAU); g.fill();                            // 머리
+  g.beginPath(); g.moveTo(-6, -60); g.lineTo(-14, -78); g.lineTo(-2, -64); g.closePath(); g.fill(); g.beginPath(); g.moveTo(8, -60); g.lineTo(18, -80); g.lineTo(4, -64); g.closePath(); g.fill();   // 투구 깃
+  g.lineWidth = 4; g.beginPath(); g.moveTo(14, -30); g.lineTo(34, -150); g.stroke();                                    // 방천화극 자루
+  g.lineWidth = 3; g.beginPath(); g.moveTo(30, -138); g.lineTo(46, -150); g.moveTo(38, -130); g.lineTo(50, -138); g.stroke(); g.beginPath(); g.moveTo(34, -150); g.lineTo(32, -176); g.lineTo(38, -150); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(-6, -40); g.quadraticCurveTo(-34, -30, -40, -4); g.lineTo(-14, -24); g.closePath(); g.fill();   // 휘날리는 망토
+  g.restore();
+  // 전경 풀숲
+  g.fillStyle = '#07040d'; for (let x = -10; x < W + 10; x += 14) { const h = 14 + loginRng(x + 500)() * 38; g.beginPath(); g.moveTo(x, H); g.lineTo(x + 4, H - h); g.lineTo(x + 8, H); g.closePath(); g.fill(); }
+  g.fillRect(0, H - 18, W, 18);
+  loginBg = c;
+}
+const LOGIN_FIRES = [[520, 566], [718, 572], [1012, 562], [360, 578]], LOGIN_BANNERS = [[330, 470, 62, '蜀', '#2f8f5b'], [560, 440, 70, '漢', '#a8321f'], [790, 500, 58, '魏', '#2f5f9f'], [1090, 470, 66, '吳', '#b8742a'], [210, 512, 54, '蜀', '#2f8f5b']];
+function drawLoginScene() {
+  if (!loginBg) buildLoginBg();
+  ctx.drawImage(loginBg, 0, 0);
+  // 구름
+  if (!loginFx.clouds) loginFx.clouds = Array.from({ length: 6 }, (_, i) => ({ x: i * 240, y: 70 + (i % 3) * 52, w: 260 + (i % 2) * 120, sp: 6 + i * 2.2 }));
+  for (const c of loginFx.clouds) { c.x += c.sp / 60; if (c.x > W + 200) c.x = -c.w - 100; const gr = ctx.createRadialGradient(c.x + c.w / 2, c.y, 4, c.x + c.w / 2, c.y, c.w / 2); gr.addColorStop(0, 'rgba(255,200,170,.22)'); gr.addColorStop(1, 'rgba(255,200,170,0)'); ctx.fillStyle = gr; ctx.save(); ctx.translate(c.x + c.w / 2, c.y); ctx.scale(1, 0.22); ctx.translate(-(c.x + c.w / 2), -c.y); ctx.fillRect(c.x, c.y - c.w / 2, c.w, c.w); ctx.restore(); }
+  // 깃발 (바람에 펄럭임)
+  for (const [x, y, ph, ch, col] of LOGIN_BANNERS) {
+    ctx.strokeStyle = '#0c0814'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y + 120); ctx.lineTo(x, y); ctx.stroke();
+    const wv = k => Math.sin(T * 3.2 + ph + k * 0.7) * (3 + k * 1.6); ctx.fillStyle = col; ctx.globalAlpha = 0.92; ctx.beginPath(); ctx.moveTo(x, y + 4);
+    for (let k = 0; k <= 5; k++) ctx.lineTo(x + k * 9 + 4, y + 4 + wv(k)); for (let k = 5; k >= 0; k--) ctx.lineTo(x + k * 9 + 4, y + 52 + wv(k)); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(255,240,200,.85)'; ctx.font = '700 22px ' + FONT; ctx.textAlign = 'center'; ctx.fillText(ch, x + 26, y + 36 + wv(3) * 0.5); ctx.textAlign = 'left';
+  }
+  // 모닥불: 불빛 + 불씨
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const [x, y] of LOGIN_FIRES) { const f = 0.75 + 0.25 * Math.sin(T * 11 + x) * Math.sin(T * 7.3 + y), gr = ctx.createRadialGradient(x, y - 10, 2, x, y - 10, 70 * f); gr.addColorStop(0, 'rgba(255,200,110,.75)'); gr.addColorStop(0.4, 'rgba(255,120,40,.3)'); gr.addColorStop(1, 'rgba(255,90,20,0)'); ctx.fillStyle = gr; ctx.fillRect(x - 80, y - 90, 160, 160); ctx.fillStyle = 'rgba(255,230,160,.9)'; ctx.beginPath(); ctx.moveTo(x - 7, y); ctx.quadraticCurveTo(x - 4, y - 18 * f, x, y - 26 * f); ctx.quadraticCurveTo(x + 4, y - 18 * f, x + 7, y); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+  if (Math.random() < 0.7) { const [x, y] = LOGIN_FIRES[(Math.random() * LOGIN_FIRES.length) | 0]; loginFx.embers.push({ x: x + rand(-8, 8), y: y - 20, vx: rand(-14, 14), vy: -rand(30, 80), t: 0, dur: rand(1.4, 3.0), sz: rand(1.5, 3.2) }); }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const e of loginFx.embers) { e.t += 1 / 60; e.x += (e.vx + Math.sin(T * 2 + e.y * 0.05) * 10) / 60; e.y += e.vy / 60; ctx.globalAlpha = Math.max(0, 1 - e.t / e.dur); ctx.fillStyle = e.t < e.dur * 0.5 ? '#ffd27a' : '#ff8a3a'; ctx.fillRect(e.x, e.y, e.sz, e.sz); }
+  ctx.restore(); ctx.globalAlpha = 1; loginFx.embers = loginFx.embers.filter(e => e.t < e.dur).slice(-160);
+  // 아래쪽 안개 + 비네트
+  const mist = ctx.createLinearGradient(0, 500, 0, H); mist.addColorStop(0, 'rgba(40,24,52,0)'); mist.addColorStop(1, 'rgba(20,10,30,.55)'); ctx.fillStyle = mist; ctx.fillRect(0, 500, W, H - 500);
+  const vg = ctx.createRadialGradient(W / 2, H / 2, 260, W / 2, H / 2, 760); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+}
+function drawLoginBtn(r, label, sub, primary) {
+  const pul = primary ? 0.5 + 0.5 * Math.sin(T * 2.4) : 0;
+  ctx.fillStyle = primary ? 'rgba(120,28,22,.88)' : 'rgba(14,12,26,.82)'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.strokeStyle = primary ? '#ffd34d' : 'rgba(255,255,255,.55)'; ctx.lineWidth = primary ? 3 : 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
+  if (primary) { ctx.save(); ctx.globalAlpha = 0.25 + 0.25 * pul; ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 6; ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8); ctx.restore(); }
+  text(label, r.x + r.w / 2, r.y + (sub ? r.h / 2 - 2 : r.h / 2 + 9), primary ? 28 : 22, primary ? '#ffe9a0' : '#fff', 'center');
+  if (sub) text(sub, r.x + r.w / 2, r.y + r.h - 12, 13, 'rgba(255,255,255,.75)', 'center', false);
+}
 function drawAccount() {
-  ctx.drawImage(bg, WORLD.w / 2 - W / 2, WORLD.h / 2 - H / 2, W, H, 0, 0, W, H);
-  ctx.fillStyle = 'rgba(0,0,0,.68)'; ctx.fillRect(0, 0, W, H);
-  text('三國 猛將傳', W / 2, 96, 64, '#ffd34d', 'center');
-  text('계정 선택', W / 2, 150, 30, '#fff', 'center');
-  text('계정마다 영웅 6명의 레벨·성장 기록이 따로 저장됩니다  ·  카드를 누르거나 1~5 키', W / 2, 182, 15, '#cfd3e6', 'center', false);
+  drawLoginScene();
+  // 로고
+  ctx.save(); ctx.shadowColor = 'rgba(255,170,60,.8)'; ctx.shadowBlur = 28; text('三國 猛將傳', W / 2, 190, 96, '#ffd34d', 'center'); ctx.restore();
+  text('삼국 맹장전', W / 2, 244, 30, '#fff', 'center');
+  text('천하의 맹장들과 함께 웨이브를 돌파하고 보스를 쓰러뜨려라', W / 2, 288, 17, '#ffe9c8', 'center', false);
+  const last = ACC && SAVE.accounts.includes(ACC) ? ACC : null, tot = last ? HERO_IDS.reduce((t, id) => t + heroRec(last, id).lv, 0) : 0;
+  drawLoginBtn(LOGIN_BTN, '로그인', last ? last.name + '  ·  영웅 총 레벨 ' + tot : (SAVE.accounts.length ? '계정을 선택해 입장합니다' : '새 계정을 만들어 시작합니다'), true);
+  drawLoginBtn(ACCSEL_BTN, '계정 선택', SAVE.accounts.length + ' / ' + MAX_ACC + ' 계정', false);
+  text('Enter : 로그인   ·   A : 계정 선택', W / 2, 636, 13, 'rgba(255,255,255,.6)', 'center', false);
+  if (accPopup) drawAccPopup();
+}
+function drawAccPopup() {
+  ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(14,12,26,.97)'; ctx.fillRect(POP.x, POP.y, POP.w, POP.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(POP.x, POP.y, POP.w, POP.h);
+  ctx.strokeStyle = 'rgba(255,211,77,.35)'; ctx.lineWidth = 1; ctx.strokeRect(POP.x + 8, POP.y + 8, POP.w - 16, POP.h - 16);
+  text('계정 선택', POP.x + POP.w / 2, POP.y + 48, 30, '#ffe9a0', 'center');
+  text('계정마다 영웅 6명의 레벨·성장 기록이 따로 저장됩니다  ·  계정을 누르거나 1~5 키  ·  Esc 닫기', POP.x + POP.w / 2, POP.y + 76, 14, "#cfd3e6", "center", false);
+  const cb = POP_CLOSE; ctx.fillStyle = 'rgba(40,16,16,.9)'; ctx.fillRect(cb.x, cb.y, cb.w, cb.h); ctx.strokeStyle = '#ff9a8a'; ctx.lineWidth = 2; ctx.strokeRect(cb.x, cb.y, cb.w, cb.h); text('✕', cb.x + cb.w / 2, cb.y + 25, 20, '#ff9a8a', 'center');
   for (let i = 0; i < MAX_ACC; i++) {
-    const r = accRect(i), a = SAVE.accounts[i], cx = r.x + r.w / 2, cur = a && ACC === a;
-    ctx.fillStyle = a ? 'rgba(12,14,24,.92)' : 'rgba(12,14,24,.55)'; ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = cur ? '#ffd34d' : a ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.2)'; ctx.lineWidth = cur ? 4 : 2; if (!a) ctx.setLineDash([8, 6]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
-    text(String(i + 1), r.x + 14, r.y + 26, 16, '#ffd34d', 'left');
-    if (!a) { text('+', cx, r.y + 130, 64, 'rgba(255,255,255,.4)', 'center'); text('새 계정 만들기', cx, r.y + 176, 18, '#cfd3e6', 'center'); continue; }
-    text(a.name, cx, r.y + 56, 24, '#ffe9a0', 'center');
-    const tot = HERO_IDS.reduce((t, id) => t + heroRec(a, id).lv, 0); text('영웅 총 레벨 ' + tot, cx, r.y + 84, 14, '#cfd3e6', 'center', false);
-    HERO_IDS.forEach((id, k) => { const yy = r.y + 112 + k * 23; ctx.save(); ctx.beginPath(); ctx.arc(r.x + 34, yy + 8, 12, 0, TAU); ctx.clip(); ctx.translate(r.x + 34, yy + 11); ctx.scale(0.4, 0.4); drawPortraitIcon(HEROES[id], 0, 0); ctx.restore(); text(PC_TAG[id], r.x + 54, yy + 13, 13, '#fff', 'left', false); text('Lv ' + heroRec(a, id).lv, r.x + r.w - 16, yy + 13, 14, heroRec(a, id).lv >= MAX_LV ? '#ffd34d' : '#9ad4ff', 'right'); });
-    text('플레이 ' + a.runs + '회  ·  승리 ' + a.wins + '회  ·  최고 ' + (a.best || 0) + '층', cx, r.y + r.h - 56, 12, '#9aa3b8', 'center', false);
-    for (const [b, label, col] of [[accBtnRen(i), '이름 변경', '#9ad4ff'], [accBtnDel(i), '삭제', '#ff9a8a']]) { ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(label, b.x + b.w / 2, b.y + 20, 14, col, 'center', false); }
+    const r = accRect(i), a = SAVE.accounts[i], cur = a && ACC === a;
+    ctx.fillStyle = a ? (cur ? 'rgba(60,44,12,.85)' : 'rgba(24,26,42,.92)') : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = cur ? '#ffd34d' : a ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.22)'; ctx.lineWidth = cur ? 3 : 1.5; if (!a) ctx.setLineDash([8, 6]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
+    text(String(i + 1), r.x + 22, r.y + r.h / 2 + 7, 20, '#ffd34d', 'center');
+    if (!a) { text('+  새 계정 만들기', r.x + r.w / 2, r.y + r.h / 2 + 7, 20, '#cfd3e6', 'center'); continue; }
+    text(a.name + (cur ? '   (마지막 접속)' : ''), r.x + 46, r.y + 30, 22, cur ? '#ffe9a0' : '#fff', 'left');
+    const tot = HERO_IDS.reduce((t, id) => t + heroRec(a, id).lv, 0);
+    text('영웅 총 레벨 ' + tot + '  ·  플레이 ' + a.runs + '회  ·  승리 ' + a.wins + '회  ·  최고 ' + (a.best || 0) + '층', r.x + 46, r.y + 56, 13, '#9aa3b8', 'left', false);
+    HERO_IDS.forEach((id, k) => { const px = r.x + 330 + k * 0, hx = r.x + r.w - 214 - 12 - (HERO_IDS.length - k) * 26; ctx.save(); ctx.beginPath(); ctx.arc(hx + 11, r.y + r.h / 2, 11, 0, TAU); ctx.clip(); ctx.translate(hx + 11, r.y + r.h / 2 + 3); ctx.scale(0.36, 0.36); drawPortraitIcon(HEROES[id], 0, 0); ctx.restore(); });
+    for (const [bb, label, col] of [[accBtnRen(i), '이름 변경', '#9ad4ff'], [accBtnDel(i), '삭제', '#ff9a8a']]) { ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(bb.x, bb.y, bb.w, bb.h); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(bb.x, bb.y, bb.w, bb.h); text(label, bb.x + bb.w / 2, bb.y + 23, 14, col, 'center', false); }
   }
 }
 
