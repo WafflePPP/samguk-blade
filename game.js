@@ -3571,14 +3571,16 @@ function debuffList(u) {
   return o;
 }
 const DEBUFF_W = 24;
-function drawDebuffIcons(u, x, y) {   // (x, y) 부터 오른쪽으로 22px 아이콘 + 남은 시간(작은 글씨)
-  const list = debuffList(u); if (!list.length) return 0;
+const BUFF_GLYPH = { guard: '방', ultGuard: '방', run: '질', atk: '공', postAtk: '공', spd: '속', aspd: '속', floor: '불', undy: '광', bless: '복' };   // 버프 아이콘 글자
+function drawIconItems(list, x, y) {   // (x, y) 부터 오른쪽으로 21px 아이콘(버프·디버프) + 남은 시간(작은 글씨)
+  if (!list.length) return 0;
   list.forEach((d, i) => {
     const ix = x + i * DEBUFF_W, cx = ix + 10, cy = y + 10;
-    const col = d.k === 'stun' ? '#ffe14a' : d.k === 'hurt' ? '#ff9a4a' : d.k === 'slow' ? '#7fd0ff' : '#c9a0ff';
+    const col = d.k === 'buff' ? 'rgb(' + d.rgb + ')' : d.k === 'stun' ? '#ffe14a' : d.k === 'hurt' ? '#ff9a4a' : d.k === 'slow' ? '#7fd0ff' : '#c9a0ff';
     ctx.fillStyle = 'rgba(10,12,20,.82)'; ctx.fillRect(ix, y, 21, 21); ctx.strokeStyle = col; ctx.lineWidth = d.k === 'resist' && d.busy ? 2.2 : 1.4; ctx.strokeRect(ix + 0.5, y + 0.5, 20, 20);
     ctx.save(); ctx.translate(cx + 0.5, cy + 0.5); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-    if (d.k === 'stun') { ctx.beginPath(); for (let k = 0; k < 10; k++) { const r = k % 2 ? 3.2 : 7.4, a = -Math.PI / 2 + k * Math.PI / 5; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); }   // ★
+    if (d.k === 'buff') { ctx.globalAlpha = 0.3; ctx.fillRect(-8.5, -8.5, 17, 17); ctx.globalAlpha = 1; ctx.font = '800 12px ' + FONT; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(BUFF_GLYPH[d.id] || '+', 0, 4.2); }
+    else if (d.k === 'stun') { ctx.beginPath(); for (let k = 0; k < 10; k++) { const r = k % 2 ? 3.2 : 7.4, a = -Math.PI / 2 + k * Math.PI / 5; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); }   // ★
     else if (d.k === 'hurt') { ctx.fillRect(-1.6, -7, 3.2, 9); ctx.beginPath(); ctx.arc(0, 5.6, 1.9, 0, TAU); ctx.fill(); }   // !
     else if (d.k === 'slow') { for (let k = 0; k < 3; k++) { const a = k * Math.PI / 3; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 7.5, Math.sin(a) * 7.5); ctx.lineTo(-Math.cos(a) * 7.5, -Math.sin(a) * 7.5); ctx.stroke(); } }   // ❄
     else { ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(6, -6); ctx.lineTo(6, 1); ctx.quadraticCurveTo(6, 6, 0, 8); ctx.quadraticCurveTo(-6, 6, -6, 1); ctx.closePath(); ctx.globalAlpha = 0.28; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke(); ctx.font = '800 9px ' + FONT; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(String(d.n), 0, 3.6); }   // 방패 + 횟수
@@ -3588,10 +3590,12 @@ function drawDebuffIcons(u, x, y) {   // (x, y) 부터 오른쪽으로 22px 아�
   });
   return list.length * DEBUFF_W;
 }
-function drawRowBuffs(u, H, mine, x, y) {   // 영웅 줄 옆에 디버프 아이콘 + 버프 알약: 아군은 오른쪽, 적은 왼쪽 (최대 2줄)
-  const dl = debuffList(u), dw = dl.length * DEBUFF_W;
-  if (dl.length) drawDebuffIcons(u, mine ? x + 206 : x - 6 - dw, y + 1);
-  const list = buffInfoOf(u, H); if (!list.length) return;
+const drawDebuffIcons = (u, x, y) => drawIconItems(debuffList(u), x, y);
+function drawRowBuffs(u, H, mine, x, y) {   // 영웅 줄 옆: 버프·디버프 아이콘(+남은 시간) — 지금 조작 중인 영웅만 상세 버프 알약을 함께 표시
+  const bl = buffInfoOf(u, H), items = [...debuffList(u), ...bl.map(b => ({ k: 'buff', id: b.id, rgb: b.rgb, t: b.left }))], dw = items.length * DEBUFF_W;
+  if (items.length) drawIconItems(items, mine ? x + 206 : x - 6 - dw, y + 1);
+  if (u !== P) return;
+  const list = bl; if (!list.length) return;
   ctx.save(); ctx.font = '600 11px ' + FONT; ctx.textAlign = 'left';
   const maxW = 330, chips = list.map(c => { const label = c.t + ' ' + c.left.toFixed(1) + '초'; return { ...c, label, w: ctx.measureText(label).width + 14 }; });
   const lines = [[]]; let cur = 0;
