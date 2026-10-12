@@ -78,6 +78,7 @@ addEventListener('keydown', e => {
   if (state === 'waves') { wavesKey(e.code); return; }
   if (state === 'duelMenu') { duelMenuKey(e.code); return; }
   if (state === 'raidMenu') { raidMenuKey(e.code); return; }
+  if (state === 'raidBoss') { raidBossKey(e.code); return; }
   if (state === 'pick') { pickKey(e.code); return; }
   if (state === 'upgrade') { const m = /^Digit([1-3])$/.exec(e.code); if (m) pickUpgrade(+m[1] - 1); else if (e.code === 'Tab' || e.code === 'KeyT') auto = !auto; return; }
   if (state === 'title') {   // 로비: ← → (A D, 1 2) 로 모드를 고르고 Enter / Space 로 입장
@@ -167,6 +168,7 @@ cv.addEventListener('pointerdown', e => {
   if (state === 'waves') { wavesClick(x, y); return; }
   if (state === 'duelMenu') { duelMenuClick(x, y); return; }
   if (state === 'raidMenu') { raidMenuClick(x, y); return; }
+  if (state === 'raidBoss') { raidBossClick(x, y); return; }
   if (state === 'pick') { pickClick(x, y); return; }
   if (state === 'upgrade') { upgradeClick(x, y); return; }
   if (paused) { pauseClick(x, y); return; }
@@ -488,19 +490,19 @@ const WV = { cols: 10, w: 104, h: 56, gap: 8, y0: 150 };
 let waveSel = 1, waveTeam = null;
 const accBest = () => ACC ? Math.max(1, ACC.best || 1) : 1;
 const wvRect = i => { const c = i % WV.cols, r = Math.floor(i / WV.cols), tw = WV.cols * WV.w + (WV.cols - 1) * WV.gap; return { x: W / 2 - tw / 2 + c * (WV.w + WV.gap), y: WV.y0 + r * (WV.h + WV.gap), w: WV.w, h: WV.h }; };
-const WV_GO = { x: W / 2 + 30, y: 580, w: 250, h: 56 }, WV_BACK = { x: 12, y: 664, w: 80, h: 30 };
-function openWaves(team) { waveTeam = team.slice(); state = 'waves'; waveSel = 1; }
-function wavesStart() { startGame(waveTeam, waveSel - 1); }
+const WV_GO = { x: W / 2 + 30, y: 580, w: 310, h: 56 }, WV_BACK = { x: 12, y: 664, w: 80, h: 30 };
+function openWaves() { state = 'waves'; mode = 'yeonui'; applyGrowth('yeonui'); waveSel = Math.min(waveSel || 1, accBest()); }   // 로비 > 웨이브 선택 > 장수 선택 > 인게임
+function wavesStart() { openPick('yeonui'); sfx('skill'); }
 function wavesClick(x, y) {
   for (let i = 0; i < MAX_WAVE; i++) if (inRect(x, y, wvRect(i))) { if (i + 1 <= accBest()) { waveSel = i + 1; sfx('hit'); } return; }
   if (inRect(x, y, WV_GO)) { wavesStart(); return; }
-  if (inRect(x, y, WV_BACK)) state = 'pick';
+  if (inRect(x, y, WV_BACK)) state = 'title';
 }
 function wavesKey(code) {
   const b = accBest();
   if (code === 'ArrowLeft') waveSel = Math.max(1, waveSel - 1); else if (code === 'ArrowRight') waveSel = Math.min(b, waveSel + 1);
   else if (code === 'ArrowUp') waveSel = Math.max(1, waveSel - WV.cols); else if (code === 'ArrowDown') waveSel = Math.min(b, waveSel + WV.cols);
-  else if (code === 'Enter' || code === 'Space') wavesStart(); else if (code === 'Escape') state = 'pick';
+  else if (code === 'Enter' || code === 'Space') wavesStart(); else if (code === 'Escape') state = 'title';
 }
 function drawWaves() {
   ctx.drawImage(bg, WORLD.w / 2 - W / 2, WORLD.h / 2 - H / 2, W, H, 0, 0, W, H);
@@ -520,7 +522,7 @@ function drawWaves() {
   text('W' + waveSel + '  ' + w.name, W / 2 - 524, 590, 20, w.bossWave ? '#ffb0a8' : '#ffe9a0', 'left');
   text(wavePreview(waveSel - 1), W / 2 - 524, 616, 14, '#cfd3e6', 'left', false);
   text('난이도 ' + (w.tier + 1) + '단계  ·  몬스터 생명력 x' + w.hpMul.toFixed(2) + '  ·  피해 x' + w.dmgMul.toFixed(2) + (waveSel > UPGRADE_EVERY ? '  ·  자동 강화 ' + Math.floor((waveSel - 1) / UPGRADE_EVERY) + '개 (5웨이브마다)' : '  ·  자동 강화 없음'), W / 2 - 524, 642, 13, '#ffb27a', 'left', false);
-  const g = WV_GO; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(g.x, g.y, g.w, g.h); text('출전 (Enter)', g.x + g.w / 2, g.y + 36, 24, '#ffd34d', 'center');
+  const g = WV_GO; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(g.x, g.y, g.w, g.h); text('다음 : 장수 선택 (Enter)', g.x + g.w / 2, g.y + 36, 22, '#ffd34d', 'center');
   const b = WV_BACK; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text('뒤로', b.x + b.w / 2, b.y + 21, 15, '#cfd3e6', 'center');
 }
 const UPGRADE_EVERY = 5;   // 능력치 강화 선택 간격 (웨이브)
@@ -2765,11 +2767,40 @@ function arenaClamp(o) {   // 비무장·로그라이크 모드: 경기장 원 �
   if (d > lim) { o.x = ARENA_C.x + dx / d * lim; o.y = ARENA_C.y + dy / d * lim; }
 }
 let pickOnline = false, pickFold = true;   // pickFold: 영웅 선택 카드의 스킬 정보를 접어 둠 (6명이라 기본은 접힘)   // 비무장 영웅 선택이 온라인(친구와 대전)용인가
-function enterMode(i) { if (i === 0) openPick('yeonui'); else if (i === 1) openDuelMenu(); else openRaidMenu(); }
+function enterMode(i) { if (i === 0) openWaves(); else if (i === 1) openDuelMenu(); else openRaidMenu(); }
 // 레이드 입장: 오프라인(내 PC 1~3명) / 온라인(준비 중)
 let raidMsgT = 0;
 function openRaidMenu() { state = 'raidMenu'; mode = 'yeonui'; raidMsgT = 0; applyGrowth('yeonui'); }
-function raidMenuPick(online) { if (online) { raidMsgT = 2.5; sfx('hit'); return; } openPick('raid'); sfx('skill'); }
+function raidMenuPick(online) { if (online) { raidMsgT = 2.5; sfx('hit'); return; } openRaidBoss(); sfx('skill'); }
+// 레이드 보스 선택 (지금은 여포 봉선만 열려 있음)
+const RAID_BOSSES = [{ id: 'raidBoss', name: '여포 봉선', sub: '기마 → 하마 · 8단계', open: true }, { name: '관우 운장', sub: '준비 중', open: false }, { name: '조운 자룡', sub: '준비 중', open: false }];
+let raidSel = 0;
+const RB = { card: i => ({ x: W / 2 - 430 + i * 295, y: 130, w: 270, h: 320 }), go: { x: W / 2 - 160, y: 600, w: 320, h: 60 }, back: { x: 14, y: 14, w: 56, h: 56 } };
+function openRaidBoss() { state = 'raidBoss'; mode = 'yeonui'; applyGrowth('yeonui'); raidSel = 0; }
+function raidBossNext() { if (!RAID_BOSSES[raidSel].open) { raidMsgT = 2; sfx('hit'); return; } openPick('raid'); sfx('skill'); }
+function raidBossClick(x, y) { if (inRect(x, y, RB.back)) { state = 'raidMenu'; return; } for (let i = 0; i < RAID_BOSSES.length; i++) if (inRect(x, y, RB.card(i))) { raidSel = i; if (!RAID_BOSSES[i].open) { raidMsgT = 2; sfx('hit'); } else sfx('hit'); return; } if (inRect(x, y, RB.go)) raidBossNext(); }
+function raidBossKey(code) { if (code === 'Escape') state = 'raidMenu'; else if (code === 'ArrowLeft') raidSel = (raidSel + RAID_BOSSES.length - 1) % RAID_BOSSES.length; else if (code === 'ArrowRight') raidSel = (raidSel + 1) % RAID_BOSSES.length; else if (code === 'Enter' || code === 'Space') raidBossNext(); }
+function drawRaidBoss() {
+  drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.55)'; ctx.fillRect(0, 0, W, H);
+  backBtn(RB.back);
+  text('레이드 보스 선택', W / 2, 62, 40, '#ff8a7a', 'center'); text('오프라인  ·  보스 한 마리를 쓰러뜨리는 협동 전투', W / 2, 96, 15, '#cfd3e6', 'center', false);
+  RAID_BOSSES.forEach((b, i) => {
+    const r = RB.card(i), sel = i === raidSel; ctx.save(); ctx.globalAlpha = b.open ? 1 : 0.55;
+    ctx.fillStyle = sel ? 'rgba(62,26,22,.92)' : 'rgba(18,12,28,.88)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = sel ? '#ffd34d' : 'rgba(255,255,255,.28)'; ctx.lineWidth = sel ? 4 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.fillStyle = '#e0504a'; ctx.fillRect(r.x, r.y, r.w, 4);
+    if (b.open) { const sp = ctx.createRadialGradient(r.x + r.w / 2, r.y + 230, 8, r.x + r.w / 2, r.y + 230, 120); sp.addColorStop(0, 'rgba(255,214,140,.3)'); sp.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = sp; ctx.fillRect(r.x, r.y + 100, r.w, 220); ctx.save(); ctx.translate(r.x + r.w / 2, r.y + 250); ctx.scale(1.1, 1.1); drawCardFigure(HEROES.lubu, 0, 0); ctx.restore(); }
+    else { text('🔒', r.x + r.w / 2, r.y + 190, 54, 'rgba(255,255,255,.4)', 'center'); }
+    text(b.name, r.x + r.w / 2, r.y + 40, 26, sel ? '#ffe9a0' : '#fff', 'center'); text(b.sub, r.x + r.w / 2, r.y + 66, 14, b.open ? '#ffb27a' : '#8a90a6', 'center', false);
+    ctx.restore();
+  });
+  const d = RAID_BOSSES[raidSel];
+  ctx.fillStyle = 'rgba(12,8,22,.78)'; ctx.fillRect(W / 2 - 430, 470, 860, 112); ctx.strokeStyle = 'rgba(255,211,77,.4)'; ctx.lineWidth = 1.5; ctx.strokeRect(W / 2 - 430, 470, 860, 112);
+  if (d.open) {
+    text(d.name + '  ·  레이드 보스', W / 2 - 410, 500, 19, '#ffe9a0', 'left');
+    ['체력이 줄수록 8단계로 강해지고 기마에서 하마로 변하는 보스', '3·6단계에서 부하 소환 · 하마 후 회전 폭풍 · 전쟁의 함성 · 최후의 광폭', '고유 능력: 상태 이상 저항 (경직·스턴·둔화가 거듭될수록 지속시간 감소)'].forEach((t, i) => text(t, W / 2 - 410, 528 + i * 21, 13.5, '#dfe3f5', 'left', false));
+  } else text('아직 열리지 않은 보스입니다 (준비 중)', W / 2, 532, 18, '#9aa3b8', 'center');
+  const g = RB.go; ctx.globalAlpha = d.open ? 1 : 0.4; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(g.x, g.y, g.w, g.h); text('다음 : 장수 선택 (Enter)', g.x + g.w / 2, g.y + 38, 22, '#ffd34d', 'center'); ctx.globalAlpha = 1;
+  if (raidMsgT > 0) { raidMsgT = Math.max(0, raidMsgT - 1 / 60); text('아직 열리지 않은 보스입니다', W / 2, 588, 16, '#ffe9a0', 'center'); }
+}
 function raidMenuClick(x, y) { if (inRect(x, y, DM.off)) raidMenuPick(false); else if (inRect(x, y, DM.on)) raidMenuPick(true); else if (inRect(x, y, DM.back)) state = 'title'; }
 function raidMenuKey(code) { if (code === 'Digit1' || code === 'KeyA' || code === 'ArrowLeft') raidMenuPick(false); else if (code === 'Digit2' || code === 'KeyD' || code === 'ArrowRight') raidMenuPick(true); else if (code === 'Escape') state = 'title'; }
 function drawRaidMenu() {
@@ -2807,7 +2838,7 @@ function drawDuelMenu() {
 const PICK_CARD = { w: 196, h: 452, gap: 8, y: 130 }, PICK_BTN = { go: { x: W / 2 - 270, y: 596, w: 250, h: 48 }, goC: { x: W / 2 - 125, y: 596, w: 250, h: 48 }, online: { x: W / 2 + 20, y: 596, w: 250, h: 48 }, back: { x: 12, y: 664, w: 80, h: 30 } };
 let duelPick = [], duelLast = null, pickFor = 'duel';
 const pickNeed = () => 1;   // 시작에 필요한 최소 인원 (비무장·로그라이크 모두 1~3명. 비무장은 고른 인원수만큼 적도 배치)
-const pickStart = () => { if (pickFor === 'duel') startDuel(duelPick); else if (pickFor === 'raid') startRaid(duelPick.slice(0, 3)); else { TEAM = duelPick.slice(0, 3); openWaves(TEAM); } };   // 로그라이크: 영웅 선택 다음 웨이브 선택
+const pickStart = () => { if (pickFor === 'duel') startDuel(duelPick); else if (pickFor === 'raid') startRaid(duelPick.slice(0, 3)); else { TEAM = duelPick.slice(0, 3); startGame(TEAM, waveSel - 1); } };   // 로그라이크: 웨이브 선택 다음 영웅 선택 → 출전   // 로그라이크: 영웅 선택 다음 웨이브 선택
 const pickCardH = () => pickFold ? 246 : PICK_CARD.h;   // 온라인에서 '장수 정보 접기' 상태면 카드 높이를 줄여 아래에 방 조작 영역을 둔다
 const pickCardRect = i => ({ x: W / 2 - (HERO_IDS.length * PICK_CARD.w + (HERO_IDS.length - 1) * PICK_CARD.gap) / 2 + i * (PICK_CARD.w + PICK_CARD.gap), y: PICK_CARD.y, w: PICK_CARD.w, h: pickCardH() });
 let duelFoes = [];   // 비무장(오프라인) 상대 팀: 영웅 선택 화면에서 미리 정해 보여 주고, 전투 시작 때 그대로 사용
@@ -2827,9 +2858,9 @@ function drawFoeRow(R, label, sub, ids, lvOf, rawOf, emptyMsg) {
   });
 }
 const f1n = n => +n.toFixed(1);
-function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); duelFoes = []; duelPick = (m === 'duel' ? (duelLast ? duelLast.slice() : []) : TEAM.slice()); }
+function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); pickTab = 0; pickFocus = null; duelFoes = []; duelPick = (m === 'duel' ? (duelLast ? duelLast.slice() : []) : TEAM.slice()); }
 function togglePick(id) { const k = duelPick.indexOf(id); if (k >= 0) duelPick.splice(k, 1); else if (duelPick.length < 3) duelPick.push(id); if (pickFor === 'duel' && pickOnline) netSendTeam(); }
-function pickBack() { if (pickFor === 'duel') { if (pickOnline) { netClose(); NET.status = ''; } state = 'duelMenu'; } else state = pickFor === 'raid' ? 'raidMenu' : 'title'; }
+function pickBack() { if (pickFor === 'duel') { if (pickOnline) { netClose(); NET.status = ''; } state = 'duelMenu'; } else state = pickFor === 'raid' ? 'raidBoss' : 'waves'; }
 // 온라인 방 조작 영역 (영웅 선택 화면 아래): 서버 · 방 만들기 · 방 참가 · 대전 시작 · 장수 정보 접기/펴기 + 상대 팀 정보
 function onlineLayout() {
   const by = 130 + pickCardH() + 12, fd = pickFold;
@@ -2852,6 +2883,7 @@ function drawOnlinePanel() {
 }
 const PICK_FOLD_BTN = { x: W - 220, y: 18, w: 196, h: 34 }, pickGoRect = () => ({ x: W / 2 - 125, y: 130 + pickCardH() + 12, w: 250, h: 48 });
 function pickClick(x, y) {
+  if (newPickUI()) { pickClickNew(x, y); return; }
   if (inRect(x, y, PICK_FOLD_BTN)) { pickFold = !pickFold; sfx('hit'); return; }
   if (pickFor === 'duel' && pickOnline) {
     const L = onlineLayout();
@@ -2865,6 +2897,7 @@ function pickClick(x, y) {
   if (inRect(x, y, PICK_BTN.back)) pickBack();
 }
 function pickKey(code) {
+  if (newPickUI()) { pickKeyNew(code); return; }
   const m = /^Digit([1-6])$/.exec(code); if (m) { const hid = HERO_IDS[+m[1] - 1]; if (hid) togglePick(hid); return; }
   if (code === 'KeyF') { pickFold = !pickFold; return; }
   if (pickFor === 'duel' && pickOnline) { if (code === 'Enter') netStartHost(); else if (code === 'Escape') pickBack(); return; }
@@ -2929,7 +2962,81 @@ function wrapLeft(str, x, y, maxW, size, col, maxLines = 2, lh = size + 3) {
   if (line) text(line, x, ly, size, col, 'left', false, false);
 }
 const PICK_NOTE = id => id === 'lubu' ? '상마: ' + HEROES.lubu.sub + ' · ' + HEROES.lubu.sub2 + '  /  하마: ' + HEROES.lubu2.sub : HEROES[id].sub + (HEROES[id].sub2 ? ' · ' + HEROES[id].sub2 : '');
+// ===== 새 장수 선택 화면 (왼쪽 영웅 목록 · 가운데 영웅 · 오른쪽 정보 패널 · 아래 파티 슬롯 + 시작) — 온라인 대전만 아래 기존 화면을 쓴다 =====
+const newPickUI = () => !(pickFor === 'duel' && pickOnline);
+let pickFocus = null, pickTab = 0;
+const PK = { back: { x: 14, y: 14, w: 56, h: 56 }, list: i => ({ x: 22, y: 92 + i * 80, w: 184, h: 72 }), arrL: { x: 224, y: 270, w: 42, h: 84 }, arrR: { x: 598, y: 270, w: 42, h: 84 }, toggle: { x: 262, y: 520, w: 340, h: 46 }, tab: i => ({ x: 700 + i * 172, y: 184, w: 160, h: 38 }), slot: i => ({ x: 24 + i * 162, y: 604, w: 152, h: 100 }), go: { x: W - 304, y: 610, w: 280, h: 86 }, panel: { x: 680, y: 92, w: 576, h: 484 } };
+function backBtn(b) { ctx.fillStyle = 'rgba(10,8,20,.8)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2.5; ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(b.x + b.w / 2 + 7, b.y + 14); ctx.lineTo(b.x + b.w / 2 - 7, b.y + b.h / 2); ctx.lineTo(b.x + b.w / 2 + 7, b.y + b.h - 14); ctx.stroke(); }
+const pickSlotLabels = () => (pickFor === 'duel' || pickFor === 'raid') ? ['조작', '아군 AI', '아군 AI'] : ['시작', '태그 Z', '태그 X'];
+function pickCycleFocus(d) { const i = Math.max(0, HERO_IDS.indexOf(pickFocus || HERO_IDS[0])); pickFocus = HERO_IDS[(i + d + HERO_IDS.length) % HERO_IDS.length]; sfx('hit'); }
+function pickClickNew(x, y) {
+  if (inRect(x, y, PK.back)) { pickBack(); sfx('hit'); return; }
+  for (let i = 0; i < HERO_IDS.length; i++) if (inRect(x, y, PK.list(i))) { if (pickFocus === HERO_IDS[i]) togglePick(HERO_IDS[i]); else pickFocus = HERO_IDS[i]; sfx('hit'); return; }
+  if (inRect(x, y, PK.arrL)) { pickCycleFocus(-1); return; } if (inRect(x, y, PK.arrR)) { pickCycleFocus(1); return; }
+  if (inRect(x, y, PK.toggle)) { togglePick(pickFocus || HERO_IDS[0]); sfx('hit'); return; }
+  for (let i = 0; i < 2; i++) if (inRect(x, y, PK.tab(i))) { pickTab = i; sfx('hit'); return; }
+  for (let i = 0; i < 3; i++) if (inRect(x, y, PK.slot(i))) { if (duelPick[i]) { pickFocus = duelPick[i]; if (duelPick.length > 0) { togglePick(duelPick[i]); } } sfx('hit'); return; }
+  if (inRect(x, y, PK.go) && duelPick.length >= pickNeed()) pickStart();
+}
+function pickKeyNew(code) {
+  const m = /^Digit([1-6])$/.exec(code); if (m) { pickFocus = HERO_IDS[+m[1] - 1]; togglePick(pickFocus); return; }
+  if (code === 'ArrowLeft' || code === 'ArrowUp') pickCycleFocus(-1); else if (code === 'ArrowRight' || code === 'ArrowDown') pickCycleFocus(1);
+  else if (code === 'Space') togglePick(pickFocus || HERO_IDS[0]); else if (code === 'Tab' || code === 'KeyF') pickTab = 1 - pickTab;
+  else if (code === 'Enter') { if (duelPick.length >= pickNeed()) pickStart(); } else if (code === 'Escape') pickBack();
+}
+function drawPickNew() {
+  if (!pickFocus) pickFocus = duelPick[0] || HERO_IDS[0];
+  drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.62)'; ctx.fillRect(0, 0, W, H);
+  const duelP = pickFor === 'duel', id = pickFocus, h = HEROES[id], inT = duelPick.indexOf(id), rec = ACC ? heroRec(ACC, id) : { lv: 1, xp: 0 }, lv = rec.lv;
+  backBtn(PK.back);
+  const ttl = pickFor === 'raid' ? '레이드  ·  여포 봉선' : pickFor === 'duel' ? '비무장 모드 (오프라인)' : '로그라이크  ·  W' + waveSel + '부터';
+  text(ttl, 90, 40, 24, '#ffd34d', 'left'); text('장수 선택  —  최대 3명 · ' + (pickFor === 'yeonui' ? '선택한 순서대로 시작 영웅과 태그(Z/X/C)' : '첫 번째 영웅을 직접 조작, 나머지는 AI 동료'), 90, 62, 13, '#cfd3e6', 'left', false);
+  // 왼쪽 영웅 목록
+  HERO_IDS.forEach((hid, i) => {
+    const r = PK.list(i), hh = HEROES[hid], foc = hid === id, k = duelPick.indexOf(hid), rc = ACC ? heroRec(ACC, hid) : { lv: 1 };
+    ctx.fillStyle = foc ? 'rgba(62,46,16,.92)' : 'rgba(14,10,26,.82)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = foc ? '#ffd34d' : k >= 0 ? '#4fb0ff' : 'rgba(255,255,255,.22)'; ctx.lineWidth = foc ? 3 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.save(); ctx.beginPath(); ctx.arc(r.x + 40, r.y + 36, 26, 0, TAU); ctx.clip(); ctx.translate(r.x + 40, r.y + 40); ctx.scale(0.9, 0.9); drawPortraitIcon(hh, 0, 0); ctx.restore(); ctx.strokeStyle = '#d4a73a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(r.x + 40, r.y + 36, 26, 0, TAU); ctx.stroke();
+    text(PC_NAME[hid], r.x + 76, r.y + 32, 18, foc ? '#ffe9a0' : '#fff', 'left'); text('Lv ' + rc.lv, r.x + 76, r.y + 54, 13, rc.lv >= MAX_LV ? '#ffd34d' : '#9dff9d', 'left', false);
+    if (k >= 0) { ctx.fillStyle = k === 0 ? '#ffd34d' : '#4fb0ff'; circle(r.x + r.w - 20, r.y + 20, 14); text(String(k + 1), r.x + r.w - 20, r.y + 26, 17, '#111', 'center'); }
+  });
+  // 가운데 영웅
+  { const fx0 = 432, fy0 = 500, sp = ctx.createRadialGradient(fx0, fy0 + 8, 10, fx0, fy0 + 8, 200); sp.addColorStop(0, 'rgba(255,214,140,.4)'); sp.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = sp; ctx.save(); ctx.translate(fx0, fy0 + 8); ctx.scale(1, 0.26); ctx.translate(-fx0, -(fy0 + 8)); ctx.fillRect(fx0 - 220, fy0 - 220, 440, 440); ctx.restore();
+    ctx.save(); ctx.translate(fx0, fy0); const sc = h.mounted ? 1.8 : 2.2; ctx.scale(sc, sc); drawCardFigure(h, 0, 0); ctx.restore();
+    for (const [b, d] of [[PK.arrL, -1], [PK.arrR, 1]]) { ctx.fillStyle = 'rgba(10,8,20,.55)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(b.x + b.w / 2 - d * 6, b.y + 26); ctx.lineTo(b.x + b.w / 2 + d * 6, b.y + b.h / 2); ctx.lineTo(b.x + b.w / 2 - d * 6, b.y + b.h - 26); ctx.stroke(); }
+    if (inT >= 0) { ctx.fillStyle = inT === 0 ? '#ffd34d' : '#4fb0ff'; ctx.fillRect(fx0 - 56, 112, 112, 30); text((inT + 1) + '번  ' + pickSlotLabels()[inT], fx0, 133, 15, '#111', 'center'); }
+    const t = PK.toggle; ctx.fillStyle = inT >= 0 ? 'rgba(60,18,18,.9)' : 'rgba(18,40,24,.9)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeStyle = inT >= 0 ? '#ff9a8a' : '#7dff9a'; ctx.lineWidth = 2.5; ctx.strokeRect(t.x, t.y, t.w, t.h); text(inT >= 0 ? '파티에서 제외' : duelPick.length >= 3 ? '파티가 가득 찼습니다 (3/3)' : '파티에 추가', t.x + t.w / 2, t.y + 30, 19, inT >= 0 ? '#ff9a8a' : duelPick.length >= 3 ? '#8a90a6' : '#7dff9a', 'center'); }
+  // 오른쪽 정보 패널
+  { const p = PK.panel; ctx.fillStyle = 'rgba(14,10,26,.9)'; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.strokeStyle = 'rgba(255,211,77,.55)'; ctx.lineWidth = 2; ctx.strokeRect(p.x, p.y, p.w, p.h);
+    text(PC_NAME[id], p.x + 22, p.y + 44, 32, '#ffe9a0', 'left'); text('Lv ' + lv, p.x + p.w - 22, p.y + 44, 30, lv >= MAX_LV ? '#ffd34d' : '#9dff9d', 'right'); text(GROWTH[id].theme, p.x + 22, p.y + 68, 14, '#ffb27a', 'left', false);
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.x + 22, p.y + 80, p.w - 44, 12); ctx.fillStyle = '#4fd36a'; ctx.fillRect(p.x + 23, p.y + 81, (p.w - 46) * (lv >= MAX_LV ? 1 : rec.xp / xpNeed(lv)), 10); text(lv >= MAX_LV ? 'MAX' : 'EXP ' + rec.xp + ' / ' + xpNeed(lv), p.x + p.w - 22, p.y + 108, 11, '#9aa3b8', 'right', false);
+    ['스테이터스', '스킬'].forEach((nm, i) => { const r = PK.tab(i), on = pickTab === i; ctx.fillStyle = on ? 'rgba(212,167,58,.9)' : 'rgba(30,24,44,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = on ? '#ffd34d' : 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(nm, r.x + r.w / 2, r.y + 26, 17, on ? '#2a1c06' : '#cfd3e6', 'center'); });
+    if (pickTab === 0) {
+      const lf = ACC ? flatOf(id, lv) : zeroFlat(), hb = duelP ? DUEL_HP : HERO_STATS.hp, ha = duelP ? lf.hp * DUEL_HP / HERO_STATS.hp : lf.hp, atk = HERO_STATS.atk + lf.atk, df = lf.def;
+      let refHp = 1, refAtk = 1, refDef = 1; for (const q of HERO_IDS) { const f = ACC ? flatOf(q, heroLv(q)) : zeroFlat(); refHp = Math.max(refHp, hb + (duelP ? f.hp * DUEL_HP / HERO_STATS.hp : f.hp)); refAtk = Math.max(refAtk, HERO_STATS.atk + f.atk); refDef = Math.max(refDef, f.def, 1); }
+      const bars = [['체력', hb + ha, refHp, fmtI(hb + ha) + '  (기본 ' + fmtI(hb) + ' +' + fmtI(ha) + ')', '#ff5a6a'], ['공격력', atk, refAtk, (+atk.toFixed(1)) + '  (기본 ' + HERO_STATS.atk + ' +' + (+lf.atk.toFixed(1)) + ')', '#ff9a3a'], ['방어력', df, refDef, (+df.toFixed(1)) + '  ·  받는 피해 -' + (+(100 - 100 / (1 + df / 100)).toFixed(1)) + '%', '#5aa8ff']];
+      bars.forEach((b, i) => { const y = p.y + 176 + i * 68; ctx.fillStyle = b[4]; circle(p.x + 44, y + 12, 18); text(b[0], p.x + 76, y + 6, 15, '#fff', 'left'); text(b[3], p.x + p.w - 22, y + 6, 13, '#dfe3f5', 'right', false); const bw = p.w - 98, n = 10, on = Math.max(b[1] > 0 ? 1 : 0, Math.round(clamp(b[1] / b[2], 0, 1) * n)); for (let k = 0; k < n; k++) { ctx.fillStyle = k < on ? b[4] : 'rgba(255,255,255,.12)'; ctx.fillRect(p.x + 76 + k * (bw / n), y + 16, bw / n - 4, 14); } });
+      text('이동속도 ' + HERO_STATS.speed + '  ·  회피율 ' + PC_EVA + '%  ·  적중 ' + PC_ACC + '  ·  치명타 ' + Math.round(CRIT_BASE * 100) + '% (x' + CRIT_BASE_DMG + ')', p.x + 22, p.y + 400, 12, '#8a90a6', 'left', false);
+      const nxt = GROWTH[id].tiers.find(t => t.lv > lv); text(fitStr(nxt ? '다음 성장  Lv ' + nxt.lv + ' [' + nxt.name + '] ' + fxText(id, nxt.fx) : '고유 성장 단계를 모두 해금했습니다', p.w - 44, 12), p.x + 22, p.y + 424, 12, nxt ? '#9dff9d' : '#ffd34d', 'left', false);
+      wrapLeft(PICK_NOTE(id), p.x + 22, p.y + 448, p.w - 44, 11.5, '#aab3c8', 2, 15);
+    } else {
+      heroSkillRows(id).forEach((row, j) => { const y = p.y + 196 + j * 68; ctx.fillStyle = j === 3 ? 'rgba(255,211,77,.1)' : 'rgba(255,255,255,.04)'; ctx.fillRect(p.x + 14, y - 22, p.w - 28, 64); text(row.n, p.x + 26, y, 14, j === 3 ? '#ffd34d' : '#ffe9a0', 'left'); const ls = wrapStr(row.c1, p.w - 64, '500 12px ' + FONT).slice(0, 2); ls.forEach((l, q) => text(l, p.x + 26, y + 18 + q * 15, 12, '#fff', 'left', false)); text(fitStr(row.c2, p.w - 64, 11), p.x + 26, y + 18 + ls.length * 15 + 3, 11, '#ffb27a', 'left', false); });
+    }
+  }
+  // 아래: 파티 슬롯 + 시작
+  ctx.fillStyle = 'rgba(8,6,18,.82)'; ctx.fillRect(0, 590, W, H - 590); ctx.fillStyle = 'rgba(255,211,77,.5)'; ctx.fillRect(0, 590, W, 2);
+  for (let i = 0; i < 3; i++) {
+    const r = PK.slot(i), hid = duelPick[i], lab = pickSlotLabels()[i]; ctx.fillStyle = hid ? 'rgba(30,24,44,.92)' : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = hid ? (i === 0 ? '#ffd34d' : '#4fb0ff') : 'rgba(255,255,255,.25)'; ctx.lineWidth = hid ? 2.5 : 1.5; if (!hid) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
+    text(String(i + 1) + '  ' + lab, r.x + 10, r.y + 20, 12, i === 0 ? '#ffd34d' : '#9ad4ff', 'left');
+    if (hid) { ctx.save(); ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 54, 22, 0, TAU); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + 58); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[hid], 0, 0); ctx.restore(); text(PC_NAME[hid] + '  Lv ' + (ACC ? heroRec(ACC, hid).lv : 1), r.x + r.w / 2, r.y + 92, 13, '#fff', 'center', false); }
+    else text('+', r.x + r.w / 2, r.y + 66, 38, 'rgba(255,255,255,.3)', 'center');
+  }
+  if (duelP) { foeSync(); text('상대 (AI)', 560, 624, 12, '#ff9a8a', 'left'); duelFoes.forEach((fid, i) => { const x = 590 + i * 70; ctx.save(); ctx.beginPath(); ctx.arc(x, 664, 22, 0, TAU); ctx.clip(); ctx.translate(x, 668); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[fid], 0, 0); ctx.restore(); ctx.strokeStyle = '#ff6a5a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, 664, 22, 0, TAU); ctx.stroke(); text('Lv ' + (ACC ? heroRec(ACC, fid).lv : 1), x, 702, 11, '#cfd3e6', 'center', false); }); if (!duelFoes.length) text('영웅을 고르면 상대 팀이 표시됩니다', 560, 664, 13, '#8a90a6', 'left', false); }
+  else text(pickFor === 'raid' ? '보스 : 여포 봉선 (8단계)' : '시작 웨이브 W' + waveSel, 560, 650, 15, '#ffb27a', 'left', false);
+  { const g = PK.go, ok = duelPick.length >= pickNeed(); ctx.globalAlpha = ok ? 1 : 0.4; ctx.fillStyle = 'rgba(80,24,18,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3.5; ctx.strokeRect(g.x, g.y, g.w, g.h);
+    text(duelP ? '전투 시작' : pickFor === 'raid' ? '레이드 시작' : '출전', g.x + g.w / 2, g.y + 40, 30, '#ffe9a0', 'center'); text(duelPick.length + ' / 3 선택  ·  Enter', g.x + g.w / 2, g.y + 68, 13, '#ffd9a0', 'center', false); ctx.globalAlpha = 1; }
+}
 function drawPick() {
+  if (newPickUI()) { drawPickNew(); return; }
   ctx.drawImage(bg, WORLD.w / 2 - W / 2, WORLD.h / 2 - H / 2, W, H, 0, 0, W, H);
   ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
   const duelP = pickFor === 'duel';
@@ -3659,7 +3766,7 @@ function update(rdt) {
   shake = Math.max(0, shake - rdt * 40); flashT = Math.max(0, flashT - rdt);
   if ((state === 'win' || state === 'lose') && !RS.done) settleRun(state);   // 한 판 경험치 정산
   if (state === 'upgrade') { updateUpgrade(rdt); return; }
-  if (state === 'title' || state === 'pick' || state === 'account' || state === 'info' || state === 'waves' || state === 'net' || state === 'duelMenu' || state === 'raidMenu') return;
+  if (state === 'title' || state === 'pick' || state === 'account' || state === 'info' || state === 'waves' || state === 'net' || state === 'duelMenu' || state === 'raidMenu' || state === 'raidBoss') return;
   if (paused) { if (state === 'play' && mode === 'yeonui') { updateCamera(rdt); return; } paused = false; }   // 일시정지: 전투 계산 중단
   if (NET.on && NET.role === 'guest') { netGuestStep(rdt); updateCamera(rdt); return; }   // 온라인 게스트: 전투 계산 없이 받은 상태만 그림
   if (hitstop > 0) { hitstop -= rdt; dt = 0; }
@@ -4578,6 +4685,7 @@ function render() {
   if (state === 'pick') { drawPick(); return; }
   if (state === 'duelMenu') { drawDuelMenu(); return; }
   if (state === 'raidMenu') { raidMsgT = Math.max(0, raidMsgT - 1 / 60); drawRaidMenu(); return; }
+  if (state === 'raidBoss') { drawRaidBoss(); return; }
   if (state === 'waves') { drawWaves(); return; }
   if (state === 'upgrade') { drawWorld(); drawHUD(); drawUpgrade(); return; }
   drawWorld(); drawSpeedLines(); drawTagOverlay(); drawHUD(); drawIconTip(); if (state === 'play') { if (MINIMAP_ON) drawMinimap(); drawHeroPointer(); drawTutorial(); }
