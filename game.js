@@ -876,6 +876,7 @@ function hitFx(e, o, crit, big) {
   else if (st === 'petal') { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(80, 260) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, t: 0, dur: rand(0.4, 0.7), color: i % 2 ? c[0] : c[1], sz: rand(3, 6) * HIT_SCALE + 1 }); } }
   else { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(260, 560) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.2, 0.4), color: i % 2 ? c[0] : c[1], sz: rand(2, 4) * HIT_SCALE + 1 }); } if (big) ring(e.x, e.y, 60 * sz, 0.25, c[1], 4); }
 }
+const TRAIL_A = 0.5;   // 무기 궤적 이펙트 진하기 (1 = 원래)
 // 공격 궤적: 무기별 모양으로 범위(부채꼴 윤곽)와 휘두르는 궤적을 보여줌
 function drawArcFx(f, p) {
   const st = HIT_STYLE[f.hid], c = HIT_COL[f.hid], sw = Math.min(1, p * 3.5), a1 = -f.half, a2 = -f.half + 2 * f.half * sw, R = f.r, fade = 1 - p;
@@ -886,18 +887,18 @@ function drawArcFx(f, p) {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R, a1, a2); ctx.arc(0, 0, R * 0.55, a2, a1, true); ctx.closePath(); ctx.fill(); ctx.restore(); return;
   }
   ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
-  ctx.globalAlpha = Math.max(0, 0.5 * (1 - p * 1.5)); ctx.strokeStyle = c[0]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, R, -f.half, f.half);   // 범위 윤곽 (바깥 호 + 좌우 경계)
+  ctx.globalAlpha = TRAIL_A * (Math.max(0, 0.5 * (1 - p * 1.5))); ctx.strokeStyle = c[0]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, R, -f.half, f.half);   // 범위 윤곽 (바깥 호 + 좌우 경계)
   if (f.half < 1.4) { ctx.moveTo(0, 0); ctx.lineTo(Math.cos(-f.half) * R, Math.sin(-f.half) * R); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(f.half) * R, Math.sin(f.half) * R); } ctx.stroke();
-  const trail = (ri, col, aMul) => { const n = 12; for (let i = 0; i < n; i++) { const s0 = a1 + (a2 - a1) * i / n, s1 = a1 + (a2 - a1) * (i + 1) / n + 0.02; ctx.globalAlpha = fade * Math.pow((i + 1) / n, 2) * (aMul || 0.9); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, R, s0, s1); ctx.arc(0, 0, R * ri, s1, s0, true); ctx.closePath(); ctx.fill(); } };
-  const head = (ri, w, col) => { ctx.globalAlpha = fade; ctx.strokeStyle = col; ctx.lineWidth = w * fade + 1; ctx.beginPath(); ctx.moveTo(Math.cos(a2) * R * ri, Math.sin(a2) * R * ri); ctx.lineTo(Math.cos(a2) * R, Math.sin(a2) * R); ctx.stroke(); };
+  const trail = (ri, col, aMul) => { const n = 12; for (let i = 0; i < n; i++) { const s0 = a1 + (a2 - a1) * i / n, s1 = a1 + (a2 - a1) * (i + 1) / n + 0.02; ctx.globalAlpha = TRAIL_A * (fade * Math.pow((i + 1) / n, 2) * (aMul || 0.9)); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, R, s0, s1); ctx.arc(0, 0, R * ri, s1, s0, true); ctx.closePath(); ctx.fill(); } };
+  const head = (ri, w, col) => { ctx.globalAlpha = TRAIL_A * (fade); ctx.strokeStyle = col; ctx.lineWidth = w * fade + 1; ctx.beginPath(); ctx.moveTo(Math.cos(a2) * R * ri, Math.sin(a2) * R * ri); ctx.lineTo(Math.cos(a2) * R, Math.sin(a2) * R); ctx.stroke(); };
   switch (st) {
     case 'blade': trail(0.7, c[1], 0.8); trail(0.9, c[0], 0.9); head(0.6, 5, c[0]); break;
     case 'heavy': trail(0.3, c[1], 0.85); trail(0.7, c[0], 0.6); head(0.3, 9, c[0]); break;
     case 'pierce':
-      if (f.half < 0.5) { const len = R * Math.min(1, sw * 1.4), w = Math.max(6, R * 0.05); ctx.globalAlpha = fade; ctx.fillStyle = c[1]; ctx.beginPath(); ctx.moveTo(R * 0.1, -w); ctx.lineTo(len, 0); ctx.lineTo(R * 0.1, w); ctx.closePath(); ctx.fill(); ctx.strokeStyle = c[0]; ctx.lineWidth = 3 * fade + 1; ctx.beginPath(); ctx.moveTo(R * 0.1, 0); ctx.lineTo(len, 0); ctx.stroke(); ctx.lineWidth = 1.5; for (const sy of [-2.4, 2.4]) { ctx.beginPath(); ctx.moveTo(R * 0.2, sy * w); ctx.lineTo(len * 0.8, sy * w); ctx.stroke(); } }
+      if (f.half < 0.5) { const len = R * Math.min(1, sw * 1.4), w = Math.max(6, R * 0.05); ctx.globalAlpha = TRAIL_A * (fade); ctx.fillStyle = c[1]; ctx.beginPath(); ctx.moveTo(R * 0.1, -w); ctx.lineTo(len, 0); ctx.lineTo(R * 0.1, w); ctx.closePath(); ctx.fill(); ctx.strokeStyle = c[0]; ctx.lineWidth = 3 * fade + 1; ctx.beginPath(); ctx.moveTo(R * 0.1, 0); ctx.lineTo(len, 0); ctx.stroke(); ctx.lineWidth = 1.5; for (const sy of [-2.4, 2.4]) { ctx.beginPath(); ctx.moveTo(R * 0.2, sy * w); ctx.lineTo(len * 0.8, sy * w); ctx.stroke(); } }
       else { trail(0.9, c[1], 0.8); trail(0.97, c[0], 0.95); head(0.8, 3, c[0]); } break;
-    case 'petal': trail(0.55, c[1], 0.45); for (let i = 0; i < 8; i++) { const a = a1 + (a2 - a1) * (i + 0.5) / 8, r = R * (0.78 + 0.18 * Math.sin(i * 2.1 + f.x)); ctx.save(); ctx.translate(Math.cos(a) * r, Math.sin(a) * r); ctx.rotate(a + 1.1); ctx.globalAlpha = fade * (0.35 + 0.65 * (i + 1) / 8); ctx.fillStyle = i % 2 ? c[0] : c[1]; ctx.beginPath(); ctx.ellipse(0, 0, 11, 5, 0, 0, TAU); ctx.fill(); ctx.restore(); } break;
-    case 'twin': trail(0.8, c[1], 0.85); trail(0.94, c[0], 0.95); { ctx.globalAlpha = fade; ctx.strokeStyle = c[1]; ctx.lineWidth = 6 * fade + 1; ctx.beginPath(); ctx.arc(0, 0, R * 0.84, a1, a2); ctx.stroke(); ctx.strokeStyle = c[0]; ctx.lineWidth = 3 * fade + 1; ctx.beginPath(); ctx.arc(0, 0, R, a1, a2); ctx.stroke(); } head(0.78, 7, c[0]); break;
+    case 'petal': trail(0.55, c[1], 0.45); for (let i = 0; i < 8; i++) { const a = a1 + (a2 - a1) * (i + 0.5) / 8, r = R * (0.78 + 0.18 * Math.sin(i * 2.1 + f.x)); ctx.save(); ctx.translate(Math.cos(a) * r, Math.sin(a) * r); ctx.rotate(a + 1.1); ctx.globalAlpha = TRAIL_A * (fade * (0.35 + 0.65 * (i + 1) / 8)); ctx.fillStyle = i % 2 ? c[0] : c[1]; ctx.beginPath(); ctx.ellipse(0, 0, 11, 5, 0, 0, TAU); ctx.fill(); ctx.restore(); } break;
+    case 'twin': trail(0.8, c[1], 0.85); trail(0.94, c[0], 0.95); { ctx.globalAlpha = TRAIL_A * (fade); ctx.strokeStyle = c[1]; ctx.lineWidth = 6 * fade + 1; ctx.beginPath(); ctx.arc(0, 0, R * 0.84, a1, a2); ctx.stroke(); ctx.strokeStyle = c[0]; ctx.lineWidth = 3 * fade + 1; ctx.beginPath(); ctx.arc(0, 0, R, a1, a2); ctx.stroke(); } head(0.78, 7, c[0]); break;
     default: trail(0.85, c[1], 0.8); head(0.75, 4, c[0]);
   }
   ctx.restore();
@@ -906,7 +907,7 @@ function drawBeamFx(f, p) {
   const st = HIT_STYLE[f.hid], c = HIT_COL[f.hid];
   ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang); ctx.globalAlpha = 1 - p;
   if (!st) { ctx.fillStyle = '#fff3b0'; const w = f.w * (1 - p * 0.6); ctx.fillRect(-f.len, -w / 2, f.len * 2, w); ctx.restore(); return; }
-  ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round'; ctx.globalAlpha *= TRAIL_A;
   const L = f.len, ext = Math.min(1, 0.3 + p * 5), w = f.w * (1 - p * 0.5);
   ctx.translate(-L, 0); ctx.scale(ext, 1);
   if (st === 'arrow') {   // 황충: 금빛 화살 (화살촉 + 깃 + 잔광)
