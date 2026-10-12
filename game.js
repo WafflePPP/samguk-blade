@@ -257,7 +257,7 @@ const HEROES = {
   lubu: {
     id: 'lubu', name: '여포 봉선 (상마)', short: '여포', sub: '3단 공격 성공 시 질주 이속 +20% (10초)', sub2: '50 HIT부터 10 HIT마다 공속·피해 +1%', mounted: true,
     skills: { attack: '공격', s1: '하마 전환', s2: '돌격', s3: '적토 돌격' },
-    info: [['J', '공격', '찌르기 · 베기 · 360° 회전 베기'], ['K', '하마 전환', '적토마에서 내려 하마 여포로 전환 + 360° 베기 1회 (찌르기를 대체) · 스킬2 쿨타임은 폼별'], ['L', '돌격', '전방 질주 1회 + 폭발 (쿨타임 7초)'], [';', '적토 돌격', '3연속 질주 · 무적 · 기절 · 후 공격 +30%']],
+    info: [['J', '공격', '찌르기 · 베기 · 360° 회전 베기'], ['K', '하마 전환', '적토마에서 내려 하마 여포로 전환 + 360° 베기 1회 · 스킬2 쿨타임은 폼별'], ['L', '돌격', '전방 질주 1회 + 폭발 (쿨타임 7초)'], [';', '적토 돌격', '3연속 질주 · 무적 · 기절 · 후 공격 +30%']],
     bal: { a: 0.88, s1: 1.066, s2: 2.9, u: 1.422 }, pc: 'lubu', s1Switch: true, rush: true, ultRush: true, combo: 'lubu', atkSlow: 1, tag: { name: '적토 강습', title: '여포 (상마)', rgb: '255,110,60' }, hitBonus: { start: 50, step: 10, per: 0.01 }, runBonus: 1.2, postUltAtk: 1.3, postUltDur: 10, runTime: 1.5, runDur: 10, s2cdMul: 1, ultStyle: 'halberd',
     style: { body: '#2a2030', trim: '#c9302c', skin: '#e0b08a', helm: true, feathers: true, pauldrons: true, weapon: 'halberd' },
     horse: { horseCoat: '#a8321f', barding: '#2a2030' },
@@ -268,7 +268,7 @@ const HEROES = {
 // 여포 하마: 적토마에서 내린 도보 영웅. 수치는 관우·여포(상마)와 동일하고 스킬 구성만 다르다.
 HEROES.lubu2 = { ...HEROES.lubu, bal: { a: 1.34, s1: 0.854, s2: 2.4, u: 1.285 }, id: 'lubu2', name: '여포 봉선 (하마)', sub: '3단 콤보 완주 시 공격 +10% (10초)', sub2: '', mounted: false, rush: false, ultRush: false, shoot: true, lUlt: true, combo: 'lubu2', tag: { name: '방천 베기', title: '여포 (하마)', rgb: '255,160,60' }, runBonus: 0, hitBonus: null, atkSlow: 0, postUltAtk: 1.2, comboBuff: { atk: 1.1, dur: 10 }, s2cdMul: 1,
   skills: { attack: '공격', s1: '상마 전환', s2: '연사', s3: '천하무쌍' },
-  info: [['J', '공격', '1단 찌르기 · 2~3단 좌우 베기'], ['K', '상마 전환', '적토마에 올라 상마 여포로 전환 + 360° 베기 1회 (방천 베기를 대체) · 스킬2 쿨타임은 폼별'], ['L', '연사', '3연속 관통 화살 일제 사격'], [';', '천하무쌍', '방천화극 360° 휘두르기 + 검기 연타 · 기절 · 후 공격 +20%']] };
+  info: [['J', '공격', '1단 찌르기 · 2~3단 좌우 베기'], ['K', '상마 전환', '적토마에 올라 상마 여포로 전환 + 360° 베기 1회 · 스킬2 쿨타임은 폼별'], ['L', '연사', '3연속 관통 화살 일제 사격'], [';', '천하무쌍', '방천화극 360° 휘두르기 + 검기 연타 · 기절 · 후 공격 +20%']] };
 // 조운 자룡: 도보 창술 영웅. 수치(체력·공격력·이동속도·쿨타임·피해 배율)는 다른 PC 와 동일. 창(lance)으로 찌르는 연타형 — 공격 3단 성공 시 공속 +10%(10초), 궁극기 후 공속 +10%(10초)
 HEROES.zhao = {
   id: 'zhao', name: '조운 자룡', short: '조운', sub: '3단 공격 성공 시 공속 +10% (10초)', sub2: '백룡강림 후 공속 +10% (10초)', mounted: false,
@@ -509,7 +509,7 @@ function drawWaves() {
   ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(0, 0, W, H);
   text('웨이브 선택', W / 2, 62, 42, '#ffd34d', 'center');
   text((ACC ? ACC.name : '') + '  ·  최고 도달 ' + accBest() + '웨이브까지 선택 가능  ·  1층이 아닌 곳에서 시작하면 건너뛴 5웨이브 구간마다(5·10·15…) 능력치 강화가 1개씩 무작위로 자동 적용', W / 2, 96, 14, '#cfd3e6', 'center', false);
-  text('보스 : 5층마다 (10 관우 · 25 조운 · 50 여포는 PC 보스)  ·  신규 몬스터 : 방패병 7층 · 자객 12층 · 술사 17층', W / 2, 120, 13, '#ffb27a', 'center', false);
+  text('보스 : 5층마다 (10 관우 · 25 조운 · 50 여포는 PC 보스)  ·  몬스터 등장 : 방패병 7층 · 자객 12층 · 술사 17층', W / 2, 120, 13, '#ffb27a', 'center', false);
   for (let i = 0; i < MAX_WAVE; i++) {
     const r = wvRect(i), n = i + 1, boss = !!WAVES[i].bossWave, open = n <= accBest(), sel = n === waveSel;
     ctx.fillStyle = sel ? 'rgba(212,167,58,.4)' : open ? (boss ? 'rgba(120,30,30,.55)' : 'rgba(20,24,36,.85)') : 'rgba(10,12,18,.6)'; ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -2913,7 +2913,7 @@ function heroSkillRows(id) {
     const A = HERO_STATS.atk + (ACC ? flatOf(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, hm = HEROES.lubu.bal, hf = HEROES.lubu2.bal, sp = RUSH_SPECS.three, sum = tb => tb.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0);
     return [
       { n: 'J · 공격 (상마 / 하마)', c1: '3단 콤보 합계 ' + fmtI(sum(LUBU_ATK) * A * hm.a) + ' / ' + fmtI(sum(LUBU2_ATK) * A * hf.a), c2: '범위 ' + LUBU_ATK.map(c => Math.round(c.rad)).join('·') + ' / ' + LUBU2_ATK.map(c => Math.round(c.rad)).join('·') },
-      { n: 'K · ' + HEROES.lubu.skills.s1 + ' / ' + HEROES.lubu2.skills.s1, c1: '상마 ↔ 하마 전환 (찌르기·방천 베기를 대체)', c2: '쿨 ' + CD.s1 + '초 · 체력·분노 유지 · 스킬2 쿨은 폼별' },
+      { n: 'K · ' + HEROES.lubu.skills.s1 + ' / ' + HEROES.lubu2.skills.s1, c1: '상마 ↔ 하마 전환 + 360° 베기 1회', c2: '쿨 ' + CD.s1 + '초 · 체력·분노 유지 · 스킬2 쿨은 폼별' },
       { n: 'L · 돌격 (상마) / 연사 (하마)', c1: '돌격 피해 ' + fmtI(SK * 3.4 * hm.s2) + ' / 연사 합계 ' + fmtI(SK * 2.4 * S2_ARROW_MULT * 9 * hf.s2), c2: '쿨 ' + CD.s2 + '초 · 폼에 따라 스킬이 바뀜' },
       { n: '; · 적토 돌격 (상마) / 천하무쌍 (하마)', c1: '3연속 질주 합계 ' + fmtI((sp.dmg * sp.n + 1) * SK * sp.mult * hm.u) + ' / 범위 ' + ULT_RADIUS + ' 피해 ' + fmtI(A * 6.5 * SKILL_DMG_MULT * ULT_DMG_MULT * hf.u) + ' (360° + 검기 12연타)', c2: '둘 다 기절 2.2초 · 사용 후 공격 증가' },
     ];
