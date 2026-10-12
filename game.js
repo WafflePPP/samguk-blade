@@ -125,7 +125,7 @@ function openPause(kind) { if (TUT || mode !== 'yeonui' || state !== 'play') ret
 function closePause() { paused = false; for (const k in buf) buf[k] = -9; sfx('hit'); }
 function pauseExit() { paused = false; RS.exited = true; state = 'lose'; winT = 0; sfx('skill'); }   // 나가기: 지금까지의 기록으로 경험치를 정산 (update 에서 settleRun)
 function xpGains() {   // 지금 나가면 받게 될 경험치 (settleRun 의 패배 정산과 같은 식)
-  const heroes = TEAM.slice(), dmgOf = h => RS.dmg[h] || 0, pool = RS.waves * 50 + RS.boss * 250 + Math.floor(heroes.reduce((t, h) => t + dmgOf(h), 0) / 30) + RS.kills, sumD = heroes.reduce((t, h) => t + dmgOf(h), 0), n = heroes.length;
+  const heroes = (RAID ? RAID_HEROES : TEAM).slice(), dmgOf = h => RS.dmg[h] || 0, pool = RS.waves * 50 + RS.boss * 250 + Math.floor(heroes.reduce((t, h) => t + dmgOf(h), 0) / 30) + RS.kills, sumD = heroes.reduce((t, h) => t + dmgOf(h), 0), n = heroes.length;
   return heroes.map(h => ({ hero: h, gain: Math.round(pool * (0.3 / n + 0.7 * (sumD ? dmgOf(h) / sumD : 1 / n))) }));
 }
 function pauseClick(x, y) { if (inRect(x, y, PAUSE_UI.go)) closePause(); else if (inRect(x, y, PAUSE_UI.exit)) pauseExit(); }
@@ -409,7 +409,7 @@ const TYPES = {
 };
 
 const FOE_BOSS_GUAN = { name: '관우 운장', short: '관우', foot: true, body: '#2f8f5b', trim: '#d4a73a', skin: '#c9553f', helm: false, hat: true, beard: true, cape: '#1f6a42', feathers: false, weapon: 'glaive', barding: '#1f6a42' };
-const RAID_HP_SCALE = 2.4, RAID_HPMUL = 2.0, RAID_DMGMUL = 1.0;   // 레이드 보스 체력 배율(보스 기본 x) / 웨이브 배율
+const RAID_HP_SCALE = 3.0, RAID_HPMUL = 2.0, RAID_DMGMUL = 0.55;   // 레이드 보스 체력 배율(보스 기본 x) / 웨이브 배율
 TYPES.raidBoss = { ...TYPES.boss, raid: true, name: '여포 봉선 · 레이드', short: '여포', hpScale: RAID_HP_SCALE };   // 레이드 모드 보스 (기마 → 하마, 8단계)
 TYPES.guanBoss = { ...TYPES.boss, ...FOE_BOSS_GUAN };   // 보스 관우 운장 (W3): 여포(boss)와 같은 체력, 도보 단일 패턴
 const FOE_BOSS_ZHAO = { name: '조운 자룡', short: '조운', foot: true, zhao: true, speed: 165, body: '#2b6a6e', trim: '#c9cfd8', skin: '#e0b08a', helm: false, hair: true, band: true, pauldrons: true, cape: '#1f4a50', feathers: false, weapon: 'lance', barding: '#1f4a50', auraCol: '#7fd0ff', fxCol: '#e6f6ff', p2msg: '조운이 백룡의 기운을 해방했다!  2페이즈' };
@@ -735,7 +735,7 @@ let RS = { dmg: {}, kills: 0, boss: 0, waves: 0, done: false, summary: null };
 function resetRS() { RS = { dmg: {}, kills: 0, boss: 0, waves: 0, done: false, summary: null }; }
 function settleRun(res) {
   if (RS.done || !ACC) return; RS.done = true; if (mode !== 'yeonui') return;   // 경험치는 로그라이크 모드에서만 획득 (비무장은 기록·경험치 없음)
-  const win = res === 'win', heroes = TEAM.slice(), dmgOf = h => RS.dmg[h] || 0, pool = RS.waves * 50 + RS.boss * 250 + (win ? 1000 : 0) + Math.floor(heroes.reduce((t, h) => t + dmgOf(h), 0) / 30) + RS.kills;
+  const win = res === 'win', heroes = (RAID ? RAID_HEROES : TEAM).slice(), dmgOf = h => RS.dmg[h] || 0, pool = RS.waves * 50 + RS.boss * 250 + (win ? 1000 : 0) + Math.floor(heroes.reduce((t, h) => t + dmgOf(h), 0) / 30) + RS.kills;
   const sumD = heroes.reduce((t, h) => t + dmgOf(h), 0), n = heroes.length;
   RS.summary = heroes.map(h => {
     const gain = Math.round(pool * (0.3 / n + 0.7 * (sumD ? dmgOf(h) / sumD : 1 / n))), r = addXp(ACC, h, gain), row = { hero: h, gain, before: r.before, after: r.after };
@@ -930,8 +930,9 @@ function startGame(team, startWave = 0) {
 function startRaid(team) {   // 레이드 모드 (오프라인): 1~3명이 태그하며 보스 여포와 싸운다
   lastStartWave = 0;
   BTN.find(b => b.id === 'auto').y = 375;
-  resetRun(); RAID = true; resetRS(); if (team && team.length) TEAM = team.slice(0, 3); selHero = TEAM[0]; LUBU_FORM = 'lubu';
-  mode = 'yeonui'; applyGrowth('yeonui'); allies = []; duel = null; applyHero(); resetPlayer(); enemies = []; projectiles = []; fx = []; dts = []; items = [];
+  resetRun(); RAID = true; resetRS(); RAID_HEROES = (team && team.length ? team : TEAM).slice(0, 3); TEAM = [RAID_HEROES[0]]; selHero = TEAM[0]; LUBU_FORM = 'lubu';   // 태그 없음: 조작 PC 1명 + AI PC 최대 2명
+  mode = 'yeonui'; applyGrowth('yeonui'); allies = []; duel = null; applyHero(); resetPlayer();
+  RAID_HEROES.slice(1).forEach((h, i) => allies.push(makeFighter(h, 'ally', P.x + (i ? 130 : -130), P.y + 70))); enemies = []; projectiles = []; fx = []; dts = []; items = [];
   kills = 0; clock = 0; winT = 0; autoDodgeCd = 0; shake = 0; hitstop = 0; slowT = 0; flashT = 0; tagFx = null; joy = null; auto = false; TUT = null;
   for (const k in buf) buf[k] = -9;
   cam.x = P.x - W / 2; cam.y = P.y - H / 2;
@@ -1082,15 +1083,17 @@ function hurtPlayer(dmg, src, bossHit, stunT, rec, kb) {
    P.hitT = 0.42; P.hitMag = dmg >= 100 ? 1.35 : 1; P.hitAng = src ? angTo(src, P) : P.face + Math.PI;   // 피격 애니메이션 시작 doShake(8); sfx('hurt');
   // 히트 리커버리: 맞으면 하던 행동이 끊기고 피격 경직 + 넉백. 예외: 회전참 시전 중에는 슈퍼아머(피해만 받음), 청룡의 힘 시전 중에는 무적(위에서 반환)
   const armor = a && (a.type === 's1' || a.type === 'rush' || a.type === 'switch' || a.type === 'bless' || a.type === 'slam' || a.type === 'rain' || a.type === 'crystal' || (a.type === 'atk' && HERO.s1Flurry && a.c === 2));   // 조운 공격 3단(3연속 찌르기)도 슈퍼아머
-  if (!armor && !(a && a.type === 'stun')) P.act = { type: 'hurt', t: 0, dur: (mode === 'duel' ? 0.32 * (rec || 1) : (dmg >= 100 ? 0.5 : 0.32)) * ((src && src.boss) || bossHit ? BOSS_HIT_RECOVERY_MULT : 1) };
+  const hurtFull = (mode === 'duel' ? 0.32 * (rec || 1) : (dmg >= 100 ? 0.5 : 0.32)) * ((src && src.boss) || bossHit ? BOSS_HIT_RECOVERY_MULT : 1), stunFull = stunT || 0;
+  const drp = (!armor && !(a && a.type === 'stun')) || stunFull ? drTake(P) : 1; stunT = stunFull * drp;   // 상태 이상 점감 (경직·스턴)
+  if (!armor && !(a && a.type === 'stun')) P.act = { type: 'hurt', t: 0, dur: Math.max(0.08, hurtFull * drp) };
   P.inv = mode === 'duel' ? 0 : armor ? 0.12 : 0.25;   // 비무장 모드: 피격 직후 무적 보정 없음 (AI 와 동일)
   if (src) { const ang = angTo(src, P), k = kb != null ? kb * (armor ? 0.25 : 1) : armor ? 60 : 320; P.kx = Math.cos(ang) * k; P.ky = Math.sin(ang) * k; if (src.freeze !== undefined) src.freeze = Math.max(src.freeze, 0.12); }   // 공격자 역경직
   dmgText(P.x, P.y - 60, dmg, '#ff5a5a', 26); sparks(P.x, P.y - 20, 8, '#ff6a5a', 260);
-  if (stunT) { P.act = { type: 'stun', t: 0, dur: stunT }; if (mode !== 'duel') P.inv = Math.max(P.inv, 0.25); dmgText(P.x, P.y - 100, '스턴!', '#ffe14a', 28); }
-  if (mode !== 'duel' && ((src && src.boss) || bossHit)) P.inv = Math.max(P.inv, P.act && (P.act.type === 'hurt' || P.act.type === 'stun') ? P.act.dur : 0.5);   // 보스에게 맞은 경직·스턴 시간 동안은 연계 공격이 겹쳐 맞지 않음 (피격 후 한 대씩만)   // 스턴: 슈퍼아머와 무관, 이동·공격·회피 불가
+  if (stunFull) { P.act = { type: 'stun', t: 0, dur: Math.max(0.1, stunT) }; if (mode !== 'duel') P.inv = Math.max(P.inv, 0.25); dmgText(P.x, P.y - 100, '스턴!' + drTag(drp), '#ffe14a', 28); }
+  if (mode !== 'duel' && ((src && src.boss) || bossHit)) P.inv = Math.max(P.inv, P.act && (P.act.type === 'hurt' || P.act.type === 'stun') ? (stunFull || hurtFull) : 0.5);   // 보스에게 맞은 경직·스턴 시간 동안은 연계 공격이 겹쳐 맞지 않음 (피격 후 한 대씩만)   // 스턴: 슈퍼아머와 무관, 이동·공격·회피 불가
   if (P.hp <= 0) {
     P.hp = 0;
-    if (mode === 'duel') { P.dead = true; P.act = null; ring(P.x, P.y, 100, 0.5, '#ffd34d', 10); sparks(P.x, P.y - 20, 30, '#ffcf70', 600, 0.7); dmgText(P.x, P.y - 70, 'K.O.', '#ffd34d', 34); doShake(12); sfx('boom'); }   // 비무장 모드: 쓰러지면 관전 (아군 AI 가 계속 싸움)
+    if (mode === 'duel' || (RAID && allies.some(a => !a.dead))) { P.dead = true; P.act = null; ring(P.x, P.y, 100, 0.5, '#ffd34d', 10); sparks(P.x, P.y - 20, 30, '#ffcf70', 600, 0.7); dmgText(P.x, P.y - 70, 'K.O.', '#ffd34d', 34); doShake(12); sfx('boom'); }   // 비무장 모드: 쓰러지면 관전 (아군 AI 가 계속 싸움)
     else if (!downToTag()) { state = 'lose'; slowT = 1.2; }
   }
 }
@@ -1147,23 +1150,30 @@ const comboTier = () => HERO.hitBonus ? (P.hits >= HERO.hitBonus.start ? Math.fl
 const comboPct = () => comboTier() * (HERO.hitBonus ? HERO.hitBonus.per : COMBO_BONUS);   // 공속·피해 증가율 (0.1 = +10%)
 const tierHits = t => HERO.hitBonus ? HERO.hitBonus.start + (t - 1) * HERO.hitBonus.step : t * COMBO_STEP;   // t 단계가 되는 HIT 수
 const comboMul = () => 1 + comboPct();
+// 상태 이상 점감: 경직(히트 리커버리)·스턴·둔화를 맞을 때마다 지속시간 효율이 1~5번째에 100/80/60/40/20% 로 줄고, 5번째부터는 60초 뒤에 초기화된다 (피격자마다 따로)
+const DR_STEPS = [1, 0.8, 0.6, 0.4, 0.2], DR_RESET = 60;
+function drTake(u) { const n = u.drN || 0, m = DR_STEPS[Math.min(n, DR_STEPS.length - 1)]; u.drN = n + 1; if (u.drN >= DR_STEPS.length && !(u.drT > 0)) u.drT = DR_RESET; return m; }
+const drPeek = u => DR_STEPS[Math.min(u.drN || 0, DR_STEPS.length - 1)];
+function drTick(u, dt) { if (u.drT > 0) { u.drT -= dt; if (u.drT <= 0) { u.drT = 0; u.drN = 0; } } }
+const drTag = m => m < 0.999 ? ' (' + Math.round(m * 100) + '%)' : '';
 function hitEnemy(e, dmg, o = {}) {
   if (e.dead || e.spawnT > 0 || e.invT > 0) return false;   // invT: 파이터(비무장 모드)의 무적 시간
   if (!o.stun && !rollHit(o.ai ? (o.by || null) : P, e)) { dmgText(e.x, e.y - e.r * 2.6, 'MISS', '#aab3c8', 20); sparks(e.x, e.y - e.r, 4, '#aab3c8', 180, 0.25); return false; }   // 적중률: 공격이 빗나감 (스턴 공격은 항상 적중)
-  const crit = Math.random() < 0.2 + (o.ai ? (o.by && o.by.meta ? o.by.meta.crit : 0) : (RUN.crit + META.crit));
+  const crit = !o.nocrit && Math.random() < 0.2 + (o.ai ? (o.by && o.by.meta ? o.by.meta.crit : 0) : (RUN.crit + META.crit));
   const gm = (e.d && e.d.guard && o.from && !o.stun && !o.ai && angDiff(e.face, angTo(e, o.from)) < 1.0) ? e.d.guard : 1;   // 방패병·방패 장군: 정면 막기
   const d = Math.round(gm * dmg * (o.ai ? (o.by ? fAtkMul(o.by) : 1) : comboMul() * atkBuffMul()) * (crit ? 1.8 + (o.ai ? (o.by && o.by.meta ? o.by.meta.critDmg : 0) : (RUN.critDmg + META.critDmg)) : 1) / (e.fighter ? fDef(e) : 1) * rand(0.92, 1.08));
   if (mode === 'duel' && e.fighter) recStat(o.ai ? o.by : P, e, Math.min(d, Math.max(0, e.hp)));
-  if (o.slow) { e.slowT = Math.max(e.slowT || 0, e.boss ? o.slow * 0.6 : o.slow); sparks(e.x, e.y + 8, 2, '#9fe8ff', 120, 0.4); }
   e.hp -= d; if (e.floorT > 0 && e.hp < 1) e.hp = 1; e.flash = 0.1; if (e.fighter) { e.hitT = 0.42; e.hitMag = d >= 100 ? 1.35 : 1; e.hitAng = o.from ? angTo(o.from, e) : 0; }
   const ang = o.from ? angTo(o.from, e) : 0, kb = (o.kb || 0) * (e.armor ? 0.25 : 1);
   e.kx += Math.cos(ang) * kb; e.ky += Math.sin(ang) * kb;
   // 기절(stun): 궁극기 전용. 별 표시, 길게 행동 불가. 슈퍼아머(보스)여도 스턴은 항상 적용됨 (슈퍼아머는 일반 타격의 피격 경직만 막음).
   // 피격 경직(hit): 일반 타격. d.hitRec(초) 동안 움찔하며 행동 불가, 슈퍼아머면 없음. 기절 중에는 기절이 우선.
-  const stunT = o.stun || 0, recT = e.armor ? 0 : e.d.hitRec * (o.rec || 1) * PLAYER_HIT_RECOVERY_MULT;
+  let stunT = o.stun || 0, recT = e.armor ? 0 : e.d.hitRec * (o.rec || 1) * PLAYER_HIT_RECOVERY_MULT, slowD = o.slow || 0, drm = 1;
+  if (stunT > 0 || recT > 0 || slowD > 0) { drm = drTake(e); stunT *= drm; recT *= drm; slowD *= drm; }   // 상태 이상 점감
+  if (slowD > 0.05) { e.slowT = Math.max(e.slowT || 0, e.boss ? slowD * 0.6 : slowD); sparks(e.x, e.y + 8, 2, '#9fe8ff', 120, 0.4); }
   e.lean = Math.cos(ang) >= 0 ? 1 : -1;
-  if (stunT > 0) { if (e.state !== 'stun') dmgText(e.x, e.y - e.r * 3.4, '스턴!', '#ffe14a', 24); e.t = e.state === 'stun' ? Math.max(e.t, stunT) : stunT; e.state = 'stun'; e.cur = null; }
-  else if (recT > 0 && e.state !== 'stun') { e.t = e.state === 'hit' ? Math.max(e.t, recT) : recT; e.state = 'hit'; e.cur = null; }
+  if (stunT > 0.05) { if (e.state !== 'stun') dmgText(e.x, e.y - e.r * 3.4, '스턴!' + drTag(drm), '#ffe14a', 24); e.t = e.state === 'stun' ? Math.max(e.t, stunT) : stunT; e.state = 'stun'; e.cur = null; }
+  else if (recT > 0.02 && e.state !== 'stun') { e.t = e.state === 'hit' ? Math.max(e.t, recT) : recT; e.state = 'hit'; e.cur = null; }
   dmgText(e.x, e.y - e.r * 2.6, d, crit ? '#ffe14a' : '#ffffff', crit ? 32 : 22);
   sparks(e.x, e.y - e.r, crit ? 10 : 6, crit ? '#ffe14a' : '#fff4d0', 280);
   hitFx(e, o, crit, crit || d >= 100 || !!o.stun || (o.kb || 0) >= 500);
@@ -1174,6 +1184,7 @@ function hitEnemy(e, dmg, o = {}) {
   { const tier = comboTier(); if (tier > P.hitTier) { P.hitTier = tier; if (HERO.hitBonus) { if (tier === 1) { dmgText(P.x, P.y - 100, '공속·피해 +' + Math.round(comboPct() * 100) + '%', '#ffb04d', 24); ring(P.x, P.y, 80, 0.35, '#ffb04d', 4); sfx('skill'); } } else { dmgText(P.x, P.y - 100, '공속·피해 +' + Math.round(comboPct() * 100) + '%', '#ffb04d', 26); ring(P.x, P.y, 90, 0.4, '#ffb04d', 5); sfx('skill'); } } }
   P.freeze = Math.max(P.freeze, o.stop || (crit ? 0.06 : 0.04)); doShake(o.shake || (crit ? 5 : 3)); sfx('hit');
   } else if (Math.random() < 0.5) sfx('hit');
+  if (RAID && o.ai && o.by && o.by.team === 'ally' && !e.fighter) { const hid = pcId(o.by.hero); RS.dmg[hid] = (RS.dmg[hid] || 0) + d; }   // 레이드: AI 동료의 피해도 경험치 정산에 포함
   if (e.hp <= 0) killEnemy(e);
   return true;
 }
@@ -1849,7 +1860,7 @@ function updatePlayer(dt) {
   }
   p.blessT = Math.max(0, p.blessT - dt); p.undyT = Math.max(0, (p.undyT || 0) - dt); p.floorT = Math.max(0, (p.floorT || 0) - dt); p.lungeT = Math.max(0, (p.lungeT || 0) - dt); p.aspdT = Math.max(0, p.aspdT - dt); p.postUltT = Math.max(0, p.postUltT - dt); p.comboBuffT = Math.max(0, p.comboBuffT - dt); p.ultGuardT = Math.max(0, p.ultGuardT - dt);
   if (HERO.guard && p.guardT > 0) p.guardT = Math.max(0, p.guardT - dt);   // 관우 방어: 3단계 공격 성공 시 켜지고 guard.dur(10초) 동안 지속
-  if (p.slowT > 0) p.slowT -= dt;
+  if (p.slowT > 0) p.slowT -= dt; drTick(p, dt);
   const spd = p.speed * (HERO.runBonus && p.runBuffT > 0 ? HERO.runBonus : 1) * (p.buffT > 0 ? WINE_MOVE_SPEEDUP : 1) * (p.slowT > 0 ? 0.55 : 1);   // 술 버프 중 이동속도 +30%
   let vx = 0, vy = 0;
   if (!a) {
@@ -2490,46 +2501,66 @@ function footAttack(e, d, fast) {
   }
   return null;
 }
+// ---- 레이드: 조작 PC 1명 + AI PC 최대 2명이 동시에 보스와 싸운다 (태그 없음). 보스는 조작 PC 를 노리고, 공격 범위 안의 AI PC 도 함께 맞는다 ----
+let RAID_HEROES = [];
+const RAID_ALLY_TAKEN = 0.6;   // AI 동료가 보스에게 받는 피해 배율 (AI 는 패턴을 사람만큼 못 피하므로 완화)
+const friendsOf = () => RAID ? [P, ...allies].filter(u => !u.dead) : [P];
+const tgtOf = e => { if (!RAID || !P.dead) return P; let b = null, bd = 1e9; for (const u of allies) if (!u.dead) { const d = dist(e, u); if (d < bd) { bd = d; b = u; } } return b || P; };
+function foeHurt(e, u, dmg, stunT) { if (u === P) hurtPlayer(dmg, e, false, stunT); else if (!u.dead) hitEnemy(u, dmg * RAID_ALLY_TAKEN, { ai: true, from: e, kb: 260, stun: stunT || 0, nocrit: true, rec: 1.5 }); }
+function raidDodgeDir(f) {   // AI 동료의 보스 공격 회피: 선딜 중인 공격 범위 안에 있으면 범위를 가장 많이 벗어나는 방향으로
+  for (const e of enemies) {
+    if (e.dead || !e.boss || e.state !== 'wind' || !e.cur) continue; const c = e.cur;
+    if (c.windup - e.t > 0.4 || c.kind === 'fan' || c.kind === 'summon' || c.kind === 'arrow') continue;
+    if (dashMargin(e, c, f.x, f.y) > 6) continue;
+    let best = null, bs = -1e9; for (let k = 0; k < 16; k++) { const a = k * Math.PI / 8, m = dashMargin(e, c, f.x + Math.cos(a) * DASH_DIST, f.y + Math.sin(a) * DASH_DIST); if (m > bs) { bs = m; best = a; } }
+    return best;
+  }
+  return null;
+}
+function updateRaidAllies(dt) {
+  for (const f of allies) if (!f.dead) updateFighter(f, dt);
+  if (P.dead && !allies.some(a => !a.dead) && state === 'play') { state = 'lose'; slowT = 1.2; }
+}
 function resolveAttack(e) {
-  const c = e.cur;
+  const c = e.cur, PT = tgtOf(e);
   if (c.kind === 'circle') {
-    if (dist(e, P) <= c.r + P.r) hurtPlayer(c.dmg, e, false, c.stunP);
+    for (const u of friendsOf()) if (dist(e, u) <= c.r + u.r) foeHurt(e, u, c.dmg, c.stunP);
     ring(e.x, e.y, c.r, 0.35, '#ff6a4a'); doShake(e.boss || e.type === 'captain' ? 9 : 4); sfx('enemy');
     if (c.ult) { e.ultT = 0; ring(e.x, e.y, c.r, 0.6, e.d.auraCol || '#7fffd0', 18); ring(e.x, e.y, 260, 0.45, '#fff', 10); sparks(e.x, e.y - 10, 40, e.d.auraCol || '#7fffd0', 800, 0.8); doShake(22); sfx('boom'); }
   } else if (c.kind === 'cone') {
-    if (dist(e, P) <= c.r + P.r && angDiff(e.face, angTo(e, P)) <= c.half) hurtPlayer(c.dmg, e);
+    for (const u of friendsOf()) if (dist(e, u) <= c.r + u.r && angDiff(e.face, angTo(e, u)) <= c.half) foeHurt(e, u, c.dmg);
     arcFx(e.x, e.y, e.face, c.r, c.half, 0.2, e.d.foot ? (e.d.fxCol || '#bfffe6') : '#ff9a8a', 1, e.boss ? bossTrailId(e) : 'foe'); sfx('enemy'); if (c.heavy) { doShake(9); ring(e.x + Math.cos(e.face) * c.r * 0.45, e.y + Math.sin(e.face) * c.r * 0.45, c.r * 0.3, 0.35, '#ff6a4a', 8); } e.swing = { t: 0, half: c.half, r: c.r };
-    if (c.chain && c.step < c.chain - 1 && !(c.contDist && c.step + 1 >= (c.mandatory || 1) && dist(e, P) > c.contDist)) {   // 연속 베기: 다음 타로 이어짐 (contDist 가 있으면 관우가 그 거리 안일 때만, 멀어졌으면 연속기를 중단)
+    if (c.chain && c.step < c.chain - 1 && !(c.contDist && c.step + 1 >= (c.mandatory || 1) && dist(e, PT) > c.contDist)) {   // 연속 베기: 다음 타로 이어짐 (contDist 가 있으면 관우가 그 거리 안일 때만, 멀어졌으면 연속기를 중단)
       c.step++; c.windup = c.winds[c.step]; c.r = c.rs[c.step]; c.half = c.halfs[c.step];
-      if (c.fixedAim) c.track = 0.0001; else e.face = angTo(e, P); const lg = c.lunge != null ? c.lunge : 300; e.kx += Math.cos(e.face) * lg; e.ky += Math.sin(e.face) * lg; if (c.gap) { c.delay = c.gap; e.state = 'pause'; } else e.state = 'wind'; e.t = 0; return;   // 베기 사이에 딜레이(gap)
+      if (c.fixedAim) c.track = 0.0001; else e.face = angTo(e, PT); const lg = c.lunge != null ? c.lunge : 300; e.kx += Math.cos(e.face) * lg; e.ky += Math.sin(e.face) * lg; if (c.gap) { c.delay = c.gap; e.state = 'pause'; } else e.state = 'wind'; e.t = 0; return;   // 베기 사이에 딜레이(gap)
     }
-    if (c.then) { e.cur = c.then; e.state = c.then.delay ? 'pause' : 'wind'; e.t = 0; e.face = angTo(e, P); return; }   // 베기가 끝나면 (딜레이 후) 후속 스킬(발구르기)로
+    if (c.then) { e.cur = c.then; e.state = c.then.delay ? 'pause' : 'wind'; e.t = 0; e.face = angTo(e, PT); return; }   // 베기가 끝나면 (딜레이 후) 후속 스킬(발구르기)로
   } else if (c.kind === 'leap') {   // 도약 착지
     e.x = clamp(c.tx, 90, WORLD.w - 90); e.y = clamp(c.ty, 90, WORLD.h - 90); e.lift = 0;
-    if (dist(e, P) <= c.r + P.r) hurtPlayer(c.dmg, e, false, c.stunP);
+    for (const u of friendsOf()) if (dist(e, u) <= c.r + u.r) foeHurt(e, u, c.dmg, c.stunP);
     ring(e.x, e.y, c.r, 0.4, '#ff6a4a', 10); ring(e.x, e.y, c.r * 0.55, 0.3, '#fff', 6); sparks(e.x, e.y, 20, '#c9a46a', 500, 0.6); doShake(16); sfx('boom');
   } else if (c.kind === 'fan') {   // 화살 부채꼴 (보스가 활을 꺼내 쏨)
     const shf = c.shifts ? c.shifts[c.step || 0] : 0; for (let i = 0; i < c.n; i++) { const a = e.face + shf + (i / (c.n - 1) - 0.5) * 2 * c.half; const sp = c.speed || 520; projectiles.push({ x: e.x, y: e.y - 20, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: c.dmg, life: 1.8, r: c.wave ? 15 : 12, boss: true, arrow: !c.wave, wave: !!c.wave, blue: !!e.d.zhao }); }
     sfx('swing'); doShake(4);
     if (c.chain && c.step < c.chain - 1) { c.step++; c.windup = c.winds[c.step]; if (c.gap) { c.delay = c.gap; e.state = 'pause'; } else e.state = 'wind'; e.t = 0; return; }   // 화살 연사: 다음 일제 사격으로 (매번 재조준)
   } else if (c.kind === 'cross') {   // 십자 참격
-    const ang = e.face + c.off, ca = Math.cos(ang), sa = Math.sin(ang), dx = P.x - e.x, dy = P.y - e.y, lx = dx * ca + dy * sa, ly = -dx * sa + dy * ca, hw = c.w / 2 + P.r;
-    if ((Math.abs(lx) <= c.len && Math.abs(ly) <= hw) || (Math.abs(ly) <= c.len && Math.abs(lx) <= hw)) hurtPlayer(c.dmg, e);
+    const ang = e.face + c.off, ca = Math.cos(ang), sa = Math.sin(ang);
+    for (const u of friendsOf()) { const dx = u.x - e.x, dy = u.y - e.y, lx = dx * ca + dy * sa, ly = -dx * sa + dy * ca, hw = c.w / 2 + u.r; if ((Math.abs(lx) <= c.len && Math.abs(ly) <= hw) || (Math.abs(ly) <= c.len && Math.abs(lx) <= hw)) foeHurt(e, u, c.dmg); }
     fx.push({ k: 'beam', hid: e.boss ? bossTrailId(e) : '', x: e.x, y: e.y, ang, len: c.len, w: c.w, t: 0, dur: 0.35 }); fx.push({ k: 'beam', hid: e.boss ? bossTrailId(e) : '', x: e.x, y: e.y, ang: ang + Math.PI / 2, len: c.len, w: c.w, t: 0, dur: 0.35 });
     ring(e.x, e.y, 120, 0.3, '#ffd34d', 8); doShake(12); sfx('boom');
   } else if (c.kind === 'rain') {   // 술사의 낙뢰: 지정한 지점의 원 안에서 피해
-    const tx = c.tx != null ? c.tx : P.x, ty = c.ty != null ? c.ty : P.y;
-    if (Math.hypot(P.x - tx, P.y - ty) <= c.r + P.r) hurtPlayer(c.dmg, e, false, c.stunP);
+    const tx = c.tx != null ? c.tx : PT.x, ty = c.ty != null ? c.ty : PT.y;
+    for (const u of friendsOf()) if (Math.hypot(u.x - tx, u.y - ty) <= c.r + u.r) foeHurt(e, u, c.dmg, c.stunP);
     ring(tx, ty, c.r, 0.4, '#c77dff', 10); ring(tx, ty, c.r * 0.55, 0.3, '#fff', 6); sparks(tx, ty - 10, 18, '#c77dff', 500, 0.6); doShake(e.boss ? 7 : 3); sfx('boom');
-    if (c.chain && c.step < c.chain - 1) { c.step++; c.windup = c.winds[c.step]; c.tx = P.x; c.ty = P.y; if (c.gap) { c.delay = c.gap; e.state = 'pause'; } else e.state = 'wind'; e.t = 0; return; }
+    if (c.chain && c.step < c.chain - 1) { c.step++; c.windup = c.winds[c.step]; c.tx = PT.x; c.ty = PT.y; if (c.gap) { c.delay = c.gap; e.state = 'pause'; } else e.state = 'wind'; e.t = 0; return; }
   } else if (c.kind === 'summon') {   // 부하 소환 (필드 몬스터가 많으면 소환 수를 줄임)
     const room = Math.max(0, 14 - enemies.length), n = Math.min(c.n, room);
     for (let i = 0; i < n; i++) { const a = TAU * i / Math.max(1, n) + rand(0, 0.6), m = makeEnemy(c.type, clamp(e.x + Math.cos(a) * 120, 90, WORLD.w - 90), clamp(e.y + Math.sin(a) * 120, 90, WORLD.h - 90)); m.spawnT = 0.8; enemies.push(m); ring(m.x, m.y, 50, 0.5, e.d.auraCol || '#fff', 6); }
     ring(e.x, e.y, 180, 0.5, e.d.auraCol || '#fff', 10); sfx('skill'); reinforceMsg = e.d.short + '가 부하를 불러냈다!'; reinforceT = 2.5;
   } else if (c.kind === 'arrow') {
     const a = e.face; projectiles.push({ x: e.x, y: e.y - 14, vx: Math.cos(a) * 640, vy: Math.sin(a) * 640, dmg: c.dmg, life: 1.6, r: 10 }); sfx('swing');
-  } else if (c.kind === 'charge') { e.state = 'dash'; e.t = 0; e.dashHit = false; return; }
-  if (c.then) { e.cur = c.then; e.state = c.then.delay ? 'pause' : 'wind'; e.t = 0; e.face = angTo(e, P); return; }   // 연계 스킬 (원형·도약 등 이어서)
+  } else if (c.kind === 'charge') { e.state = 'dash'; e.t = 0; e.dashHit = false; e.dashSet = new Set(); return; }
+  if (c.then) { e.cur = c.then; e.state = c.then.delay ? 'pause' : 'wind'; e.t = 0; e.face = angTo(e, PT); return; }   // 연계 스킬 (원형·도약 등 이어서)
   e.state = 'recover'; e.t = 0;
 }
 // 2페이즈 진입: 여포가 적토마에서 내림 (말은 달아나고, 잠시 자세를 가다듬은 뒤 도보 패턴으로 전환)
@@ -2572,8 +2603,8 @@ function updateEnemies(dt) {
       else if (st > e.stage) { e.stage = st; if (e.d.raid) raidStageUp(e, st); else if (st !== 3) { ring(e.x, e.y, 240, 0.5, '#ff6a4a', 12); ring(e.x, e.y, 140, 0.4, '#fff', 8); sparks(e.x, e.y - 30, 30, '#ffcf70', 600, 0.7); doShake(12); flashT = Math.max(flashT, 0.15); sfx('boom'); reinforceMsg = '여포의 기세가 오른다!  (' + (st + 1) + '/6단계)'; reinforceT = 3; } }
     }
     e.x += e.kx * dt; e.y += e.ky * dt; const kf = Math.exp(-9 * dt); e.kx *= kf; e.ky *= kf;
-    const d = dist(e, P), toP = angTo(e, P), sp = e.speed * (e.boss ? (e.mounted ? 1.5 : 1.25) : 1) * (e.slowT > 0 ? (e.boss ? 0.75 : 0.55) : 1);
-    e.atkCd -= dt; if (e.slowT > 0) e.slowT -= dt;
+    const PT = tgtOf(e), d = dist(e, PT), toP = angTo(e, PT), sp = e.speed * (e.boss ? (e.mounted ? 1.5 : 1.25) : 1) * (e.slowT > 0 ? (e.boss ? 0.75 : 0.55) : 1);
+    e.atkCd -= dt; if (e.slowT > 0) e.slowT -= dt; drTick(e, dt);
     if (e.state !== 'wind') e.lift = 0;
     if (e.state === 'stun' || e.state === 'hit') { e.t -= dt; if (e.t <= 0) { e.state = 'chase'; e.atkCd = Math.max(e.atkCd, 0.3); } }
     else if (e.state === 'chase') {
@@ -2582,7 +2613,7 @@ function updateEnemies(dt) {
       if (e.type === 'archer') { if (d < 280) dir = -1; else if (d > 460) dir = 1; }
       else if (e.type === 'caster') { if (d < 320) dir = -1; else if (d > 500) dir = 1; }
       else if (e.type === 'cavalry') { if (d < 260) dir = -1; else if (d > 520) dir = 1; }   // 돌진 거리를 확보하려고 물러났다가 접근
-      else if (d > e.r + P.r + 30) dir = 1;
+      else if (d > e.r + PT.r + 30) dir = 1;
       if (dir) { e.x += Math.cos(toP) * sp * dir * dt; e.y += Math.sin(toP) * sp * dir * dt; e.walk += dt * 10; }
       if (e.atkCd <= 0) {
         const melee = e.type === 'soldier';
@@ -2594,7 +2625,7 @@ function updateEnemies(dt) {
         if (d > pr.dist) { e.x += Math.cos(toP) * pr.speed * dt; e.y += Math.sin(toP) * pr.speed * dt; }
         if (d <= pr.dist || e.t >= e.cur.delay) { e.cur.pre = null; e.state = 'wind'; e.t = 0; }
       } else {
-        if (!e.cur.noPursue && d > (e.cur.stopDist || e.r + P.r + 10)) { e.x += Math.cos(toP) * 400 * dt; e.y += Math.sin(toP) * 400 * dt; }
+        if (!e.cur.noPursue && d > (e.cur.stopDist || e.r + PT.r + 10)) { e.x += Math.cos(toP) * 400 * dt; e.y += Math.sin(toP) * 400 * dt; }
         if (e.cur.contDist && e.cur.step >= (e.cur.mandatory || 1) && d > e.cur.contDist) { e.state = 'recover'; e.t = 0; }   // 필수 횟수 이후의 베기: 딜레이 중 관우가 멀어졌으면 이어서 시전하지 않고 종료
         else if (e.t >= e.cur.delay) { e.state = 'wind'; e.t = 0; }
       }
@@ -2602,30 +2633,30 @@ function updateEnemies(dt) {
       e.t += dt; const c = e.cur, prog = e.t / c.windup;
       if (c.ult && Math.random() < 0.7) { const ang = rand(0, TAU), sx = e.x + Math.cos(ang) * 230, sy = e.y + Math.sin(ang) * 170, tx = e.x, ty = e.y - 140, l = Math.hypot(tx - sx, ty - sy); fx.push({ k: 'spark', x: sx, y: sy, vx: (tx - sx) / l * 520, vy: (ty - sy) / l * 520, t: 0, dur: 0.4, color: '#7fffd0', sz: 5 }); }   // 청룡의 힘: 기운이 모임
       if (c.stomp) e.lift = Math.sin(clamp(prog, 0, 1) * Math.PI) * 45;   // 발구르기: 말이 솟구쳤다가 내려찍음
-      if (c.chase && prog < 0.75) { e.face = toP; e.walk += dt * 14; if (d > e.r + P.r + 10) { e.x += Math.cos(toP) * c.chase * dt; e.y += Math.sin(toP) * c.chase * dt; } }   // 관우를 최대한 추적
+      if (c.chase && prog < 0.75) { e.face = toP; e.walk += dt * 14; if (d > e.r + PT.r + 10) { e.x += Math.cos(toP) * c.chase * dt; e.y += Math.sin(toP) * c.chase * dt; } }   // 관우를 최대한 추적
       if (c.kind === 'leap') {   // 앞부분은 플레이어를 추적해 낙하 지점을 정하고, 뒷부분에 도약
-        if (prog < c.track) { c.tx = P.x; c.ty = P.y; e.face = toP; }
+        if (prog < c.track) { c.tx = PT.x; c.ty = PT.y; e.face = toP; }
         else {
           if (c.sx == null) { c.sx = e.x; c.sy = e.y; }
           const q = clamp((prog - c.track) / (1 - c.track), 0, 1), k = q * q * (3 - 2 * q);
           e.x = c.sx + (c.tx - c.sx) * k; e.y = c.sy + (c.ty - c.sy) * k; e.lift = Math.sin(q * Math.PI) * 120;
         }
-      } else if (c.kind === 'rain') { if (prog < c.track) { c.tx = P.x; c.ty = P.y; } e.face = toP; }   // 낙뢰: 선딜 앞부분은 플레이어를 따라 낙하 지점을 정하고 뒷부분은 고정
+      } else if (c.kind === 'rain') { if (prog < c.track) { c.tx = PT.x; c.ty = PT.y; } e.face = toP; }   // 낙뢰: 선딜 앞부분은 플레이어를 따라 낙하 지점을 정하고 뒷부분은 고정
       else if (c.kind !== 'circle' && e.t < c.windup * (c.track || 0.4)) e.face = toP;
       if (e.t >= c.windup) resolveAttack(e);
     } else if (e.state === 'dash') {
       e.t += dt; const c = e.cur, sp2 = c.len / c.dashT;
       e.x += Math.cos(e.face) * sp2 * dt; e.y += Math.sin(e.face) * sp2 * dt;
       if (Math.random() < 0.6) fx.push({ k: 'spark', x: e.x, y: e.y, vx: rand(-60, 60), vy: rand(-60, 60), t: 0, dur: 0.35, color: '#ff8a6a', sz: 6 });
-      if (!e.dashHit && d < (c.hitR || e.r) + P.r) { e.dashHit = true; hurtPlayer(c.dmg, e, false, c.stunP); }
+      if (!e.dashSet) e.dashSet = new Set(); for (const u of friendsOf()) if (!e.dashSet.has(u) && dist(e, u) < (c.hitR || e.r) + u.r) { e.dashSet.add(u); foeHurt(e, u, c.dmg, c.stunP); }
       if (e.t >= c.dashT) {
         doShake(6);
         if (c.quakeR) {   // 충격 돌격: 급정지 지점 충격파
-          if (dist(e, P) <= c.quakeR + P.r) hurtPlayer(c.dmg * 0.8, e);
+          for (const u of friendsOf()) if (dist(e, u) <= c.quakeR + u.r) foeHurt(e, u, c.dmg * 0.8);
           ring(e.x, e.y, c.quakeR, 0.45, '#ff6a4a', 12); ring(e.x, e.y, c.quakeR * 0.5, 0.3, '#fff', 6); sparks(e.x, e.y, 18, '#c9a46a', 450, 0.6); doShake(12); sfx('boom');
         }
-        if (c.chain && c.step < c.chain - 1) { c.step++; c.len = c.lens[c.step]; c.windup = c.winds[c.step]; if (c.dashTs) c.dashT = c.dashTs[c.step]; const gp = c.gaps ? c.gaps[c.step - 1] : 0; if (gp) { c.delay = gp; e.state = 'pause'; } else e.state = 'wind'; e.t = 0; e.face = angTo(e, P); }   // 연속 돌격: (간격이 있으면 잠시 멈춘 뒤) 말머리를 돌려 다시 조준
-        else if (c.then) { e.cur = c.then; e.state = c.then.delay ? 'pause' : 'wind'; e.t = 0; e.face = angTo(e, P); }   // 돌진이 끝나면 곧바로 후속 스킬(점프 공격)로
+        if (c.chain && c.step < c.chain - 1) { c.step++; c.len = c.lens[c.step]; c.windup = c.winds[c.step]; if (c.dashTs) c.dashT = c.dashTs[c.step]; const gp = c.gaps ? c.gaps[c.step - 1] : 0; if (gp) { c.delay = gp; e.state = 'pause'; } else e.state = 'wind'; e.t = 0; e.face = angTo(e, PT); }   // 연속 돌격: (간격이 있으면 잠시 멈춘 뒤) 말머리를 돌려 다시 조준
+        else if (c.then) { e.cur = c.then; e.state = c.then.delay ? 'pause' : 'wind'; e.t = 0; e.face = angTo(e, PT); }   // 돌진이 끝나면 곧바로 후속 스킬(점프 공격)로
         else { e.state = 'recover'; e.t = 0; }
       }
     } else if (e.state === 'recover') {
@@ -2662,7 +2693,7 @@ function updateProjectiles(dt) {
     else if (p.friendly) {   // 관통 화살: 지나가는 모든 적에게 한 번씩 적중
       for (const e of enemies) if (!e.dead && e.spawnT <= 0 && !p.hit.has(e) && dist(p, { x: e.x, y: e.y - 14 }) < p.r + e.r) { p.hit.add(e); hitEnemy(e, p.far ? p.dmg * farMul(p.far, Math.hypot(p.x - p.x0, p.y - p.y0) - 150, p.farR) : p.dmg, { from: P, kb: 120 }); }
     }
-    else if (dist(p, { x: P.x, y: P.y - 18 }) < p.r + P.r && P.inv <= 0 && !(P.act && (P.act.type === 'ult' || P.act.invul))) { hurtPlayer(p.dmg, null, p.boss); p.life = 0; }
+    else for (const u of friendsOf()) { if (dist(p, { x: u.x, y: u.y - 18 }) >= p.r + u.r) continue; if (u === P) { if (P.inv > 0 || (P.act && (P.act.type === 'ult' || P.act.invul))) continue; hurtPlayer(p.dmg, null, p.boss); } else { if (u.invT > 0) continue; foeHurt({ x: p.x - p.vx * 0.05, y: p.y - p.vy * 0.05 }, u, p.dmg); } p.life = 0; break; }
     if (p.x < 40 || p.y < 40 || p.x > WORLD.w - 40 || p.y > WORLD.h - 40) p.life = 0;
   }
   projectiles = projectiles.filter(p => p.life > 0);
@@ -2729,7 +2760,7 @@ function drawRaidMenu() {
     text(key, r.x + 20, r.y + 34, 20, col, 'left'); text(title, r.x + r.w / 2, r.y + 90, 40, col, 'center');
     lines.forEach((ln, i) => text(fitStr(ln, r.w - 40, 15), r.x + r.w / 2, r.y + 150 + i * 28, 15, i ? '#cfd3e6' : '#fff', 'center', false)); ctx.globalAlpha = 1;
   };
-  card(DM.off, '1', '오프라인', '#ffd34d', ['내 PC 1 ~ 3명으로 보스와 전투', 'Z / X / C 로 태그하며 싸웁니다', '내 계정의 영웅 레벨 성장 적용', '보스는 체력에 따라 8단계로 강해집니다']);
+  card(DM.off, '1', '오프라인', '#ffd34d', ['PC 1 ~ 3명이 동시에 보스와 전투', '내가 1명을 직접 조작 · 나머지는 AI 동료 (태그 없음)', '내 계정의 영웅 레벨 성장 적용', '보스는 체력에 따라 8단계로 강해집니다']);
   card(DM.on, '2', '온라인', '#7dff9a', ['친구와 함께 보스를 토벌 (협동)', '준비 중입니다'], true);
   if (raidMsgT > 0) text('온라인 레이드는 준비 중입니다', W / 2, 560, 24, '#ffe9a0', 'center');
   const b = DM.back; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text('뒤로', b.x + b.w / 2, b.y + 21, 15, '#cfd3e6', 'center');
@@ -2883,8 +2914,8 @@ function drawPick() {
   ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
   const duelP = pickFor === 'duel';
   text((duelP ? (pickOnline ? '비무장 모드 (온라인)' : '비무장 모드 (오프라인)') : (pickFor === 'raid' ? '레이드 모드 (오프라인)' : '로그라이크 모드')) + '  ·  영웅 선택', W / 2, 56, 40, '#ffd34d', 'center');
-  text(duelP ? (pickOnline ? '1~3명을 순서대로 고르세요 (상대 팀 인원은 상대가 정합니다)  —  첫 번째 영웅을 직접 조작합니다 (전투 중 초상화 · Q 로 변경)' : '1~3명을 순서대로 고르세요 (인원수만큼 적도 배치)  —  첫 번째 영웅을 직접 조작합니다 (전투 중 아군 초상화로 변경 가능)') : '최대 3명까지 고르세요 (1명 이상)  —  첫 번째 영웅으로 시작하고, 선택한 순서대로 Z / X / C 로 태그합니다', W / 2, 90, 16, '#cfd3e6', 'center', false);
-  text(duelP ? (pickOnline ? (NET.status || '방을 만들거나 친구의 방 코드로 참가하세요') : '적군은 같은 인원수의 PC (구성 랜덤)  ·  규칙 동일 · 레벨 보정은 같은 영웅끼리 같은 레벨(내 계정 기준)') : (pickFor === 'raid' ? '보스 : 여포 봉선 (기마 → 하마, 8단계)  ·  성장 레벨 적용  ·  보스 체력에 따라 패턴이 늘어납니다' : '웨이브 1 ~ 50  ·  5층마다 보스 (10 관우 · 25 조운 · 50 여포)  ·  다음 화면에서 웨이브 선택'), W / 2, 114, 14, duelP ? '#ff9a8a' : '#ffb27a', 'center', false);
+  text(duelP ? (pickOnline ? '1~3명을 순서대로 고르세요 (상대 팀 인원은 상대가 정합니다)  —  첫 번째 영웅을 직접 조작합니다 (전투 중 초상화 · Q 로 변경)' : '1~3명을 순서대로 고르세요 (인원수만큼 적도 배치)  —  첫 번째 영웅을 직접 조작합니다 (전투 중 아군 초상화로 변경 가능)') : (pickFor === 'raid' ? '1~3명을 고르세요  —  첫 번째 영웅을 직접 조작하고 나머지는 AI 동료로 동시에 보스와 싸웁니다' : '최대 3명까지 고르세요 (1명 이상)  —  첫 번째 영웅으로 시작하고, 선택한 순서대로 Z / X / C 로 태그합니다'), W / 2, 90, 16, '#cfd3e6', 'center', false);
+  text(duelP ? (pickOnline ? (NET.status || '방을 만들거나 친구의 방 코드로 참가하세요') : '적군은 같은 인원수의 PC (구성 랜덤)  ·  규칙 동일 · 레벨 보정은 같은 영웅끼리 같은 레벨(내 계정 기준)') : (pickFor === 'raid' ? '첫 번째 영웅을 직접 조작, 나머지 영웅은 AI 동료로 함께 싸웁니다 (태그 없음)  ·  보스 : 여포 봉선 (8단계)  ·  성장 레벨 적용  ·  보스 체력에 따라 패턴이 늘어납니다' : '웨이브 1 ~ 50  ·  5층마다 보스 (10 관우 · 25 조운 · 50 여포)  ·  다음 화면에서 웨이브 선택'), W / 2, 114, 14, duelP ? '#ff9a8a' : '#ffb27a', 'center', false);
   const text0 = text;
   HERO_IDS.forEach((id, i) => {
     const r = pickCardRect(i), h = HEROES[id], k = duelPick.indexOf(id), on = k >= 0, lv = ACC ? heroLv(id) : 1, g = GROWTH[id], mt = metaFull(id);
@@ -2912,7 +2943,7 @@ function drawPick() {
     // 스킬 성능
     heroSkillRows(id).forEach((row, j) => { const yy = r.y + 254 + j * 44; text(row.n, r.x + 14, yy, 13, j === 3 ? '#ffd34d' : '#ffe9a0', 'left'); text(row.c1, r.x + 14, yy + 15, 11.5, '#fff', 'left', false); text(row.c2, r.x + 14, yy + 29, 11, '#ffb27a', 'left', false); });
     wrapLeft(PICK_NOTE(id), r.x + 14, r.y + 424, r.w - 28, 9.5, '#9aa3b8', 3, 11);
-    if (on) { ctx.fillStyle = k === 0 ? '#ffd34d' : '#4fb0ff'; circle(r.x + 28, r.y + 28, 18); text(String(k + 1), r.x + 28, r.y + 35, 20, '#111', 'center'); text(k === 0 ? (duelP ? '조작' : '시작') : (duelP ? '아군' : '태그 ' + ['Z', 'X', 'C'][k - 1]), r.x + 52, r.y + 32, 14, k === 0 ? '#ffd34d' : '#9ad4ff', 'left'); }
+    if (on) { ctx.fillStyle = k === 0 ? '#ffd34d' : '#4fb0ff'; circle(r.x + 28, r.y + 28, 18); text(String(k + 1), r.x + 28, r.y + 35, 20, '#111', 'center'); text(k === 0 ? ((duelP || pickFor === 'raid') ? '조작' : '시작') : ((duelP || pickFor === 'raid') ? '아군' : '태그 ' + ['Z', 'X', 'C'][k - 1]), r.x + 52, r.y + 32, 14, k === 0 ? '#ffd34d' : '#9ad4ff', 'left'); }
     ctx.restore();
   });
   { const b = PICK_FOLD_BTN; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text(pickFold ? '스킬 정보 펴기 ▼ (F)' : '스킬 정보 접기 ▲ (F)', b.x + b.w / 2, b.y + 23, 14, '#cfd3e6', 'center'); }
@@ -2924,7 +2955,7 @@ function drawPick() {
     else { foeSync(); drawFoeRow({ x: 24, y: pickGoRect().y + 60, w: 1232, h: pickFold ? 112 : 60 }, '상대 팀 (AI)', '같은 영웅은 내 레벨', duelFoes, id => ACC ? heroRec(ACC, id).lv : 1, null, '영웅을 고르면 상대 팀이 표시됩니다'); }
   } else text('카드를 누르면 선택 / 해제됩니다 · 선택한 순서가 곧 시작 영웅과 태그 순서입니다', W / 2, pickGoRect().y + 76, 14, '#cfd3e6', 'center', false);
 }
-function restartMode() { if (NET.on) { netBackToRoom(); return; } if (mode === 'duel') { duelFoes = []; startDuel(duelLast); } else if (RAID) startRaid(TEAM); else startGame(null, lastStartWave); }
+function restartMode() { if (NET.on) { netBackToRoom(); return; } if (mode === 'duel') { duelFoes = []; startDuel(duelLast); } else if (RAID) startRaid(RAID_HEROES); else startGame(null, lastStartWave); }
 
 // ---------- AI 스킬 세트 (플레이어와 같은 수치, 시간은 실제 초 = 행동 시간 / 행동 속도) ----------
 function comboDef(hero, stage) {
@@ -3039,7 +3070,7 @@ function startDuel(picks) {
 }
 
 // ---------- 전투 판정 ----------
-function oppUnits(f) { return f.team === 'foe' ? (P.dead ? allies.filter(u => !u.dead) : [P, ...allies.filter(u => !u.dead)]) : enemies.filter(u => u.fighter && !u.dead && u.spawnT <= 0); }
+function oppUnits(f) { return f.team === 'foe' ? (P.dead ? allies.filter(u => !u.dead) : [P, ...allies.filter(u => !u.dead)]) : enemies.filter(u => (u.fighter || RAID) && !u.dead && u.spawnT <= 0); }   // 레이드: 아군 AI 는 보스와 부하도 상대
 function nearestOpp(f) { let b = null, bd = 1e9; for (const u of oppUnits(f)) { const d = dist(f, u); if (d < bd) { bd = d; b = u; } } return b; }
 // ---- AI 버프·피해 보정: 플레이어와 같은 규칙 (HIT 단계 공속·피해 / 3단 공격 성공 버프 / 궁극기 후 공격력 / 방어력) ----
 const fComboTier = f => { const h = HEROES[f.hero]; return h.hitBonus ? (f.hits >= h.hitBonus.start ? Math.floor((f.hits - h.hitBonus.start) / h.hitBonus.step) + 1 : 0) : Math.min(COMBO_MAX_TIER, Math.floor(f.hits / COMBO_STEP)); };
@@ -3065,7 +3096,7 @@ function dmgUnit(f, u, dmg, o) {   // f 가 u 에게 dmg 피해 (u = 플레이�
   let landed;
   if (u === P) { if (P.dead) return false; const crit = Math.random() < 0.2 + f.meta.crit, before = P.hp; hurtPlayer(Math.round(dmg * fAtkMul(f) * (crit ? 1.8 + f.meta.critDmg : 1) * rand(0.92, 1.08)), f, false, o.stun || 0, o.rec, o.kb || 0); landed = P.hp < before; }
   else landed = hitEnemy(u, dmg, { from: f, kb: o.kb || 0, rec: o.rec, stun: o.stun, ai: true, by: f, rage: 0 });
-  if (landed && o.slow) u.slowT = Math.max(u.slowT || 0, o.slow);
+  if (landed && o.slow) u.slowT = Math.max(u.slowT || 0, o.slow * drPeek(u));
   if (landed) fHit(f, o, dmg * fAtkMul(f));
   return landed;
 }
@@ -3221,11 +3252,11 @@ function updateFighter(f, dt) {
   if (f.hitsT > 0) { f.hitsT -= dt; if (f.hitsT <= 0) { f.hits = 0; f.hitTier = 0; } }   // 3초간 적중이 없으면 HIT 초기화
   if (f.runT > 0) f.runT = (f.moving || (f.act && f.act.def.name === 'rush')) ? Hf.runDur : Math.max(0, f.runT - dt);   // 질주: 이동 중이거나 돌격 중이면 지속시간 갱신
   f.moving = false;
-  f.lungeT = Math.max(0, (f.lungeT || 0) - dt); f.hitT = Math.max(0, f.hitT - dt); f.flash = Math.max(0, f.flash - dt); f.invT = Math.max(0, f.invT - dt); f.rage = Math.min(100, f.rage + dt / ULT_CD * 100 * (1 + f.meta.rage)); f.cd.s1 = Math.max(0, f.cd.s1 - dt); f.cd.s2 = Math.max(0, f.cd.s2 - dt); for (const k in f.s2Store) f.s2Store[k] = Math.max(0, f.s2Store[k] - dt); f.dashCd = Math.max(0, f.dashCd - dt); if (f.slowT > 0) f.slowT -= dt; f.atkCd -= dt; f.comboT -= dt;
+  f.lungeT = Math.max(0, (f.lungeT || 0) - dt); f.hitT = Math.max(0, f.hitT - dt); f.flash = Math.max(0, f.flash - dt); f.invT = Math.max(0, f.invT - dt); f.rage = Math.min(100, f.rage + dt / ULT_CD * 100 * (1 + f.meta.rage)); f.cd.s1 = Math.max(0, f.cd.s1 - dt); f.cd.s2 = Math.max(0, f.cd.s2 - dt); for (const k in f.s2Store) f.s2Store[k] = Math.max(0, f.s2Store[k] - dt); f.dashCd = Math.max(0, f.dashCd - dt); if (f.slowT > 0) f.slowT -= dt; drTick(f, dt); f.atkCd -= dt; f.comboT -= dt;
   f.x += f.kx * dt; f.y += f.ky * dt; const kf = Math.exp(-9 * dt); f.kx *= kf; f.ky *= kf;
   if (f.freeze > 0) { f.freeze -= dt; arenaClamp(f); return; }
   if ((!f.human || netAuto(f)) && f.state !== 'stun' && f.dashCd <= 0 && !(f.act && (f.act.def.invul || f.act.def.name === 'ult' || f.act.def.name === 'dodge'))) {   // 자동 회피 (AUTO 플레이어와 동일 규칙)
-    const dg = dodgeDir(f);
+    const dg = RAID ? raidDodgeDir(f) : dodgeDir(f);
     if (dg != null) { f.dashCd = CD.dash; f.invT = 0.26; f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: 950, ang: dg }] }, null); runAct(f, dt); arenaClamp(f); return; }
   }
   if (f.state === 'hit' || f.state === 'stun') { if (f.act) { f.act = null; f.armor = false; } f.t -= dt; if (f.t <= 0) { f.state = 'move'; f.atkCd = Math.max(f.atkCd, 0.25); } arenaClamp(f); return; }
@@ -3525,6 +3556,17 @@ function drawRowBuffs(u, H, mine, x, y) {   // 영웅 줄 옆에 버프 알약: 
   });
   ctx.restore();
 }
+function drawRaidAllyHud() {   // 레이드: AI 동료의 생명력 (왼쪽 위, 조작 영웅 아래)
+  allies.forEach((f, i) => {
+    const x = 10, y = 64 + i * 44, fr = clamp(f.hp / f.maxhp, 0, 1);
+    ctx.fillStyle = 'rgba(10,12,20,.55)'; ctx.fillRect(x, y, 200, 38); ctx.strokeStyle = '#4fb0ff'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, 200, 38);
+    ctx.save(); ctx.beginPath(); ctx.arc(x + 20, y + 19, 16, 0, TAU); ctx.clip(); ctx.translate(x + 20, y + 22); ctx.scale(0.52, 0.52); drawPortraitIcon(HEROES[f.hero], 0, 0); ctx.restore();
+    text(DUEL_NAME[f.hero] + '  (AI)', x + 42, y + 14, 11, '#fff');
+    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x + 42, y + 18, 150, 9); ctx.fillStyle = fr > 0.5 ? '#4fd36a' : fr > 0.25 ? '#f0b030' : '#ff3a3a'; ctx.fillRect(x + 43, y + 19, 148 * fr, 7);
+    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x + 42, y + 29, 150, 5); ctx.fillStyle = f.rage >= 100 ? '#ffd34d' : '#e0902a'; ctx.fillRect(x + 43, y + 30, 148 * clamp(f.rage / 100, 0, 1), 3);
+    if (f.dead) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x, y, 200, 38); text('쓰러짐', x + 100, y + 25, 14, '#ffd34d', 'center'); }
+  });
+}
 function drawDuelHUD() {
   const row = (u, hero0, x, y, mine, isP) => {
     const hero = isP ? HERO.id : u ? u.hero : hero0;   // 지금 모습(폼)으로 표시: 여포는 상마/하마
@@ -3566,7 +3608,7 @@ function update(rdt) {
   if (hitstop > 0) { hitstop -= rdt; dt = 0; }
   if (NET.on) netHostPre();
   if (dt > 0) {
-    if (state === 'play') { clock += dt; updatePlayer(dt); if (mode === 'duel') updateDuel(dt); else updateWaves(dt); updateItems(dt); }
+    if (state === 'play') { clock += dt; updatePlayer(dt); if (mode === 'duel') updateDuel(dt); else { updateWaves(dt); if (RAID) updateRaidAllies(dt); } updateItems(dt); }
     else { winT += dt; }
     updateEnemies(dt); updateProjectiles(dt); updateFx(dt);
   }
@@ -4279,6 +4321,7 @@ function drawHUD() {
   if (mode !== 'duel') text(RAID ? '레이드 모드  ·  여포 봉선' : `로그라이크 모드  ·  WAVE ${waveIdx + 1}/${WAVES.length}`, W / 2, 24, 16, '#fff', 'center');
   if (!(mode === 'yeonui' && state === 'play')) { const r = lobbyBtnRect(); ctx.fillStyle = 'rgba(10,12,20,.55)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(mode === 'yeonui' && state === 'play' ? '나가기' : '로비', r.x + r.w / 2, r.y + r.h / 2 + 5, 13, '#ffe9a0', 'center'); }   // 로비 버튼 (보스 버튼 옆) — 로그라이크 전투 중에는 '나가기'(경험치 정산)
   if (mode === 'yeonui' && state === 'play') drawPauseButton();
+  if (RAID && state !== 'title') drawRaidAllyHud();
   if (mode !== 'duel') text(`처치 ${kills}${curWave().bossWave ? '' : '   ·   남은 적 ' + (enemies.length + waveLeft())}   ·   ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`, W / 2, 42, 12, '#cfd3e6', 'center', false);
   // ===== 보스 체력바 (얇게) =====
   const boss = enemies.find(e => e.boss);
@@ -4343,7 +4386,7 @@ function drawCardFigure(h, x, y) {
 const LOBBY_STAGES = [
   { title: '로그라이크 모드', line: 'W1~W50  ·  5층마다 보스  ·  5층마다 능력치 강화 선택', start: '최대 3명 선택  ·  Z / X / C 태그  ·  여포는 K 로 상마↔하마', col: '#d8a03a' },
   { title: '비무장 모드', line: '1~3명 PC 대전 (적도 같은 인원)  ·  제한 시간 3분', start: '1~3명 선택  ·  태그 없이 시작부터 전투  ·  레벨 보정 양쪽 동일', col: '#4fb0ff' },
-  { title: '레이드 모드', line: '여포 봉선 8단계 보스전  ·  1~3명 태그', start: '오프라인 · 온라인(준비 중)  ·  성장 적용 · 5분 안팎의 보스 토벌', col: '#e0504a' },
+  { title: '레이드 모드', line: '여포 봉선 8단계 보스전  ·  1~3명 동시 전투', start: '1명 조작 + AI 동료 2명  ·  태그 없음  ·  온라인은 준비 중', col: '#e0504a' },
 ];
 // 로비 장수 정보 배너: 로비의 큰 카드로 확대 — PC 4명의 레벨·경험치·다음 성장 단계를 미리 보여 주고 누르면 장수 정보 페이지로
 function drawLobbyInfoBanner() {
