@@ -75,13 +75,14 @@ addEventListener('keydown', e => {
   if (state === 'title' && e.code === 'Escape') { state = 'account'; accPopup = false; return; }
   if (state === 'waves') { wavesKey(e.code); return; }
   if (state === 'duelMenu') { duelMenuKey(e.code); return; }
+  if (state === 'raidMenu') { raidMenuKey(e.code); return; }
   if (state === 'pick') { pickKey(e.code); return; }
   if (state === 'upgrade') { const m = /^Digit([1-3])$/.exec(e.code); if (m) pickUpgrade(+m[1] - 1); else if (e.code === 'Tab' || e.code === 'KeyT') auto = !auto; return; }
   if (state === 'title') {   // 로비: ← → (A D, 1 2) 로 모드를 고르고 Enter / Space 로 입장
     const sn = STAGE_HEROES.length + 1;   // 모드 카드 2개 + 장수 정보 배너
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') lobbySel = (lobbySel + sn - 1) % sn;
     else if (e.code === 'ArrowRight' || e.code === 'KeyD') lobbySel = (lobbySel + 1) % sn;
-    else if (/^Digit[1-3]$/.test(e.code)) { const k = +e.code.slice(5) - 1; if (k >= STAGE_HEROES.length) openInfo(); else { lobbySel = k; enterMode(k); } }
+    else if (/^Digit[1-4]$/.test(e.code)) { const k = +e.code.slice(5) - 1; if (k >= STAGE_HEROES.length) openInfo(); else { lobbySel = k; enterMode(k); } }
     else if (e.code === 'Enter' || e.code === 'Space') { if (lobbySel >= STAGE_HEROES.length) openInfo(); else enterMode(lobbySel); }
     return;
   }
@@ -152,9 +153,10 @@ cv.addEventListener('pointerdown', e => {
   const { x, y } = pt(e);
   if (state === 'account') { accountClick(x, y); return; }
   if (state === 'info') { infoClick(x, y); return; }
-  if (state === 'title') { if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; } if (inRect(x, y, INFO_BTN)) { openInfo(); return; } for (let i = 0; i < STAGE_HEROES.length; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[i === 0 ? 'yeonui' : 'duel'] = false; lobbySel = i; enterMode(i); return; } }
+  if (state === 'title') { if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; } if (inRect(x, y, INFO_BTN)) { openInfo(); return; } for (let i = 0; i < 2; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[i === 0 ? 'yeonui' : 'duel'] = false; lobbySel = i; enterMode(i); return; } }
   if (state === 'waves') { wavesClick(x, y); return; }
   if (state === 'duelMenu') { duelMenuClick(x, y); return; }
+  if (state === 'raidMenu') { raidMenuClick(x, y); return; }
   if (state === 'pick') { pickClick(x, y); return; }
   if (state === 'upgrade') { upgradeClick(x, y); return; }
   if (paused) { pauseClick(x, y); return; }
@@ -324,7 +326,7 @@ const BAL_BASE = {};
 }
 const HERO_IDS = ['lubu', 'zhao', 'guan', 'diao', 'dian', 'huang'];   // PC 4명 (여포는 상마·하마를 K 스킬로 전환하는 하나의 PC / 초선은 힐러)
 let TEAM = ['guan', 'lubu', 'zhao'];   // 로그라이크 모드 출전 영웅 (1~3명, 선택 순서 = 태그 슬롯 Z / X / C). 첫 번째가 시작 영웅
-const STAGE_HEROES = ['yeonui', 'duel'];   // 로비 입장 버튼: 로그라이크 모드 / 비무장 모드   // 로비의 스테이지 버튼 순서: 여포 보스 스테이지(시작 영웅 관우) / 관우 보스 스테이지(시작 영웅 여포 상마)
+const STAGE_HEROES = ['yeonui', 'duel', 'raid'];   // 로비 입장 버튼: 로그라이크 모드 / 비무장 모드   // 로비의 스테이지 버튼 순서: 여포 보스 스테이지(시작 영웅 관우) / 관우 보스 스테이지(시작 영웅 여포 상마)
 const MOUNT_R = 28, RIDER_R = 22;   // 기마 영웅의 말·기수 그림 크기 (충돌 반경은 HERO_STATS.r 로 동일)
 let selHero = 'guan';   // 스테이지 통합: 시작 영웅은 항상 관우 (전투 중 Z/X/C 태그로 교체)
 let HERO = HEROES[selHero];
@@ -333,7 +335,7 @@ function selectHero(id) { if (!HEROES[id]) return; selHero = id; try { localStor
 function applyLabels() { for (const b of BTN) if (HERO.skills[b.id]) b.label = HERO.skills[b.id]; try { refreshMeta(); } catch (_) { } }   // 영웅이 바뀔 때마다 그 영웅의 성장 보너스로 갱신
 function applyHero() { HERO = heroDef(selHero); curHero = selHero; applyLabels(); applyFoeTheme(); }
 // 시작 화면의 영웅 선택 카드 / 승패 화면의 '영웅 선택' 버튼
-const CARD = { w: 470, h: 116, gap: 24, y: 214 };   // 로비 스테이지 입장 버튼 크기·위치
+const CARD = { w: 380, h: 116, gap: 20, y: 214 };   // 로비 스테이지 입장 버튼 크기·위치
 const cardRect = i => ({ x: W / 2 - (STAGE_HEROES.length * CARD.w + (STAGE_HEROES.length - 1) * CARD.gap) / 2 + i * (CARD.w + CARD.gap), y: CARD.y, w: CARD.w, h: CARD.h });
 const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 function cardAt(x, y) { for (let i = 0; i < STAGE_HEROES.length; i++) if (inRect(x, y, cardRect(i))) return i; return -1; }
@@ -384,8 +386,18 @@ const BOSS_STAGE = {   // 보스 여포 단계별 난이도 (이전: 1페이즈 
 };
 // 보스 공통 (여포·관우): 선딜(windup) x0.88, 후딜(recover) x0.7 — 패턴 구성은 그대로 두고 속도만 상향. 이어쓰기: 후딜이 끝난 뒤 글로벌 대기 대신 BOSS_CHAIN_GAP 만 쉬고 바로 다음 스킬(최대 BOSS_CHAIN_MAX 번 연속 추가)
 const BOSS_WINDUP_MUL = 0.88, BOSS_RECOVER_MUL = 0.7, BOSS_CHAIN_MAX = 2, BOSS_CHAIN_GAP = 0.12;
-const bossChainP = e => e.d.mb ? MB.chain[mbStage(e)] : e.d.zhao ? ZB.chain[zStage(e)] : e.d.foot ? (e.phase2 ? 0.45 : 0.30) : BOSS_STAGE.chain[bossStage(e)];
-const bossStage = e => { const r = e.hp / e.maxhp; return r > 5 / 6 ? 0 : r > 4 / 6 ? 1 : r > 0.5 ? 2 : r > 2 / 6 ? 3 : r > 1 / 6 ? 4 : 5; };
+const bossChainP = e => e.d.mb ? MB.chain[mbStage(e)] : e.d.zhao ? ZB.chain[zStage(e)] : e.d.foot ? (e.phase2 ? 0.45 : 0.30) : bossTab(e).chain[bossStage(e)];
+// 레이드 보스 여포 (8단계): 1페이즈(기마) 0~3단계(100~50%) / 2페이즈(하마) 4~7단계(50~0%). 기존 여포(6단계)를 세분화해 단계마다 패턴이 하나씩 늘고 빨라진다.
+//  3단계: 화살 연사→돌진 · 도약 3연속 / 4단계: 하마 / 6단계(37%): 부하 소환 · 6단계(25%): 회전 폭풍·전쟁의 함성 / 7단계(12%): 최후의 광폭 (함성 → 돌진 → 점프)
+const RAID_STAGE = {
+  fast: [0.94, 0.90, 0.86, 0.82, 0.74, 0.68, 0.62, 0.56],
+  dmg: [1.10, 1.16, 1.22, 1.30, 1.50, 1.66, 1.82, 2.00],
+  cd: [0.95, 0.92, 0.88, 0.84, 0.72, 0.65, 0.58, 0.50],
+  chain: [0.25, 0.28, 0.32, 0.36, 0.50, 0.56, 0.64, 0.72],
+};
+const raidStage = e => { const r = e.hp / e.maxhp; return r > 7 / 8 ? 0 : r > 6 / 8 ? 1 : r > 5 / 8 ? 2 : r > 0.5 ? 3 : r > 3 / 8 ? 4 : r > 2 / 8 ? 5 : r > 1 / 8 ? 6 : 7; };
+const bossStage = e => { if (e.d.raid) return raidStage(e); const r = e.hp / e.maxhp; return r > 5 / 6 ? 0 : r > 4 / 6 ? 1 : r > 0.5 ? 2 : r > 2 / 6 ? 3 : r > 1 / 6 ? 4 : 5; };
+const bossTab = e => e.d.raid ? RAID_STAGE : BOSS_STAGE;
 const BOSS_MOUNTED_R = 56, BOSS_DISMOUNT_HP = 0.5;   // 보스 기마 상태의 충돌 반경 / 체력이 이 비율 아래가 되면 하마(2페이즈)
 const WAVE_TOTAL_MULT = 3, RESPAWN_INTERVAL = 0.9;   // 일반 웨이브(W1~3): 웨이브 하나의 총 몬스터 수 3배. 필드에는 (기존 수)만큼만 있고, 쓰러지면 RESPAWN_INTERVAL 마다 하나씩 다시 등장
 const TYPES = {
@@ -397,6 +409,8 @@ const TYPES = {
 };
 
 const FOE_BOSS_GUAN = { name: '관우 운장', short: '관우', foot: true, body: '#2f8f5b', trim: '#d4a73a', skin: '#c9553f', helm: false, hat: true, beard: true, cape: '#1f6a42', feathers: false, weapon: 'glaive', barding: '#1f6a42' };
+const RAID_HP_SCALE = 2.4, RAID_HPMUL = 2.0, RAID_DMGMUL = 1.0;   // 레이드 보스 체력 배율(보스 기본 x) / 웨이브 배율
+TYPES.raidBoss = { ...TYPES.boss, raid: true, name: '여포 봉선 · 레이드', short: '여포', hpScale: RAID_HP_SCALE };   // 레이드 모드 보스 (기마 → 하마, 8단계)
 TYPES.guanBoss = { ...TYPES.boss, ...FOE_BOSS_GUAN };   // 보스 관우 운장 (W3): 여포(boss)와 같은 체력, 도보 단일 패턴
 const FOE_BOSS_ZHAO = { name: '조운 자룡', short: '조운', foot: true, zhao: true, speed: 165, body: '#2b6a6e', trim: '#c9cfd8', skin: '#e0b08a', helm: false, hair: true, band: true, pauldrons: true, cape: '#1f4a50', feathers: false, weapon: 'lance', barding: '#1f4a50', auraCol: '#7fd0ff', fxCol: '#e6f6ff', p2msg: '조운이 백룡의 기운을 해방했다!  2페이즈' };
 TYPES.zhaoBoss = { ...TYPES.boss, ...FOE_BOSS_ZHAO };   // 보스 조운 자룡 (W6): 관우 보스와 같은 체력, 도보, 빠른 찌르기·돌진 패턴
@@ -505,6 +519,9 @@ function catchUpUpgrades(n) {   // 웨이브 n 층에서 시작: 건너뛴 5웨�
   P.maxhp = maxHpNow(); P.hp = P.maxhp; for (const id of HERO_IDS) P.hpStore[id] = heroMaxHp(id); P.speed = speedNow();
 }
 const WAVES = buildWaves();   // 로그라이크 모드 50웨이브
+let RAID = false;   // 레이드 모드: 로그라이크 규칙(태그·성장) 위에서 보스 하나(여포 8단계)와 싸운다
+const RAID_WAVE = { name: 'RAID — 여포 봉선', spawn: [['raidBoss', 1]], bossWave: true, hpMul: RAID_HPMUL, dmgMul: RAID_DMGMUL, tier: null };
+const curWave = () => RAID ? RAID_WAVE : WAVES[waveIdx];
 function applyFoeTheme() { }   // 스테이지 통합 — 진영 연출 전환 없음
 // ===================================================================
 // 로그라이크 (로그라이크 모드): 웨이브를 클리어할 때마다 랜덤 능력치 향상 3개 중 1개를 골라 그 판이 끝날 때까지 누적 적용 (모든 출전 영웅 공통)
@@ -524,7 +541,7 @@ function rollHit(att, tgt) {
   else { acc = att === P ? PC_ACC + RUN.acc * 100 : monAcc(att); eva = tgt.fighter ? PC_EVA : monEva(tgt); }
   return Math.random() * 100 < clamp(acc - eva, 25, 100);
 }
-function resetRun() { upg = null; for (const k in RUN) RUN[k] = k === 'picks' ? [] : 0; }
+function resetRun() { RAID = false; upg = null; for (const k in RUN) RUN[k] = k === 'picks' ? [] : 0; }
 const maxHpNow = () => heroMaxHp(HERO.pc), speedNow = () => HERO_STATS.speed * (1 + (RUN.spd + META.spd));   // 최대 체력·이동속도 = (기본 + 레벨 성장 +N) x 로그라이크 강화
 const pct = v => '+' + Math.round(v * 100) + '%';
 const UPG = {
@@ -910,6 +927,16 @@ function startGame(team, startWave = 0) {
   state = 'play';
   if (tutNeeded('yeonui')) tutBegin('yeonui'); else { if (startWave > 0) catchUpUpgrades(startWave); beginWave(startWave); }
 }
+function startRaid(team) {   // 레이드 모드 (오프라인): 1~3명이 태그하며 보스 여포와 싸운다
+  lastStartWave = 0;
+  BTN.find(b => b.id === 'auto').y = 375;
+  resetRun(); RAID = true; resetRS(); if (team && team.length) TEAM = team.slice(0, 3); selHero = TEAM[0]; LUBU_FORM = 'lubu';
+  mode = 'yeonui'; applyGrowth('yeonui'); allies = []; duel = null; applyHero(); resetPlayer(); enemies = []; projectiles = []; fx = []; dts = []; items = [];
+  kills = 0; clock = 0; winT = 0; autoDodgeCd = 0; shake = 0; hitstop = 0; slowT = 0; flashT = 0; tagFx = null; joy = null; auto = false; TUT = null;
+  for (const k in buf) buf[k] = -9;
+  cam.x = P.x - W / 2; cam.y = P.y - H / 2;
+  state = 'play'; beginWave(0);
+}
 // 선택한 웨이브의 시작 시점으로 즉시 이동: 전장(몬스터·투사체·아이템·이펙트)을 비우고 관우는 처음 상태(체력 가득, 쿨타임·버프·분노·콤보 초기화)로
 function jumpToWave(i) {
   resetPlayer(); enemies = []; projectiles = []; fx = []; dts = []; items = [];
@@ -920,8 +947,8 @@ function jumpToWave(i) {
 }
 let supplyT = 0, reinforceT = 0, reinforceMsg = '';
 let spawnQ = [], respawnT = 0;   // 리스폰 대기열: { type, cap(필드 최대 수), left(남은 리스폰 수) }
-function beginWave(i) { P.floorUsed = false; if (mode === 'yeonui' && ACC && i + 1 > (ACC.best || 0)) { ACC.best = i + 1; saveSave(); } spawnQ = []; respawnT = 0; waveIdx = i; bannerT = 2.6; spawnT = 1.8; pendingSpawn = true; supplyT = 0; reinforceT = 0; }
-const waveHpMul = () => (WAVES[waveIdx] && WAVES[waveIdx].hpMul) || 1, waveDmgMul = () => (WAVES[waveIdx] && WAVES[waveIdx].dmgMul) || 1;   // 웨이브별 난이도 배율
+function beginWave(i) { P.floorUsed = false; if (mode === 'yeonui' && !RAID && ACC && i + 1 > (ACC.best || 0)) { ACC.best = i + 1; saveSave(); } spawnQ = []; respawnT = 0; waveIdx = i; bannerT = 2.6; spawnT = 1.8; pendingSpawn = true; supplyT = 0; reinforceT = 0; }
+const waveHpMul = () => (curWave() && curWave().hpMul) || 1, waveDmgMul = () => (curWave() && curWave().dmgMul) || 1;   // 웨이브별 난이도 배율
 function makeEnemy(type, x, y) {
   const d = TYPES[type];
   return { type, d, x, y, r: d.boss && !d.foot ? BOSS_MOUNTED_R : d.r, mounted: !!d.mounted || (!!d.boss && !d.foot), hp: d.hp * ENEMY_HP_MULT * (d.hpScale || 1) * waveHpMul(), maxhp: d.hp * ENEMY_HP_MULT * (d.hpScale || 1) * waveHpMul(), speed: d.speed, state: 'chase', t: 0, kx: 0, ky: 0, freeze: 0, face: Math.PI / 2, cur: null,
@@ -939,10 +966,10 @@ function spawnOne(type) {
 }
 function spawnWave() {
   spawnQ = [];
-  for (const [type, base, exact] of WAVES[waveIdx].spawn) {
+  for (const [type, base, exact] of curWave().spawn) {
     const isBoss = !!TYPES[type].boss, n = isBoss ? base : Math.max(1, Math.round((exact ? base : base * ENEMY_COUNT_MULT) * WAVE_COUNT_CUT));
     for (let i = 0; i < n; i++) spawnOne(type);
-    if (!isBoss) spawnQ.push({ type, cap: n, left: Math.round(n * ((WAVES[waveIdx].tm || WAVE_TOTAL_MULT) - 1)) });   // 보스 웨이브는 리스폰 없음
+    if (!isBoss) spawnQ.push({ type, cap: n, left: Math.round(n * ((curWave().tm || WAVE_TOTAL_MULT) - 1)) });   // 보스 웨이브는 리스폰 없음
   }
 }
 const waveLeft = () => spawnQ.reduce((t, q) => t + q.left, 0);   // 아직 등장하지 않은 몬스터 수
@@ -2197,7 +2224,7 @@ function autoInput(dt) {
 function chooseAttack(e, d) {
   const c = chooseAttackBase(e, d);
   const scale = c2 => {   // 몬스터 공통 배율(피해량·공격속도)을 스킬과 그 후속 스킬(then)에 적용
-    c2.dmg *= ENEMY_DMG_MULT * waveDmgMul() * (e.d.mb ? MB.dmg[mbStage(e)] : e.d.zhao ? ZB.dmg[zStage(e)] : e.boss && !e.d.foot ? BOSS_STAGE.dmg[bossStage(e)] : 1);
+    c2.dmg *= ENEMY_DMG_MULT * waveDmgMul() * (e.d.mb ? MB.dmg[mbStage(e)] : e.d.zhao ? ZB.dmg[zStage(e)] : e.boss && !e.d.foot ? bossTab(e).dmg[bossStage(e)] : 1);
     const base = c2.kind === 'arrow' || c2.kind === 'fan' ? ENEMY_ATK_SLOW / RANGED_ATK_RATE : ENEMY_ATK_SLOW;
     const slow = base / (e.boss ? BOSS_CAST_SPEEDUP : ENEMY_ATK_SPEEDUP);
     for (const k of ['windup', 'recover', 'cd', 'dashT', 'delay', 'gap']) if (c2[k]) c2[k] *= slow;
@@ -2222,7 +2249,7 @@ function chooseAttack(e, d) {
   return c;
 }
 function chooseAttackBase(e, d) {
-  const fast = e.d.mb ? MB.fast[mbStage(e)] : e.d.zhao ? ZB.fast[zStage(e)] : e.boss && !e.d.foot ? BOSS_STAGE.fast[bossStage(e)] : (e.boss && e.hp < e.maxhp * 0.5 ? 0.8 : 1);
+  const fast = e.d.mb ? MB.fast[mbStage(e)] : e.d.zhao ? ZB.fast[zStage(e)] : e.boss && !e.d.foot ? bossTab(e).fast[bossStage(e)] : (e.boss && e.hp < e.maxhp * 0.5 ? 0.8 : 1);
   switch (e.type) {
     case 'soldier': if (d <= 80 + e.r) return { kind: 'cone', r: 100, half: 0.9, dmg: 30, windup: 0.55, recover: 0.6, cd: 0.9, track: 0.4 }; break;
     case 'archer': if (d <= 560 && d >= 140) return { kind: 'arrow', dmg: 26, windup: 0.85, recover: 0.7, cd: 1.5, track: 0.6 }; break;
@@ -2233,7 +2260,7 @@ function chooseAttackBase(e, d) {
       if (d >= 150 && d <= 440) return { kind: 'charge', len: Math.min(460, d + 120), w: 60, hitR: 26, dmg: 42, windup: 0.5, recover: 0.7, cd: 1.0, track: 0.6, dashT: 0.2 };
       if (d <= 70 + e.r) return { kind: 'cone', r: 90, half: 1.0, dmg: 30, windup: 0.4, recover: 0.5, cd: 0.7, track: 0.4 }; break;
     case 'caster': if (d <= 560 && d >= 140) return { kind: 'rain', r: 105, dmg: 50, windup: 1.2, recover: 0.8, cd: 1.6, track: 0.55, color: '190,110,255' }; break;   // 플레이어 위치에 낙뢰
-    case 'boss': case 'guanBoss': case 'zhaoBoss': case 'bossGeneral': case 'bossCav': case 'bossShield': case 'bossCaster': case 'bossAssassin': case 'bossAlliance': case 'bossCommander':
+    case 'boss': case 'raidBoss': case 'guanBoss': case 'zhaoBoss': case 'bossGeneral': case 'bossCav': case 'bossShield': case 'bossCaster': case 'bossAssassin': case 'bossAlliance': case 'bossCommander':
       return bossAttack(e, d, fast);
   }
   return null;
@@ -2261,18 +2288,21 @@ function mountedAttack(e, d, fast) {
   const jumpSpec = () => ({ kind: 'leap', r: 160, dmg: 100, windup: 0.84 * fast, recover: 0.9, cd: 0.5, track: 0.55, tx: P.x, ty: P.y, stunP: PLAYER_STUN_BOSS });
   const pick = opts => { const pool = opts.filter(k => k !== e.last), list = pool.length ? pool : opts, k = list[Math.random() * list.length | 0]; e.last = k; return k; };
   if (d < MOUNTED_NEAR) {
-    const opts = ['slash', 'charge']; if (st >= 1) opts.push('slash2'); if (st >= 2) opts.push('slashCharge');
+    const opts = ['slash', 'charge']; if (st >= 1) opts.push('slash2'); if (st >= 2) opts.push('slashCharge'); if (st >= 3) opts.push('slash2Charge');
     switch (pick(opts)) {
       case 'charge': return chargeSpec();
       case 'slash2': return slashSpec(2);
       case 'slashCharge': { const c = slashSpec(1); c.then = { ...chargeSpec(2), delay: 0.5 * fast }; return c; }
+      case 'slash2Charge': { const c = slashSpec(2); c.then = { ...chargeSpec(3), delay: 0.5 * fast }; return c; }   // 베기 2연 -> 돌진 3연속 (레이드 3단계)
       default: return slashSpec(1);
     }
   }
-  const opts = ['jump', 'charge', 'fan', 'arrows']; if (st >= 2) opts.push('jump2');
+  const opts = ['jump', 'charge', 'fan', 'arrows']; if (st >= 2) opts.push('jump2'); if (st >= 3) opts.push('stormCharge', 'jump3');   // 3단계(레이드 전용)
   switch (pick(opts)) {
     case 'jump': return jumpSpec();
     case 'jump2': return { ...jumpSpec(), then: { ...jumpSpec(), windup: 0.7 * fast, delay: 0.4 * fast } };
+    case 'jump3': return { ...jumpSpec(), then: { ...jumpSpec(), windup: 0.7 * fast, delay: 0.4 * fast, then: { ...jumpSpec(), windup: 0.62 * fast, delay: 0.35 * fast } } };   // 도약 3연속 (레이드 3단계)
+    case 'stormCharge': return { ...arrowStormSpec(5, af), then: { ...chargeSpec(3), delay: 0.7 * fast, noPursue: true } };   // 화살 5연사 -> 돌진 3연속 (레이드 3단계)
     case 'charge': return chargeSpec();
     case 'fan': return arrowFanSpec(af);
     case 'arrows': return arrowStormSpec(st >= 1 ? 4 : 3, af);
@@ -2419,11 +2449,13 @@ function bossAttack(e, d, fast) {
 const leapSpec = fast => ({ kind: 'leap', r: 160, dmg: 100, windup: 1.32 * fast, recover: 1.0, cd: 0.6, track: 0.55, tx: P.x, ty: P.y, stunP: PLAYER_STUN_BOSS });
 // 2페이즈(하마) 단계별: 3단계 = 기본 / 4단계 = 화살 4연발·폭발→돌진·도약→십자 추가 / 5단계 = 화살 5연발·휘두르기→3연참·돌진 2연속 추가
 function footAttack(e, d, fast) {
-  const st = bossStage(e), af = Math.min(ARROW_F, fast), near = d < FOOT_NEAR;
+  const st = bossStage(e) - (e.d.raid ? 1 : 0), af = Math.min(ARROW_F, fast), near = d < FOOT_NEAR;
   const opts = near ? ['slam', 'sweep', 'combo3', 'blast'] : ['leap', 'charge', 'fan', 'arrows', 'cross', 'sweep', 'combo3'];   // 베기류는 멀리서도 선택 가능(탐색·접근 후 시전)
   if (st >= 3) opts.push(near ? 'slamCombo' : 'arrowsCharge');
   if (st >= 4) { opts.push(near ? 'blastCharge' : 'leapCross'); if (near) opts.push('doubleSlam'); }
   if (st >= 5) opts.push(near ? 'sweepCombo' : 'doubleCharge');
+  if (e.d.raid && st >= 5) opts.push(near ? 'spinStorm' : 'warCry');   // 레이드 6단계~: 회전 폭풍 / 전쟁의 함성
+  if (e.d.raid && st >= 6) opts.push(near ? 'finaleNear' : 'finaleFar');   // 레이드 7단계: 최후의 광폭
   const pool = opts.filter(k => k !== e.last), k = (pool.length ? pool : opts)[Math.random() * (pool.length ? pool : opts).length | 0];
   e.last = k;
   const combo3 = () => ({ kind: 'cone', chain: 3, step: 0, rs: [255, 255, 280], halfs: [0.9, 0.9, 1.3], r: 255, half: 0.9, winds: [0.8 * fast, 0.5 * fast, 0.65 * fast], windup: 0.8 * fast, gap: 0.7 * Math.max(fast, 0.75), stopDist: 140, mandatory: 2, contDist: 300, pre: { dist: 150, speed: 600, maxT: 1.1 }, lunge: 100, dmg: 55, recover: 1.0, cd: 0.6, track: 0.4 });   // 3연참 (베기 사이 간격은 시전 가속과 무관하게 최소 확보): 범위 1.5배 + 베기 사이 딜레이
@@ -2432,7 +2464,13 @@ function footAttack(e, d, fast) {
   const slam = () => ({ kind: 'cone', r: 270, half: Math.PI / 2, dmg: 80, windup: 1.0 * fast, recover: 0.9, cd: 0.5, track: 0.5, heavy: true });   // 내려찍기: 정면 180°
   const charge = () => ({ kind: 'charge', len: 900, w: 180, hitR: 70, dmg: 95, windup: 0.5 * fast, recover: 1.0, cd: 0.6, track: 0.5, dashT: 0.45, then: leapSpec(fast) });   // 돌진 후 반드시 점프 공격
   const cross = () => ({ kind: 'cross', len: 900, w: 90, dmg: 90, windup: 0.6 * fast, recover: 1.0, cd: 0.6, track: 0.5, off: Math.random() < 0.5 ? 0 : Math.PI / 4 });
+  const PI = Math.PI, warCry = () => ({ kind: 'circle', r: 400, dmg: 110, windup: 1.4 * fast, recover: 1.1, cd: 0.6, ult: true, stunP: PLAYER_STUN_BOSS });
+  const spinStorm = () => { const rs = [190, 250, 310, 370], ws = [0.55, 0.72, 0.92, 1.1]; return { kind: 'cone', chain: 4, step: 0, rs, halfs: rs.map(() => PI), r: rs[0], half: PI, winds: ws.map(x => x * fast * 0.9), windup: ws[0] * fast * 0.9, gap: 0.4 * fast, noPursue: true, lunge: 0, dmg: 55, recover: 1.0, cd: 0.6 }; };
   switch (k) {
+    case 'spinStorm': return spinStorm();
+    case 'warCry': return { ...warCry(), then: { ...leapSpec(fast), delay: 0.5 * fast } };
+    case 'finaleNear': return { ...warCry(), then: { ...charge(), delay: 0.7 * fast, noPursue: true } };
+    case 'finaleFar': return { ...arrowStormSpec(5, af), then: { ...warCry(), delay: 0.6 * fast } };
     case 'slam': return slam();
     case 'sweep': return sweep();
     case 'combo3': return combo3();
@@ -2495,6 +2533,16 @@ function resolveAttack(e) {
   e.state = 'recover'; e.t = 0;
 }
 // 2페이즈 진입: 여포가 적토마에서 내림 (말은 달아나고, 잠시 자세를 가다듬은 뒤 도보 패턴으로 전환)
+function raidStageUp(e, st) {   // 레이드 보스 단계 상승: 포효(공격 기회) + 알림. 3단계(62%)·6단계(37%)에서 부하 소환
+  ring(e.x, e.y, 300, 0.6, '#ff6a4a', 14); ring(e.x, e.y, 170, 0.45, '#fff', 8); sparks(e.x, e.y - 30, 36, '#ffcf70', 700, 0.8); doShake(14); flashT = Math.max(flashT, 0.15); sfx('boom');
+  if (st !== 4) { e.cur = { recover: 1.0, cd: 0.4 }; e.state = 'recover'; e.t = 0; e.lift = 0; reinforceMsg = '여포의 기세가 오른다!  (' + (st + 1) + '/8단계)'; reinforceT = 3; }   // 4단계(하마)는 내리는 연출이 따로 있음
+  if (st === 2 || st === 5) raidAdds(e, st);
+}
+function raidAdds(e, st) {
+  const list = st === 2 ? [['soldier', 4], ['archer', 2]] : [['cavalry', 2], ['captain', 2], ['archer', 2]]; let k = 0;
+  for (const [t, n] of list) for (let i = 0; i < n; i++) { const a = TAU * (k++) / 8 + 0.4, m = makeEnemy(t, clamp(e.x + Math.cos(a) * 420, 160, WORLD.w - 160), clamp(e.y + Math.sin(a) * 420, 160, WORLD.h - 160)); m.spawnT = 0.7; enemies.push(m); }
+  reinforceMsg = '여포가 부하를 불러냈다!'; reinforceT = 3;
+}
 function dismountBoss(e) {
   e.mounted = false; e.r = e.d.r; e.cur = { recover: 1.3, cd: 0.4 }; e.state = 'recover'; e.t = 0; e.lift = 0;
   const a = rand(0, TAU); fx.push({ k: 'horse', x: e.x, y: e.y, vx: Math.cos(a) * 260, vy: Math.sin(a) * 260, face: a, t: 0, dur: 1.6, r: BOSS_MOUNTED_R });
@@ -2521,7 +2569,7 @@ function updateEnemies(dt) {
     if (e.boss && !e.d.foot) {   // 보스 여포 단계 상승 알림 (3단계 = 하마 연출이 따로 있음)
       const st = bossStage(e);
       if (e.stage == null) e.stage = st;
-      else if (st > e.stage) { e.stage = st; if (st !== 3) { ring(e.x, e.y, 240, 0.5, '#ff6a4a', 12); ring(e.x, e.y, 140, 0.4, '#fff', 8); sparks(e.x, e.y - 30, 30, '#ffcf70', 600, 0.7); doShake(12); flashT = Math.max(flashT, 0.15); sfx('boom'); reinforceMsg = '여포의 기세가 오른다!  (' + (st + 1) + '/6단계)'; reinforceT = 3; } }
+      else if (st > e.stage) { e.stage = st; if (e.d.raid) raidStageUp(e, st); else if (st !== 3) { ring(e.x, e.y, 240, 0.5, '#ff6a4a', 12); ring(e.x, e.y, 140, 0.4, '#fff', 8); sparks(e.x, e.y - 30, 30, '#ffcf70', 600, 0.7); doShake(12); flashT = Math.max(flashT, 0.15); sfx('boom'); reinforceMsg = '여포의 기세가 오른다!  (' + (st + 1) + '/6단계)'; reinforceT = 3; } }
     }
     e.x += e.kx * dt; e.y += e.ky * dt; const kf = Math.exp(-9 * dt); e.kx *= kf; e.ky *= kf;
     const d = dist(e, P), toP = angTo(e, P), sp = e.speed * (e.boss ? (e.mounted ? 1.5 : 1.25) : 1) * (e.slowT > 0 ? (e.boss ? 0.75 : 0.55) : 1);
@@ -2587,7 +2635,7 @@ function updateEnemies(dt) {
         const cdv = e.cur.cd;
         e.state = 'chase'; e.cur = null;
         if (e.boss && (e.chainN || 0) < BOSS_CHAIN_MAX && Math.random() < bossChainP(e)) { e.chainN = (e.chainN || 0) + 1; e.atkCd = BOSS_CHAIN_GAP; }   // 패턴 연속 사용: 짧은 틈만 두고 바로 다음 스킬
-        else { e.chainN = 0; e.atkCd = (cdv + rand(0, 0.6)) * (e.boss ? BOSS_GLOBAL_CD_MULT * (e.d.mb ? MB.cd[mbStage(e)] : e.d.zhao ? ZB.cd[zStage(e)] : e.d.foot ? 1 : BOSS_STAGE.cd[bossStage(e)]) : 1) * pm; }
+        else { e.chainN = 0; e.atkCd = (cdv + rand(0, 0.6)) * (e.boss ? BOSS_GLOBAL_CD_MULT * (e.d.mb ? MB.cd[mbStage(e)] : e.d.zhao ? ZB.cd[zStage(e)] : e.d.foot ? 1 : bossTab(e).cd[bossStage(e)]) : 1) * pm; }
       }
     }
     e.x = clamp(e.x, 70, WORLD.w - 70); e.y = clamp(e.y, 80, WORLD.h - 70);
@@ -2635,8 +2683,8 @@ function updateWaves(dt) {
   if (pendingSpawn) { bannerT -= dt; spawnT -= dt; if (spawnT <= 0) { spawnWave(); pendingSpawn = false; } }
   else {
     bannerT = Math.max(0, bannerT - dt);
-    if (WAVES[waveIdx].bossWave) {   // 보스 웨이브: 보스를 쓰러뜨리면 승리. 증원은 없고 30초마다 보급품만 등장
-      if (!enemies.some(e => e.boss && !e.dead)) { for (const e of enemies) if (!e.dead) { e.dead = true; sparks(e.x, e.y - e.r, 10, '#ffcf70', 300, 0.5); } if (waveIdx >= WAVES.length - 1) { state = 'win'; winT = 0; } else advanceWave(); return; }
+    if (curWave().bossWave) {   // 보스 웨이브: 보스를 쓰러뜨리면 승리. 증원은 없고 30초마다 보급품만 등장
+      if (!enemies.some(e => e.boss && !e.dead)) { for (const e of enemies) if (!e.dead) { e.dead = true; sparks(e.x, e.y - e.r, 10, '#ffcf70', 300, 0.5); } if (RAID || waveIdx >= WAVES.length - 1) { state = 'win'; winT = 0; } else advanceWave(); return; }
       supplyT -= dt;
       if (supplyT <= 0) { spawnSupplies(); supplyT = SUPPLY_INTERVAL; reinforceT = 2.5; reinforceMsg = '보급품 등장! 만두'; }
       return;
@@ -2644,7 +2692,7 @@ function updateWaves(dt) {
     respawnT -= dt;   // 리스폰: 필드 수가 최대치보다 적은 종류부터 하나씩
     if (respawnT <= 0) for (const q of spawnQ) if (q.left > 0 && enemies.filter(e => e.type === q.type && !e.dead).length < q.cap) { spawnOne(q.type); q.left--; respawnT = RESPAWN_INTERVAL; break; }
     if (!enemies.length && waveLeft() <= 0) {
-      if (waveIdx >= WAVES.length - 1) { state = 'win'; winT = 0; }
+      if (RAID || waveIdx >= WAVES.length - 1) { state = 'win'; winT = 0; }
       else advanceWave();   // 웨이브 클리어: 전원 +25% (전투 불능 영웅도 복귀)
     }
   }
@@ -2666,7 +2714,26 @@ function arenaClamp(o) {   // 비무장·로그라이크 모드: 경기장 원 �
   if (d > lim) { o.x = ARENA_C.x + dx / d * lim; o.y = ARENA_C.y + dy / d * lim; }
 }
 let pickOnline = false, pickFold = true;   // pickFold: 영웅 선택 카드의 스킬 정보를 접어 둠 (6명이라 기본은 접힘)   // 비무장 영웅 선택이 온라인(친구와 대전)용인가
-function enterMode(i) { if (i === 0) openPick('yeonui'); else openDuelMenu(); }
+function enterMode(i) { if (i === 0) openPick('yeonui'); else if (i === 1) openDuelMenu(); else openRaidMenu(); }
+// 레이드 입장: 오프라인(내 PC 1~3명) / 온라인(준비 중)
+let raidMsgT = 0;
+function openRaidMenu() { state = 'raidMenu'; mode = 'yeonui'; raidMsgT = 0; applyGrowth('yeonui'); }
+function raidMenuPick(online) { if (online) { raidMsgT = 2.5; sfx('hit'); return; } openPick('raid'); sfx('skill'); }
+function raidMenuClick(x, y) { if (inRect(x, y, DM.off)) raidMenuPick(false); else if (inRect(x, y, DM.on)) raidMenuPick(true); else if (inRect(x, y, DM.back)) state = 'title'; }
+function raidMenuKey(code) { if (code === 'Digit1' || code === 'KeyA' || code === 'ArrowLeft') raidMenuPick(false); else if (code === 'Digit2' || code === 'KeyD' || code === 'ArrowRight') raidMenuPick(true); else if (code === 'Escape') state = 'title'; }
+function drawRaidMenu() {
+  ctx.drawImage(bg, WORLD.w / 2 - W / 2, WORLD.h / 2 - H / 2, W, H, 0, 0, W, H); ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
+  text('레이드 모드', W / 2, 90, 44, '#ff8a7a', 'center'); text('여포 봉선 — 기마에서 하마까지 8단계로 변하는 보스를 쓰러뜨려라', W / 2, 132, 20, '#cfd3e6', 'center', false);
+  const card = (r, key, title, col, lines, dim) => {
+    ctx.globalAlpha = dim ? 0.55 : 1; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.strokeRect(r.x, r.y, r.w, r.h);
+    text(key, r.x + 20, r.y + 34, 20, col, 'left'); text(title, r.x + r.w / 2, r.y + 90, 40, col, 'center');
+    lines.forEach((ln, i) => text(fitStr(ln, r.w - 40, 15), r.x + r.w / 2, r.y + 150 + i * 28, 15, i ? '#cfd3e6' : '#fff', 'center', false)); ctx.globalAlpha = 1;
+  };
+  card(DM.off, '1', '오프라인', '#ffd34d', ['내 PC 1 ~ 3명으로 보스와 전투', 'Z / X / C 로 태그하며 싸웁니다', '내 계정의 영웅 레벨 성장 적용', '보스는 체력에 따라 8단계로 강해집니다']);
+  card(DM.on, '2', '온라인', '#7dff9a', ['친구와 함께 보스를 토벌 (협동)', '준비 중입니다'], true);
+  if (raidMsgT > 0) text('온라인 레이드는 준비 중입니다', W / 2, 560, 24, '#ffe9a0', 'center');
+  const b = DM.back; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text('뒤로', b.x + b.w / 2, b.y + 21, 15, '#cfd3e6', 'center');
+}
 // 비무장 입장: 오프라인(AI 와 대전) / 온라인(친구와 대전) 선택
 const DM = { off: { x: W / 2 - 450, y: 200, w: 430, h: 300 }, on: { x: W / 2 + 20, y: 200, w: 430, h: 300 }, back: { x: 12, y: 664, w: 80, h: 30 } };
 function openDuelMenu() { state = 'duelMenu'; mode = 'duel'; applyGrowth('duel'); }
@@ -2689,7 +2756,7 @@ function drawDuelMenu() {
 const PICK_CARD = { w: 196, h: 452, gap: 8, y: 130 }, PICK_BTN = { go: { x: W / 2 - 270, y: 596, w: 250, h: 48 }, goC: { x: W / 2 - 125, y: 596, w: 250, h: 48 }, online: { x: W / 2 + 20, y: 596, w: 250, h: 48 }, back: { x: 12, y: 664, w: 80, h: 30 } };
 let duelPick = [], duelLast = null, pickFor = 'duel';
 const pickNeed = () => 1;   // 시작에 필요한 최소 인원 (비무장·로그라이크 모두 1~3명. 비무장은 고른 인원수만큼 적도 배치)
-const pickStart = () => { if (pickFor === 'duel') startDuel(duelPick); else { TEAM = duelPick.slice(0, 3); openWaves(TEAM); } };   // 로그라이크: 영웅 선택 다음 웨이브 선택
+const pickStart = () => { if (pickFor === 'duel') startDuel(duelPick); else if (pickFor === 'raid') startRaid(duelPick.slice(0, 3)); else { TEAM = duelPick.slice(0, 3); openWaves(TEAM); } };   // 로그라이크: 영웅 선택 다음 웨이브 선택
 const pickCardH = () => pickFold ? 246 : PICK_CARD.h;   // 온라인에서 '장수 정보 접기' 상태면 카드 높이를 줄여 아래에 방 조작 영역을 둔다
 const pickCardRect = i => ({ x: W / 2 - (HERO_IDS.length * PICK_CARD.w + (HERO_IDS.length - 1) * PICK_CARD.gap) / 2 + i * (PICK_CARD.w + PICK_CARD.gap), y: PICK_CARD.y, w: PICK_CARD.w, h: pickCardH() });
 let duelFoes = [];   // 비무장(오프라인) 상대 팀: 영웅 선택 화면에서 미리 정해 보여 주고, 전투 시작 때 그대로 사용
@@ -2709,9 +2776,9 @@ function drawFoeRow(R, label, sub, ids, lvOf, rawOf, emptyMsg) {
   });
 }
 const f1n = n => +n.toFixed(1);
-function openPick(m) { pickFor = m; state = 'pick'; mode = m; applyGrowth(m); duelFoes = []; duelPick = (m === 'duel' ? (duelLast ? duelLast.slice() : []) : TEAM.slice()); }
+function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); duelFoes = []; duelPick = (m === 'duel' ? (duelLast ? duelLast.slice() : []) : TEAM.slice()); }
 function togglePick(id) { const k = duelPick.indexOf(id); if (k >= 0) duelPick.splice(k, 1); else if (duelPick.length < 3) duelPick.push(id); if (pickFor === 'duel' && pickOnline) netSendTeam(); }
-function pickBack() { if (pickFor === 'duel') { if (pickOnline) { netClose(); NET.status = ''; } state = 'duelMenu'; } else state = 'title'; }
+function pickBack() { if (pickFor === 'duel') { if (pickOnline) { netClose(); NET.status = ''; } state = 'duelMenu'; } else state = pickFor === 'raid' ? 'raidMenu' : 'title'; }
 // 온라인 방 조작 영역 (영웅 선택 화면 아래): 서버 · 방 만들기 · 방 참가 · 대전 시작 · 장수 정보 접기/펴기 + 상대 팀 정보
 function onlineLayout() {
   const by = 130 + pickCardH() + 12, fd = pickFold;
@@ -2815,9 +2882,9 @@ function drawPick() {
   ctx.drawImage(bg, WORLD.w / 2 - W / 2, WORLD.h / 2 - H / 2, W, H, 0, 0, W, H);
   ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H);
   const duelP = pickFor === 'duel';
-  text((duelP ? (pickOnline ? '비무장 모드 (온라인)' : '비무장 모드 (오프라인)') : '로그라이크 모드') + '  ·  영웅 선택', W / 2, 56, 40, '#ffd34d', 'center');
+  text((duelP ? (pickOnline ? '비무장 모드 (온라인)' : '비무장 모드 (오프라인)') : (pickFor === 'raid' ? '레이드 모드 (오프라인)' : '로그라이크 모드')) + '  ·  영웅 선택', W / 2, 56, 40, '#ffd34d', 'center');
   text(duelP ? (pickOnline ? '1~3명을 순서대로 고르세요 (상대 팀 인원은 상대가 정합니다)  —  첫 번째 영웅을 직접 조작합니다 (전투 중 초상화 · Q 로 변경)' : '1~3명을 순서대로 고르세요 (인원수만큼 적도 배치)  —  첫 번째 영웅을 직접 조작합니다 (전투 중 아군 초상화로 변경 가능)') : '최대 3명까지 고르세요 (1명 이상)  —  첫 번째 영웅으로 시작하고, 선택한 순서대로 Z / X / C 로 태그합니다', W / 2, 90, 16, '#cfd3e6', 'center', false);
-  text(duelP ? (pickOnline ? (NET.status || '방을 만들거나 친구의 방 코드로 참가하세요') : '적군은 같은 인원수의 PC (구성 랜덤)  ·  규칙 동일 · 레벨 보정은 같은 영웅끼리 같은 레벨(내 계정 기준)') : '웨이브 1 ~ 50  ·  5층마다 보스 (10 관우 · 25 조운 · 50 여포)  ·  다음 화면에서 웨이브 선택', W / 2, 114, 14, duelP ? '#ff9a8a' : '#ffb27a', 'center', false);
+  text(duelP ? (pickOnline ? (NET.status || '방을 만들거나 친구의 방 코드로 참가하세요') : '적군은 같은 인원수의 PC (구성 랜덤)  ·  규칙 동일 · 레벨 보정은 같은 영웅끼리 같은 레벨(내 계정 기준)') : (pickFor === 'raid' ? '보스 : 여포 봉선 (기마 → 하마, 8단계)  ·  성장 레벨 적용  ·  보스 체력에 따라 패턴이 늘어납니다' : '웨이브 1 ~ 50  ·  5층마다 보스 (10 관우 · 25 조운 · 50 여포)  ·  다음 화면에서 웨이브 선택'), W / 2, 114, 14, duelP ? '#ff9a8a' : '#ffb27a', 'center', false);
   const text0 = text;
   HERO_IDS.forEach((id, i) => {
     const r = pickCardRect(i), h = HEROES[id], k = duelPick.indexOf(id), on = k >= 0, lv = ACC ? heroLv(id) : 1, g = GROWTH[id], mt = metaFull(id);
@@ -2850,14 +2917,14 @@ function drawPick() {
   });
   { const b = PICK_FOLD_BTN; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text(pickFold ? '스킬 정보 펴기 ▼ (F)' : '스킬 정보 접기 ▲ (F)', b.x + b.w / 2, b.y + 23, 14, '#cfd3e6', 'center'); }
   const btn = (r, label, col, dis) => { ctx.globalAlpha = dis ? 0.4 : 1; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + r.h / 2 + 8, 21, col, 'center'); ctx.globalAlpha = 1; };
-  if (!(duelP && pickOnline)) btn(pickGoRect(), duelP ? '전투 시작  (Enter)' : '다음 : 웨이브 선택  (Enter)', '#ffd34d', duelPick.length < pickNeed()); btn(PICK_BTN.back, '뒤로', '#cfd3e6', false);
+  if (!(duelP && pickOnline)) btn(pickGoRect(), duelP ? '전투 시작  (Enter)' : pickFor === 'raid' ? '레이드 시작  (Enter)' : '다음 : 웨이브 선택  (Enter)', '#ffd34d', duelPick.length < pickNeed()); btn(PICK_BTN.back, '뒤로', '#cfd3e6', false);
   if (!(duelP && pickOnline)) text('선택 ' + duelPick.length + ' / 3', W / 2 + 160, pickGoRect().y + 32, 22, duelPick.length >= pickNeed() ? '#7dff9a' : '#ffe9a0', 'left');
   if (duelP) {
     if (pickOnline) drawOnlinePanel();
     else { foeSync(); drawFoeRow({ x: 24, y: pickGoRect().y + 60, w: 1232, h: pickFold ? 112 : 60 }, '상대 팀 (AI)', '같은 영웅은 내 레벨', duelFoes, id => ACC ? heroRec(ACC, id).lv : 1, null, '영웅을 고르면 상대 팀이 표시됩니다'); }
   } else text('카드를 누르면 선택 / 해제됩니다 · 선택한 순서가 곧 시작 영웅과 태그 순서입니다', W / 2, pickGoRect().y + 76, 14, '#cfd3e6', 'center', false);
 }
-function restartMode() { if (NET.on) { netBackToRoom(); return; } if (mode === 'duel') { duelFoes = []; startDuel(duelLast); } else startGame(null, lastStartWave); }
+function restartMode() { if (NET.on) { netBackToRoom(); return; } if (mode === 'duel') { duelFoes = []; startDuel(duelLast); } else if (RAID) startRaid(TEAM); else startGame(null, lastStartWave); }
 
 // ---------- AI 스킬 세트 (플레이어와 같은 수치, 시간은 실제 초 = 행동 시간 / 행동 속도) ----------
 function comboDef(hero, stage) {
@@ -3493,7 +3560,7 @@ function update(rdt) {
   shake = Math.max(0, shake - rdt * 40); flashT = Math.max(0, flashT - rdt);
   if ((state === 'win' || state === 'lose') && !RS.done) settleRun(state);   // 한 판 경험치 정산
   if (state === 'upgrade') { updateUpgrade(rdt); return; }
-  if (state === 'title' || state === 'pick' || state === 'account' || state === 'info' || state === 'waves' || state === 'net' || state === 'duelMenu') return;
+  if (state === 'title' || state === 'pick' || state === 'account' || state === 'info' || state === 'waves' || state === 'net' || state === 'duelMenu' || state === 'raidMenu') return;
   if (paused) { if (state === 'play' && mode === 'yeonui') { updateCamera(rdt); return; } paused = false; }   // 일시정지: 전투 계산 중단
   if (NET.on && NET.role === 'guest') { netGuestStep(rdt); updateCamera(rdt); return; }   // 온라인 게스트: 전투 계산 없이 받은 상태만 그림
   if (hitstop > 0) { hitstop -= rdt; dt = 0; }
@@ -3850,7 +3917,7 @@ function bossBuffChips(b) {
   const o = []; let st = 0, n = 0, dmg = 1, fast = 1, cdm = 1, chain = 0;
   if (b.d.mb) { st = mbStage(b); n = 3; dmg = MB.dmg[st]; fast = MB.fast[st]; cdm = MB.cd[st]; chain = MB.chain[st]; }
   else if (b.d.zhao) { st = zStage(b); n = 4; dmg = ZB.dmg[st]; fast = ZB.fast[st]; cdm = ZB.cd[st]; chain = ZB.chain[st]; }
-  else if (!b.d.foot) { st = bossStage(b); n = 6; dmg = BOSS_STAGE.dmg[st]; fast = BOSS_STAGE.fast[st]; cdm = BOSS_STAGE.cd[st]; chain = BOSS_STAGE.chain[st]; }
+  else if (!b.d.foot) { st = bossStage(b); const tb = bossTab(b); n = b.d.raid ? 8 : 6; dmg = tb.dmg[st]; fast = tb.fast[st]; cdm = tb.cd[st]; chain = tb.chain[st]; }
   else { n = 2; st = b.phase2 ? 1 : 0; fast = b.phase2 || b.hp < b.maxhp * 0.5 ? 0.8 : 1; chain = b.phase2 ? 0.45 : 0.30; }
   if (n) o.push({ t: (n === 2 ? (b.phase2 ? '2페이즈' : '1페이즈') : '강화 ' + (st + 1) + '/' + n + '단계'), c: '255,233,160' });
   if (dmg > 1.001) o.push({ t: '피해 +' + Math.round((dmg - 1) * 100) + '%', c: '255,110,100' });
@@ -3858,7 +3925,7 @@ function bossBuffChips(b) {
   if (cdm < 0.999) o.push({ t: '스킬 대기 -' + Math.round((1 - cdm) * 100) + '%', c: '255,200,90' });
   if (chain > 0) o.push({ t: '연속 패턴 ' + Math.round(chain * 100) + '%', c: '210,140,255' });
   if (b.armor) o.push({ t: '슈퍼아머', c: '140,190,255' });
-  const w = WAVES[waveIdx]; if (w && w.tier != null) o.push({ t: '난이도 ' + (w.tier + 1) + '단계 (체 x' + w.hpMul.toFixed(1) + ' · 피 x' + w.dmgMul.toFixed(1) + ')', c: '160,200,160' });
+  const w = curWave(); if (w && w.tier != null) o.push({ t: '난이도 ' + (w.tier + 1) + '단계 (체 x' + w.hpMul.toFixed(1) + ' · 피 x' + w.dmgMul.toFixed(1) + ')', c: '160,200,160' });
   return o;
 }
 function drawBossBuffs(b, cx, y) {
@@ -4209,10 +4276,10 @@ function drawHUD() {
   if (mode !== 'duel') { const ks = Object.keys(UPG).filter(k => RUN[k] > 0); if (ks.length) { text('강화 효과 · 전 영웅 공통', 12, chipY + 9, 10, '#ffd9a0', 'left', true, false); chipY += 13; ks.forEach((k, i) => { const x = 10 + (i % 2) * 121, y = chipY + Math.floor(i / 2) * 19; ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(x, y, 119, 17); ctx.strokeStyle = '#d8a03a'; ctx.lineWidth = 1.2; ctx.strokeRect(x, y, 119, 17); text(UPG_SHORT[k] + ' ' + UPG[k].f(RUN[k]), x + 5, y + 13, 10, '#fff', 'left', false, false); }); chipY += Math.ceil(ks.length / 2) * 19 + 4; } }
 
   // ===== 웨이브 / 처치 / 웨이브·로비 버튼 =====
-  if (mode !== 'duel') text(`로그라이크 모드  ·  WAVE ${waveIdx + 1}/${WAVES.length}`, W / 2, 24, 16, '#fff', 'center');
+  if (mode !== 'duel') text(RAID ? '레이드 모드  ·  여포 봉선' : `로그라이크 모드  ·  WAVE ${waveIdx + 1}/${WAVES.length}`, W / 2, 24, 16, '#fff', 'center');
   if (!(mode === 'yeonui' && state === 'play')) { const r = lobbyBtnRect(); ctx.fillStyle = 'rgba(10,12,20,.55)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(mode === 'yeonui' && state === 'play' ? '나가기' : '로비', r.x + r.w / 2, r.y + r.h / 2 + 5, 13, '#ffe9a0', 'center'); }   // 로비 버튼 (보스 버튼 옆) — 로그라이크 전투 중에는 '나가기'(경험치 정산)
   if (mode === 'yeonui' && state === 'play') drawPauseButton();
-  if (mode !== 'duel') text(`처치 ${kills}${WAVES[waveIdx].bossWave ? '' : '   ·   남은 적 ' + (enemies.length + waveLeft())}   ·   ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`, W / 2, 42, 12, '#cfd3e6', 'center', false);
+  if (mode !== 'duel') text(`처치 ${kills}${curWave().bossWave ? '' : '   ·   남은 적 ' + (enemies.length + waveLeft())}   ·   ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`, W / 2, 42, 12, '#cfd3e6', 'center', false);
   // ===== 보스 체력바 (얇게) =====
   const boss = enemies.find(e => e.boss);
   if (boss) {
@@ -4224,7 +4291,7 @@ function drawHUD() {
     ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(bx + bw * 0.5 - 1, by, 2, bh);   // 50% = 2페이즈 경계
     if (boss.d.mb) { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const f of [1 / 3, 2 / 3]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 몬스터 보스: 3단계 경계
     if (boss.d.zhao) { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const f of [0.25, 0.75]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 보스 조운: 4단계 경계
-    if (!boss.d.foot) { ctx.fillStyle = 'rgba(255,255,255,.4)'; for (const f of [1 / 6, 2 / 6, 4 / 6, 5 / 6]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 보스 여포: 6단계 경계
+    if (!boss.d.foot) { ctx.fillStyle = 'rgba(255,255,255,.4)'; for (const f of (boss.d.raid ? [1 / 8, 2 / 8, 3 / 8, 5 / 8, 6 / 8, 7 / 8] : [1 / 6, 2 / 6, 4 / 6, 5 / 6])) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 보스 여포: 6단계 경계
     text(boss.d.name, W / 2, by + 30, 15, '#ffe9a0', 'center');
     drawBossBuffs(boss, W / 2, by + 42);
   }
@@ -4246,10 +4313,10 @@ function drawHUD() {
   // 웨이브 배너
   if (bannerT > 0 && state === 'play') {
     const a = clamp(Math.min(bannerT, 2.6 - bannerT) * 3, 0, 1);
-    const boss = !!WAVES[waveIdx].bossWave;
+    const boss = !!curWave().bossWave;
     ctx.globalAlpha = a; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 230, W, 132);
     text(boss ? 'WARNING' : `WAVE ${waveIdx + 1}`, W / 2, 280, 28, boss ? '#ff5a5a' : '#ffd34d', 'center');
-    text(WAVES[waveIdx].name, W / 2, 322, 40, '#fff', 'center');
+    text(curWave().name, W / 2, 322, 40, '#fff', 'center');
     if (!boss) text('위험도 ' + '★'.repeat(1 + Math.floor(waveIdx / 10)) + '☆'.repeat(4 - Math.floor(waveIdx / 10)), W / 2, 352, 16, '#ffb27a', 'center');   // 계단식 난이도 표시
     ctx.globalAlpha = 1;
   }
@@ -4276,6 +4343,7 @@ function drawCardFigure(h, x, y) {
 const LOBBY_STAGES = [
   { title: '로그라이크 모드', line: 'W1~W50  ·  5층마다 보스  ·  5층마다 능력치 강화 선택', start: '최대 3명 선택  ·  Z / X / C 태그  ·  여포는 K 로 상마↔하마', col: '#d8a03a' },
   { title: '비무장 모드', line: '1~3명 PC 대전 (적도 같은 인원)  ·  제한 시간 3분', start: '1~3명 선택  ·  태그 없이 시작부터 전투  ·  레벨 보정 양쪽 동일', col: '#4fb0ff' },
+  { title: '레이드 모드', line: '여포 봉선 8단계 보스전  ·  1~3명 태그', start: '오프라인 · 온라인(준비 중)  ·  성장 적용 · 5분 안팎의 보스 토벌', col: '#e0504a' },
 ];
 // 로비 장수 정보 배너: 로비의 큰 카드로 확대 — PC 4명의 레벨·경험치·다음 성장 단계를 미리 보여 주고 누르면 장수 정보 페이지로
 function drawLobbyInfoBanner() {
@@ -4312,7 +4380,7 @@ function drawTitle() {
     text(fitStr(st.line, r.w - 30, 16), cx + 4, r.y + 76, 16, '#ffb27a', 'center', false);
     text(fitStr(st.start, r.w - 30, 15), cx + 4, r.y + 104, 15, '#cfd3e6', 'center', false);
   });
-  if (ACC) STAGE_HEROES.forEach((_, i) => { const b = tutBtnRect(i), done = ACC.tut && ACC.tut[i === 0 ? 'yeonui' : 'duel']; ctx.fillStyle = 'rgba(10,12,20,.8)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = done ? '#7a8aa0' : '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(done ? '▶ 튜토리얼 다시 보기' : '▶ 튜토리얼 (처음 입장 시 진행)', b.x + b.w / 2, b.y + 19, 13, done ? '#aab4c8' : '#ffe9a0', 'center', false); });
+  if (ACC) STAGE_HEROES.forEach((_, i) => { if (i > 1) return; const b = tutBtnRect(i), done = ACC.tut && ACC.tut[i === 0 ? 'yeonui' : 'duel']; ctx.fillStyle = 'rgba(10,12,20,.8)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = done ? '#7a8aa0' : '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(done ? '▶ 튜토리얼 다시 보기' : '▶ 튜토리얼 (처음 입장 시 진행)', b.x + b.w / 2, b.y + 19, 13, done ? '#aab4c8' : '#ffe9a0', 'center', false); });
   drawLobbyInfoBanner();
   text(IS_TOUCH ? '스테이지 버튼을 터치하면 입장합니다' : '모드를 클릭하거나  ← →  로 고르고  Enter  로 입장', W / 2, 530, 20, `rgba(255,211,77,${0.6 + 0.4 * Math.sin(T * 4)})`, 'center');
   // 조작 가이드
@@ -4341,6 +4409,7 @@ function render() {
   if (state === 'title') { drawTitle(); drawLobbyAccount(); return; }
   if (state === 'pick') { drawPick(); return; }
   if (state === 'duelMenu') { drawDuelMenu(); return; }
+  if (state === 'raidMenu') { raidMsgT = Math.max(0, raidMsgT - 1 / 60); drawRaidMenu(); return; }
   if (state === 'waves') { drawWaves(); return; }
   if (state === 'upgrade') { drawWorld(); drawHUD(); drawUpgrade(); return; }
   drawWorld(); drawSpeedLines(); drawTagOverlay(); drawHUD(); if (state === 'play') { if (MINIMAP_ON) drawMinimap(); drawHeroPointer(); drawTutorial(); }
