@@ -159,7 +159,7 @@ cv.addEventListener('pointerdown', e => {
   if (state === 'account') { accountClick(x, y); return; }
   if (state === 'info') { infoClick(x, y); return; }
   if (state === 'title') {
-    if (helpOpen) { for (let i = 0; i < 2; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[i === 0 ? 'yeonui' : 'duel'] = false; helpOpen = false; lobbySel = i; enterMode(i); return; } helpOpen = false; return; }
+    if (helpOpen) { for (let i = 0; i < 3; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[['yeonui', 'duel', 'raid'][i]] = false; helpOpen = false; lobbySel = i; enterMode(i); return; } helpOpen = false; return; }
     if (inRect(x, y, HELP_BTN)) { helpOpen = true; sfx('hit'); return; }
     if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; }
     if (inRect(x, y, INFO_BTN)) { openInfo(); return; }
@@ -421,7 +421,7 @@ const TYPES = {
 };
 
 const FOE_BOSS_GUAN = { name: '관우 운장', short: '관우', foot: true, body: '#2f8f5b', trim: '#d4a73a', skin: '#c9553f', helm: false, hat: true, beard: true, cape: '#1f6a42', feathers: false, weapon: 'glaive', barding: '#1f6a42' };
-const RAID_HP_SCALE = 3.0, RAID_HPMUL = 2.0, RAID_DMGMUL = 0.55;   // 레이드 보스 체력 배율(보스 기본 x) / 웨이브 배율
+const RAID_HP_SCALE = 6.0, RAID_HPMUL = 2.0, RAID_DMGMUL = 1.1;   // 레이드 보스 체력 배율(보스 기본 x) / 웨이브 배율
 TYPES.raidBoss = { ...TYPES.boss, raid: true, name: '여포 봉선 · 레이드', short: '여포', hpScale: RAID_HP_SCALE };   // 레이드 모드 보스 (기마 → 하마, 8단계)
 TYPES.guanBoss = { ...TYPES.boss, ...FOE_BOSS_GUAN };   // 보스 관우 운장 (W3): 여포(boss)와 같은 체력, 도보 단일 패턴
 const FOE_BOSS_ZHAO = { name: '조운 자룡', short: '조운', foot: true, zhao: true, speed: 165, body: '#2b6a6e', trim: '#c9cfd8', skin: '#e0b08a', helm: false, hair: true, band: true, pauldrons: true, cape: '#1f4a50', feathers: false, weapon: 'lance', barding: '#1f4a50', auraCol: '#7fd0ff', fxCol: '#e6f6ff', p2msg: '조운이 백룡의 기운을 해방했다!  2페이즈' };
@@ -946,7 +946,7 @@ function startRaid(team) {   // 레이드 모드 (오프라인): 1~3명이 태�
   kills = 0; clock = 0; winT = 0; autoDodgeCd = 0; shake = 0; hitstop = 0; slowT = 0; flashT = 0; tagFx = null; joy = null; auto = false; TUT = null;
   for (const k in buf) buf[k] = -9;
   cam.x = P.x - W / 2; cam.y = P.y - H / 2;
-  state = 'play'; beginWave(0);
+  state = 'play'; if (tutNeeded('raid')) tutBegin('raid'); else beginWave(0);   // 처음 입장하면 튜토리얼
 }
 // 선택한 웨이브의 시작 시점으로 즉시 이동: 전장(몬스터·투사체·아이템·이펙트)을 비우고 관우는 처음 상태(체력 가득, 쿨타임·버프·분노·콤보 초기화)로
 function jumpToWave(i) {
@@ -1569,18 +1569,21 @@ function tutSteps(m) {
     { id: 's3', ev: 's3', n: 1, btn: 's3', pre: () => { P.rage = 100; }, t: () => '궁극기 — ' + HERO.skills.s3 + (IS_TOUCH ? '' : '  ( ; )'), h: () => '궁극기는 쿨타임(' + ULT_CD + '초)마다 쓸 수 있습니다. 튜토리얼에서는 바로 쓸 수 있도록 충전해 두었습니다.' },
   ];
   if (m === 'yeonui' && TEAM.length >= 2) S.push({ id: 'tag', ev: 'tag', n: 1, btn: 'tag', t: () => '태그 — 다른 영웅으로 교체' + (IS_TOUCH ? ' (왼쪽 TAG 버튼)' : '  (Z / X / C)'), h: () => '체력과 궁극기 쿨타임은 함께 쓰고, 스킬 쿨타임은 영웅마다 따로 흐릅니다. 교체하면 태그 스킬이 바로 나갑니다.' });
-  if (m === 'duel' && allies.length) S.push({ id: 'swap', ev: 'swap', n: 1, btn: 'swap', t: () => '조작 영웅 변경 — 아군을 직접 조작' + (IS_TOUCH ? ' (왼쪽 위 초상화를 누르기)' : '  (Q 또는 왼쪽 위 초상화 클릭)'), h: () => '체력·궁극기 게이지·쿨타임은 그대로 넘어가고, 순서 목록은 바뀌지 않습니다.' });
+  if ((m === 'duel' || m === 'raid') && allies.length) S.push({ id: 'swap', ev: 'swap', n: 1, btn: 'swap', t: () => '조작 영웅 변경 — 아군을 직접 조작' + (IS_TOUCH ? ' (왼쪽 위 초상화를 누르기)' : '  (Q 또는 왼쪽 위 초상화 클릭)'), h: () => '체력·궁극기 게이지·쿨타임은 그대로 넘어가고, 순서 목록은 바뀌지 않습니다.' });
   S.push({ id: 'auto', ev: 'auto', n: 1, btn: 'auto', t: () => 'AUTO' + (IS_TOUCH ? ' 버튼' : '  (T)') + ' — 자동 전투를 켜 보세요', h: () => m === 'duel' ? '자동 회피·공격·스킬·궁극기를 AI 영웅과 같은 규칙으로 사용합니다. 직접 움직이면 해제됩니다.' : '자동으로 적을 쫓아 공격·회피하며, 체력이 10% 이하가 되면 자동으로 태그합니다. 직접 움직이면 해제됩니다.', pre: () => { } });
-  S.push({ id: 'info', ev: 'ok', n: 1, ok: true, pre: () => { auto = false; }, t: () => m === 'duel' ? '비무장 모드 규칙' : '로그라이크 모드 규칙', lines: () => m === 'duel'
+  S.push({ id: 'info', ev: 'ok', n: 1, ok: true, pre: () => { auto = false; }, t: () => m === 'duel' ? '비무장 모드 규칙' : m === 'raid' ? '레이드 모드 규칙' : '로그라이크 모드 규칙', lines: () => m === 'raid'
+    ? ['내가 1명을 직접 조작, 나머지 PC는 AI 동료입니다 (태그 없음). Q·초상화로 조작 변경', '여포 봉선은 체력이 줄수록 8단계로 강해지고, 50%에서 하마가 되며 부하를 부릅니다', '붉은 범위는 이동·회피(Space)로 피하세요. 범위 안의 AI 동료도 함께 맞습니다', '아이콘을 누르면 상세 정보 · 보스는 상태 이상 저항이 있어 스턴이 점점 짧아집니다']
+    : m === 'duel'
     ? ['고른 인원수(1~3명)만큼 적도 같은 수가 나옵니다. 모든 AI 영웅은 같은 규칙으로 싸웁니다.', '제한 시간 3분 — 시간이 끝나면 남은 체력 합계로 승패가 갈립니다.', 'M 키 또는 미터기 제목을 누르면 주는 피해·받은 피해 표를 접고 펼 수 있습니다.', '레벨 보정은 같은 영웅끼리 같은 레벨(내 계정 기준)로 적용되며, 경험치는 얻지 않습니다.']
     : ['5웨이브마다(5·10·15…) 능력치 강화 3개 중 1개를 고릅니다 (10초 뒤 자동 선택).', '5층마다 보스가 나옵니다 (10 관우 · 25 조운 · 50 여포). 보스 공격의 붉은 범위는 이동이나 회피로 피할 수 있습니다.', '경험치와 레벨은 이 모드에서만 얻습니다. Lv 1·5·10·15·20·25·30 에 영웅 고유 성장 단계가 열립니다.', '여포는 K 로 상마 ↔ 하마를 전환합니다 (스킬2 쿨타임은 폼마다 따로 흐릅니다).'] });
   return S;
 }
 function tutBegin(m) {
   TUT = { mode: m, steps: tutSteps(m), i: 0, prog: 0, fade: 0 }; auto = false;
-  if (m === 'yeonui') {   // 웨이브를 시작하지 않고, 가만히 서 있는 허수아비 3기만 둔다
+  if (m === 'yeonui' || m === 'raid') {   // 웨이브(보스)를 시작하지 않고, 가만히 서 있는 허수아비 3기만 둔다 (레이드는 동료 AI 도 가만히)
     enemies = []; spawnQ = []; pendingSpawn = false; spawnT = 99; bannerT = 0; projectiles = [];
     for (let k = 0; k < 3; k++) { const e = makeEnemy('soldier', P.x + 230 + (k % 2) * 60, P.y - 120 + k * 120); e.hp = e.maxhp = 1e9; e.freeze = 1e12; e.spawnT = 0; enemies.push(e); }
+    if (m === 'raid') tutFreeze();
   } else tutFreeze();
   const s = TUT.steps[0]; if (s.pre) s.pre();
 }
@@ -1591,7 +1594,7 @@ function tutEvent(name, v = 1) {
 }
 function tutUpdate(dt) {
   if (!TUT) return;
-  if (mode === 'duel') for (const f of [...allies, ...enemies]) if (f.fighter && f.freeze < 1e11) { f.freeze = 1e12; f.hp = f.maxhp = Math.max(f.maxhp, 1e9); }   // 조작 변경 뒤에도 가만히
+  if (mode === 'duel' || TUT.mode === 'raid') for (const f of [...allies, ...enemies]) if (f.fighter && f.freeze < 1e11) { f.freeze = 1e12; f.hp = f.maxhp = Math.max(f.maxhp, 1e9); }   // 조작 변경 뒤에도 가만히
   if (TUT.fade > 0) { TUT.fade -= dt; if (TUT.fade <= 0) { TUT.i++; TUT.prog = 0; const s = TUT.steps[TUT.i]; if (!s) tutEnd(false); else if (s.pre) s.pre(); } }
 }
 function tutEnd(skipped) {
@@ -1606,7 +1609,7 @@ function tutClick(x, y) {
   const s = TUT.steps[TUT.i]; if (s && s.ok && inRect(x, y, TUT_OK)) { tutEvent('ok'); return true; }
   return false;
 }
-const tutBtnRect = i => ({ x: W / 2 - 320 + 20, y: 420 + i * 46, w: 280, h: 36 });   // 도움말 창 안의 튜토리얼 버튼
+const tutBtnRect = i => ({ x: W / 2 - 140, y: 408 + i * 44, w: 280, h: 36 });   // 도움말 창 안의 튜토리얼 버튼
 function drawTutorial() {
   if (!TUT || state !== 'play') return; const s = TUT.steps[TUT.i]; if (!s) return;
   const big = !!s.ok, pw = 900, px = W / 2 - pw / 2, py = 86, ph = big ? 270 : 92;
@@ -1625,7 +1628,7 @@ function drawTutorial() {
   let hx = null, hy = null, hr = 40;
   if (s.btn && BTN.find(q => q.id === s.btn)) { const q = BTN.find(q2 => q2.id === s.btn); hx = q.x; hy = q.y; hr = q.r + 10; }
   else if (s.btn === 'tag' && TEAM.length > 1) { const q = tagBtnPos(1); hx = q.x; hy = q.y; hr = TAG_BTN_R + 10; }
-  else if (s.btn === 'swap' && duel) { hx = DUEL_ROW.x + 100; hy = DUEL_ROW.y + DUEL_ROW.step + 19; hr = 34; }
+  else if (s.btn === 'swap' && (duel || RAID)) { hx = DUEL_ROW.x + 100; hy = DUEL_ROW.y + DUEL_ROW.step + 19; hr = 34; }
   if (hx != null && TUT.fade <= 0) { const k = 0.5 + 0.5 * Math.sin(T * 8); ctx.strokeStyle = `rgba(255,243,120,${0.5 + 0.5 * k})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(hx, hy, hr + k * 8, 0, TAU); ctx.stroke(); text('▼ 여기', hx, hy - hr - 14, 15, '#ffe14a', 'center', true); }
   if (TUT.fade > 0) { text('✔ 완료!', W / 2, py + ph + 36, 30, '#7dff9a', 'center'); }
   ctx.restore();
@@ -2733,6 +2736,7 @@ function advanceWave() {   // 웨이브 클리어: 전원 +25%(강화로 증가 
 }
 function updateWaves(dt) {
   reinforceT = Math.max(0, reinforceT - dt);
+  if (TUT) return;   // 튜토리얼 중에는 웨이브·보스 진행 없음
   if (pendingSpawn) { bannerT -= dt; spawnT -= dt; if (spawnT <= 0) { spawnWave(); pendingSpawn = false; } }
   else {
     bannerT = Math.max(0, bannerT - dt);
@@ -4675,8 +4679,8 @@ function drawHelpPanel() {
     ? ['왼쪽 화면 드래그 : 이동 (가상 조이스틱)', '공격 버튼 : 누를 때마다 1 → 2 → 3단계', '스킬 · 궁극기(쿨타임 30초) · 회피 버튼', '왼쪽 TAG 버튼 : 선택한 영웅으로 교체 (로그라이크)', 'AUTO : 자동 전투 (생명력 10% 이하 자동 태그)', '붉은 범위 표시 = 적 공격 예고 — 회피로 피하세요!', '비무장·레이드 : 왼쪽 영웅 초상화를 눌러 조작 영웅 변경']
     : ['WASD / 방향키 : 이동      J / 마우스 클릭 : 공격 (1 → 2 → 3단계)', 'K · L : 스킬      ; : 궁극기 (쿨타임 30초)      Space : 회피 (무적)', 'Z · X · C : 선택한 영웅 순서대로 태그 (로그라이크)', 'T / Tab : 오토 전투 (생명력 10% 이하 자동 태그)', '붉은 범위 표시 = 적 공격 예고 — 회피로 피하세요!', '비무장·레이드 : 왼쪽 영웅 초상화를 누르거나 Q 로 조작 영웅 변경'];
   G.forEach((t, i) => text(t, W / 2, p.y + 92 + i * 28, 15, '#dfe3f5', 'center', false));
-  text('튜토리얼 다시 보기', W / 2, p.y + 304, 17, '#ffd34d', 'center');
-  [['로그라이크 모드', 'yeonui'], ['비무장 모드', 'duel']].forEach(([nm, key], i) => { const r = tutBtnRect(i), done = ACC && ACC.tut && ACC.tut[key]; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = done ? '#7a8aa0' : '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text('▶ ' + nm + (done ? '' : '  (처음 입장 시 진행)'), r.x + r.w / 2, r.y + 24, 15, done ? '#cfd3e6' : '#ffe9a0', 'center', false); });
+  text('튜토리얼 다시 보기', W / 2, p.y + 292, 17, '#ffd34d', 'center');
+  [['로그라이크 모드', 'yeonui'], ['비무장 모드', 'duel'], ['레이드 모드', 'raid']].forEach(([nm, key], i) => { const r = tutBtnRect(i), done = ACC && ACC.tut && ACC.tut[key]; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = done ? '#7a8aa0' : '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text('▶ ' + nm + (done ? '' : '  (처음 입장 시 진행)'), r.x + r.w / 2, r.y + 24, 15, done ? '#cfd3e6' : '#ffe9a0', 'center', false); });
   text('아무 곳이나 누르거나 Esc / H 로 닫기', W / 2, p.y + p.h - 22, 12.5, 'rgba(255,255,255,.55)', 'center', false);
 }
 function drawTitle() {
