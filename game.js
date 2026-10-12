@@ -876,7 +876,7 @@ function hitFx(e, o, crit, big) {
   else if (st === 'petal') { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(80, 260) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, t: 0, dur: rand(0.4, 0.7), color: i % 2 ? c[0] : c[1], sz: rand(3, 6) * HIT_SCALE + 1 }); } }
   else { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(260, 560) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.2, 0.4), color: i % 2 ? c[0] : c[1], sz: rand(2, 4) * HIT_SCALE + 1 }); } if (big) ring(e.x, e.y, 60 * sz, 0.25, c[1], 4); }
 }
-const TRAIL_A = 0.5;   // 무기 궤적 이펙트 진하기 (1 = 원래)
+const TRAIL_A = 0.25;   // 무기 궤적 이펙트 진하기 (1 = 원래)
 // 공격 궤적: 무기별 모양으로 범위(부채꼴 윤곽)와 휘두르는 궤적을 보여줌
 function drawArcFx(f, p) {
   const st = HIT_STYLE[f.hid], c = HIT_COL[f.hid], sw = Math.min(1, p * 3.5), a1 = -f.half, a2 = -f.half + 2 * f.half * sw, R = f.r, fade = 1 - p;
