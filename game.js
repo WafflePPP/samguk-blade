@@ -295,7 +295,7 @@ HEROES.diao = {
 // 전위(典韋): 쌍철극을 쓰는 전위 돌격형 도보 영웅. 수치(체력·공격력·이동속도·쿨타임·범위)는 다른 PC 와 같다.
 //  K 쌍극 투척(관통 극 2자루) / L 지축 강타(짧게 파고들어 내려찍음) / ; 불사의 광기 (트린다미어의 불사 컨셉: 전투당 1회 30초간 죽지 않음 / 시전마다 6초간 공격력 +30%·흡혈 25%)
 HEROES.dian = {
-  id: 'dian', name: '전위 (典韋)', short: '전위', sub: '3단 공격 성공 시 공격력 +12% (8초)', sub2: '불사의 광기: 전투당 1회 30초간 죽지 않음(생명력 1 보호) · 시전마다 6초간 공격력 +30% · 흡혈 25%', mounted: false, pc: 'dian',
+  id: 'dian', name: '전위 (典韋)', short: '전위', sub: '3단 공격 성공 시 공격력 +12% (8초)', sub2: '불사의 광기: 전투당 1회 30초간 죽지 않음(생명력 1 보호) · 시전마다 6초간 공격력 +30% · 흡혈 25% · 고유: 상태 이상 저항(경직·스턴·둔화를 겪을수록 지속시간 감소, 5회 이후 20%, 60초 뒤 초기화)', mounted: false, pc: 'dian',
   skills: { attack: '공격', s1: '쌍극 투척', s2: '지축 강타', s3: '불사의 광기' },
   info: [['J', '공격', '쌍극 교차 베기 · 반대 베기 · 360° 회전 내려찍기 (3단 성공 시 공격력 +12%)'], ['K', '쌍극 투척', '쌍철극 두 자루를 던져 일직선의 적을 관통'], ['L', '지축 강타', '짧게 파고들어 쌍극으로 내려찍음 · 반경 240 · 멀리 밀쳐냄'], [';', '불사의 광기', '포효 폭발 + 6초간 공격력 +30%·흡혈 25% (시전마다) · 전투당 1회 30초간 죽지 않음 (생명력 1 보호)']],
   style: { body: '#8a3a22', trim: '#d4a73a', skin: '#c98a6a', beard: true, wrap: true, pauldrons: true, cape: '#5a2418', weapon: 'twin' },
@@ -1161,14 +1161,17 @@ const comboMul = () => 1 + comboPct();
 // 상태 이상 점감: 횟수는 '타격 수'가 아니라 '상태 이상이 걸린 횟수'다. 경직·스턴·둔화가 걸려 있는 동안 또 맞아도(같은 상태 이상의 연장) 횟수는 오르지 않고,
 //  (걸려 있는 동안의 추가 타격은 상태 이상을 연장하지 않는다) 걸려 있던 상태 이상이 모두 끝난 뒤에 새로 걸릴 때 비로소 다음 횟수가 된다. 1~5번째 지속시간 효율 = 100/80/60/40/20%, 5번째가 시작되면 60초 뒤 횟수가 초기화된다 (피격자마다 따로)
 const DR_STEPS = [1, 0.8, 0.6, 0.4, 0.2], DR_RESET = 60;
+const DR_HEROES = ['dian'], DR_BOSS_TYPES = ['boss', 'raidBoss'];   // 고유 능력 '상태 이상 저항'을 가진 PC / 보스 (그 밖의 모든 유닛은 점감 없이 상태 이상이 그대로 적용)
+const hasDR = u => u === P ? DR_HEROES.includes(pcId(curHero)) : u.fighter ? DR_HEROES.includes(pcId(u.hero)) : DR_BOSS_TYPES.includes(u.type);
 function drTake(u, base) {   // base = 이번 타격이 거는 상태 이상 중 가장 긴 지속시간(점감 전). 반환 = 이번에 적용할 효율
+  if (!hasDR(u)) return 1;   // 저항 능력이 없는 유닛: 상태 이상 그대로
   let m;
   if (u.drBusy > 0) return 0;   // 진행 중인 상태 이상이 있으면 새로 걸리지도, 연장되지도 않는다 (횟수도 오르지 않음)
   else { const n = u.drN || 0; m = DR_STEPS[Math.min(n, DR_STEPS.length - 1)]; u.drN = n + 1; u.drCur = m; if (u.drN >= DR_STEPS.length && !(u.drT > 0)) u.drT = DR_RESET; }
   u.drBusy = Math.max(u.drBusy || 0, base * m);
   return m;
 }
-const drPeek = u => u.drBusy > 0 ? 0 : DR_STEPS[Math.min(u.drN || 0, DR_STEPS.length - 1)];
+const drPeek = u => !hasDR(u) ? 1 : u.drBusy > 0 ? 0 : DR_STEPS[Math.min(u.drN || 0, DR_STEPS.length - 1)];
 function drTick(u, dt) { if (u.drBusy > 0) u.drBusy -= dt; if (u.drT > 0) { u.drT -= dt; if (u.drT <= 0) { u.drT = 0; u.drN = 0; } } }
 const drTag = m => m < 0.999 ? ' (' + Math.round(m * 100) + '%)' : '';
 function hitEnemy(e, dmg, o = {}) {
@@ -3068,6 +3071,7 @@ function swapControl(f) {
   Object.assign(P, { x: nw.x, y: nw.y, face: nw.face, hp: nw.hp, rage: nw.rage, kx: nw.kx, ky: nw.ky, inv: Math.max(nw.inv, 0.3), dead: false, act: null, freeze: 0, combo: 0, comboT: 0, runT: 0, runBuffT: nw.runT, guardT: nw.guardT, ultGuardT: nw.ultGuardT, aspdT: nw.aspdT, postUltT: nw.postUltT, comboBuffT: nw.comboBuffT, blessT: nw.blessT, undyT: nw.undyT, floorT: nw.floorT, floorUsed: nw.floorUsed, hits: nw.hits, hitsT: nw.hitsT, hitTier: nw.hitTier, flash: 0 });
   P.cd.s1 = nw.s1; P.cd.s2 = nw.s2; P.atkCd = 0.4; P.autoBusy = null; for (const k in buf) buf[k] = -9;
   ring(P.x, P.y, 90, 0.4, HERO.ult.a, 8); ring(P.x, P.y, 150, 0.5, '#4fb0ff', 5); sparks(P.x, P.y - 20, 24, HERO.ult.a, 600, 0.5); sfx('skill');
+  { const t = { drN: P.drN, drT: P.drT, drBusy: P.drBusy, drCur: P.drCur }; P.drN = f.drN; P.drT = f.drT; P.drBusy = f.drBusy; P.drCur = f.drCur; Object.assign(f, t); }   // 상태 이상 저항 횟수도 영웅을 따라간다
   D.swapCd = 1.5; if (TUT) tutEvent('swap'); return true;
 }
 function cycleControl() { const D = duel || RD, n = allies.length; for (let k = 0; k < n; k++) { const f = allies[(D.cyc++) % n]; if (f && !f.dead) return swapControl(f); } return false; }
@@ -3571,12 +3575,12 @@ function debuffList(u) {
   if (stun > 0) o.push({ k: 'stun', t: stun, tip: () => ({ title: '스턴', col: '255,225,74', lines: ['이동·공격·회피를 할 수 없는 상태입니다.', '남은 시간 ' + remS().toFixed(1) + '초'] }) });
   else if (hurt > 0) o.push({ k: 'hurt', t: hurt, tip: () => ({ title: '경직 (히트 리커버리)', col: '255,154,74', lines: ['공격을 맞아 잠시 행동할 수 없는 상태입니다.', '남은 시간 ' + remH().toFixed(1) + '초'] }) });
   if (u.slowT > 0) o.push({ k: 'slow', t: u.slowT, tip: () => ({ title: '둔화', col: '127,208,255', lines: ['이동속도가 감소했습니다.', '남은 시간 ' + Math.max(0, u.slowT).toFixed(1) + '초'] }) });
-  if ((u.drN || 0) > 0) o.push({ k: 'resist', n: Math.min(u.drN, DR_STEPS.length), t: u.drN >= DR_STEPS.length ? Math.max(0, u.drT || 0) : 0, busy: u.drBusy > 0, tip: () => { const n = Math.min(u.drN || 0, DR_STEPS.length); return { title: '상태 이상 저항  ' + n + ' / ' + DR_STEPS.length + '회', col: '201,160,255', lines: ['경직·스턴·둔화를 겪을수록 지속시간이 줄어듭니다.', '효율  1회 100% → 2회 80% → 3회 60% → 4회 40% → 5회 이후 20%', '다음 상태 이상의 효율  ' + Math.round(DR_STEPS[Math.min(u.drN || 0, DR_STEPS.length - 1)] * 100) + '%', (u.drN || 0) >= DR_STEPS.length ? '초기화까지 ' + Math.ceil(Math.max(0, u.drT || 0)) + '초' : '5회가 되면 60초 뒤 초기화됩니다', u.drBusy > 0 ? '지금 걸린 상태 이상이 끝난 뒤 새로 걸릴 때 다음 횟수로 넘어갑니다.' : ''].filter(Boolean) }; } });
+  if (hasDR(u) && (u.drN || 0) > 0) o.push({ k: 'resist', n: Math.min(u.drN, DR_STEPS.length), t: u.drN >= DR_STEPS.length ? Math.max(0, u.drT || 0) : 0, busy: u.drBusy > 0, tip: () => { const n = Math.min(u.drN || 0, DR_STEPS.length); return { title: '상태 이상 저항 (고유)  ' + n + ' / ' + DR_STEPS.length + '회', col: '201,160,255', lines: ['경직·스턴·둔화를 겪을수록 지속시간이 줄어듭니다.', '효율  1회 100% → 2회 80% → 3회 60% → 4회 40% → 5회 이후 20%', '다음 상태 이상의 효율  ' + Math.round(DR_STEPS[Math.min(u.drN || 0, DR_STEPS.length - 1)] * 100) + '%', (u.drN || 0) >= DR_STEPS.length ? '초기화까지 ' + Math.ceil(Math.max(0, u.drT || 0)) + '초' : '5회가 되면 60초 뒤 초기화됩니다', u.drBusy > 0 ? '지금 걸린 상태 이상이 끝난 뒤 새로 걸릴 때 다음 횟수로 넘어갑니다.' : ''].filter(Boolean) }; } });
   return o;
 }
 const DEBUFF_W = 26;
 const BUFF_DESC = { guard: '3단 공격이 적중하면 방어력이 올라갑니다 (관우).', ultGuard: '궁극기를 쓰는 동안과 그 직후 방어력이 올라갑니다.', run: '3단 공격 성공 시 이동속도가 올라갑니다 (여포 상마 · 질주).', atk: '3단 콤보를 끝까지 성공시키면 공격력이 올라갑니다 (전위).', postAtk: '궁극기 사용 후 공격력이 올라갑니다.', spd: '궁극기 사용 후 공격속도가 올라갑니다.', aspd: '3단 공격이 성공하면 공격속도가 올라갑니다.', floor: '전투당 1회, 지속 시간 동안 생명력이 1 밑으로 내려가지 않습니다 (전위).', undy: '불사의 광기: 공격력 증가와 흡혈 (전위).', bless: '월하 축복: 아군의 공격력·방어력이 올라갑니다 (초선).' };
-const BCHIP_DESC = { '강': '체력이 줄어 보스가 강해진 단계입니다. 단계가 오를수록 아래 효과가 커집니다.', '피': '보스 공격의 피해가 증가했습니다.', '속': '보스 스킬의 시전(선딜·후딜)이 빨라졌습니다.', '쿨': '스킬과 스킬 사이의 대기 시간이 줄었습니다.', '연': '스킬이 끝난 뒤 곧바로 다음 스킬을 이어서 쓸 확률입니다.', '갑': '슈퍼아머: 일반 공격에는 경직되지 않습니다 (스턴은 가능).', '난': '웨이브 난이도 단계입니다 (몬스터 체력·피해 배율).', '페': '보스 페이즈입니다.' };
+const BCHIP_DESC = { '강': '체력이 줄어 보스가 강해진 단계입니다. 단계가 오를수록 아래 효과가 커집니다.', '피': '보스 공격의 피해가 증가했습니다.', '속': '보스 스킬의 시전(선딜·후딜)이 빨라졌습니다.', '쿨': '스킬과 스킬 사이의 대기 시간이 줄었습니다.', '연': '스킬이 끝난 뒤 곧바로 다음 스킬을 이어서 쓸 확률입니다.', '저': '고유 능력 — 상태 이상 저항: 경직·스턴·둔화를 겪을수록 지속시간이 줄어듭니다 (5회 이후 20%, 60초 뒤 초기화).', '갑': '슈퍼아머: 일반 공격에는 경직되지 않습니다 (스턴은 가능).', '난': '웨이브 난이도 단계입니다 (몬스터 체력·피해 배율).', '페': '보스 페이즈입니다.' };
 // 아이콘을 누르면 상세 정보 팝업 (모든 모드 공통): 그리는 동안 탭 영역(ICON_HITS)을 모으고, 눌린 아이콘의 tip() 을 팝업으로 보여줌
 let ICON_HITS = [], iconTip = null;
 function wrapStr(str, w, font) { ctx.font = font; const out = []; let cur = ''; for (const ch of str) { if (ctx.measureText(cur + ch).width > w && cur) { out.push(cur); cur = ch; } else cur += ch; } if (cur) out.push(cur); return out; }
@@ -4020,6 +4024,7 @@ function bossBuffChips(b) {
   if (cdm < 0.999) o.push({ t: '스킬 대기 -' + Math.round((1 - cdm) * 100) + '%', c: '255,200,90' });
   if (chain > 0) o.push({ t: '연속 패턴 ' + Math.round(chain * 100) + '%', c: '210,140,255' });
   if (b.armor) o.push({ t: '슈퍼아머', c: '140,190,255' });
+  if (hasDR(b)) o.push({ t: '상태 이상 저항', c: '201,160,255' });
   const w = curWave(); if (w && w.tier != null) o.push({ t: '난이도 ' + (w.tier + 1) + '단계 (체 x' + w.hpMul.toFixed(1) + ' · 피 x' + w.dmgMul.toFixed(1) + ')', c: '160,200,160' });
   return o;
 }
@@ -4046,7 +4051,7 @@ function drawTopInfo(boss) {
   }
   ctx.restore();
   if (boss) {   // 2번째 줄: 보스가 받은 디버프 + 보스 강화·버프 — 약식 아이콘 (아이콘 아래 = 수치 / 남은 시간)
-    const GL = [[/^강화 (\d+)\/(\d+)/, '강', m => m[1] + '/' + m[2]], [/^피해 (.+)$/, '피', m => m[1]], [/^시전속도 (.+)$/, '속', m => m[1]], [/^스킬 대기 (.+)$/, '쿨', m => m[1]], [/^연속 패턴 (.+)$/, '연', m => m[1]], [/^슈퍼아머/, '갑', () => ''], [/^난이도 (\d+)/, '난', m => m[1]], [/^(\d)페이즈/, '페', m => m[1]]];
+    const GL = [[/^강화 (\d+)\/(\d+)/, '강', m => m[1] + '/' + m[2]], [/^피해 (.+)$/, '피', m => m[1]], [/^시전속도 (.+)$/, '속', m => m[1]], [/^스킬 대기 (.+)$/, '쿨', m => m[1]], [/^연속 패턴 (.+)$/, '연', m => m[1]], [/^슈퍼아머/, '갑', () => ''], [/^상태 이상 저항/, '저', () => ''], [/^난이도 (\d+)/, '난', m => m[1]], [/^(\d)페이즈/, '페', m => m[1]]];
     const bi = bossBuffChips(boss).map(c => { for (const [re, g, f] of GL) { const m = re.exec(c.t); if (m) return { k: 'bchip', g, lab: f(m), rgb: c.c, t: 0, tip: () => { const cc = bossBuffChips(boss).find(q => re.test(q.t)) || c; return { title: '보스 · ' + cc.t, col: c.c, lines: [BCHIP_DESC[g] || ''].filter(Boolean) }; } }; } return { k: 'bchip', g: '+', lab: '', rgb: c.c, t: 0, tip: () => ({ title: c.t, col: c.c, lines: [] }) }; });
     const items = [...debuffList(boss), ...bi], wI = items.length * DEBUFF_W - (DEBUFF_W - 21);
     drawIconItems(items, W / 2 - wI / 2, 53);
@@ -4390,7 +4395,7 @@ function drawHUD() {
     if (pa && pa.type === 'stun') chip('#ffe14a', '스턴 — 이동·공격·회피 불가', Math.max(0, pa.dur - pa.t), pa.dur, true, { k: 'stun' });
     else if (pa && pa.type === 'hurt') chip('#ff9a4a', '경직 — 피격 중 행동 불가', Math.max(0, pa.dur - pa.t), pa.dur, true, { k: 'hurt' });
     if (P.slowT > 0) chip('#7fd0ff', '둔화 — 이동속도 -45%', P.slowT, 1.5, true, { k: 'slow' });
-    if ((P.drN || 0) > 0) { const n = Math.min(P.drN, DR_STEPS.length); chip('#c9a0ff', '상태 이상 저항 ' + n + '회 (다음 ' + pc(DR_STEPS[Math.min(P.drN, DR_STEPS.length - 1)]) + '%)', P.drN >= DR_STEPS.length ? Math.max(0, P.drT || 0) : 1, P.drN >= DR_STEPS.length ? DR_RESET : 1, P.drN >= DR_STEPS.length, { k: 'resist', n, busy: P.drBusy > 0 }); } }
+    if (hasDR(P) && (P.drN || 0) > 0) { const n = Math.min(P.drN, DR_STEPS.length); chip('#c9a0ff', '상태 이상 저항 ' + n + '회 (다음 ' + pc(DR_STEPS[Math.min(P.drN, DR_STEPS.length - 1)]) + '%)', P.drN >= DR_STEPS.length ? Math.max(0, P.drT || 0) : 1, P.drN >= DR_STEPS.length ? DR_RESET : 1, P.drN >= DR_STEPS.length, { k: 'resist', n, busy: P.drBusy > 0 }); } }
   if (P.buffT > 0) chip('#ffc04d', '공속·이속 +30% (술)', P.buffT, WINE_DURATION, true, 'wine');
   if (HERO.guard && P.guardT > 0) chip('#8fb4ff', '방어력 +' + pc(HERO.guard.bonus) + '% (3단 공격)', P.guardT, HERO.guard.dur, true, 'guard');
   if (HERO.ultGuard && P.ultGuardT > 0) chip('#7fffd0', '방어력 +' + pc(HERO.ultGuard) + '% (' + HERO.skills.s3 + ')', P.ultGuardT, HERO.ultGuardDur, true, 'ultGuard');
