@@ -3571,8 +3571,8 @@ function debuffList(u) {
   return o;
 }
 const DEBUFF_W = 24;
-const BUFF_GLYPH = { guard: '방', ultGuard: '방', run: '질', atk: '공', postAtk: '공', spd: '속', aspd: '속', floor: '불', undy: '광', bless: '복' };   // 버프 아이콘 글자
-function drawIconItems(list, x, y) {   // (x, y) 부터 오른쪽으로 21px 아이콘(버프·디버프) + 남은 시간(작은 글씨)
+const BUFF_GLYPH = { wine: '술', hit: '연', guard: '방', ultGuard: '방', run: '질', atk: '공', postAtk: '공', spd: '속', aspd: '속', floor: '불', undy: '광', bless: '복' };   // 버프 아이콘 글자
+function drawIconItems(list, x, y, noLabel) {   // (x, y) 부터 오른쪽으로 21px 아이콘(버프·디버프) + 남은 시간(작은 글씨)
   if (!list.length) return 0;
   list.forEach((d, i) => {
     const ix = x + i * DEBUFF_W, cx = ix + 10, cy = y + 10;
@@ -3585,26 +3585,16 @@ function drawIconItems(list, x, y) {   // (x, y) 부터 오른쪽으로 21px 아
     else if (d.k === 'slow') { for (let k = 0; k < 3; k++) { const a = k * Math.PI / 3; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 7.5, Math.sin(a) * 7.5); ctx.lineTo(-Math.cos(a) * 7.5, -Math.sin(a) * 7.5); ctx.stroke(); } }   // ❄
     else { ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(6, -6); ctx.lineTo(6, 1); ctx.quadraticCurveTo(6, 6, 0, 8); ctx.quadraticCurveTo(-6, 6, -6, 1); ctx.closePath(); ctx.globalAlpha = 0.28; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke(); ctx.font = '800 9px ' + FONT; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(String(d.n), 0, 3.6); }   // 방패 + 횟수
     ctx.restore();
-    const lab = d.k === 'resist' ? (d.t > 0 ? Math.ceil(d.t) + 's' : '') : d.t.toFixed(1);
+    const lab = noLabel ? '' : d.k === 'resist' ? (d.t > 0 ? Math.ceil(d.t) + 's' : '') : d.t.toFixed(1);
     if (lab) { ctx.font = '700 9px ' + FONT; ctx.textAlign = 'center'; ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.strokeText(lab, cx, y + 31); ctx.fillStyle = '#fff'; ctx.fillText(lab, cx, y + 31); ctx.textAlign = 'left'; }
   });
   return list.length * DEBUFF_W;
 }
 const drawDebuffIcons = (u, x, y) => drawIconItems(debuffList(u), x, y);
-function drawRowBuffs(u, H, mine, x, y) {   // 영웅 줄 옆: 버프·디버프 아이콘(+남은 시간) — 지금 조작 중인 영웅만 상세 버프 알약을 함께 표시
+function drawRowBuffs(u, H, mine, x, y) {   // 영웅 줄 옆: 버프·디버프 아이콘 + 남은 시간만 (모든 영웅 동일)
   const bl = buffInfoOf(u, H), items = [...debuffList(u), ...bl.map(b => ({ k: 'buff', id: b.id, rgb: b.rgb, t: b.left }))], dw = items.length * DEBUFF_W;
   if (items.length) drawIconItems(items, mine ? x + 206 : x - 6 - dw, y + 1);
-  if (u !== P) return;
-  const list = bl; if (!list.length) return;
-  ctx.save(); ctx.font = '600 11px ' + FONT; ctx.textAlign = 'left';
-  const maxW = 330, chips = list.map(c => { const label = c.t + ' ' + c.left.toFixed(1) + '초'; return { ...c, label, w: ctx.measureText(label).width + 14 }; });
-  const lines = [[]]; let cur = 0;
-  for (const c of chips) { if (cur + c.w > maxW && lines[lines.length - 1].length) { lines.push([]); cur = 0; } lines[lines.length - 1].push(c); cur += c.w + 4; }
-  lines.slice(0, 2).forEach((ln, li) => {
-    const tot = ln.reduce((a, c) => a + c.w + 4, -4); let cx = mine ? x + 206 + dw : x - 6 - dw - tot; const cy = y + 2 + li * 18;
-    for (const c of ln) { ctx.fillStyle = 'rgba(10,12,20,.8)'; ctx.fillRect(cx, cy, c.w, 16); ctx.fillStyle = 'rgb(' + c.rgb + ')'; ctx.fillRect(cx, cy, 3, 16); ctx.strokeStyle = 'rgba(' + c.rgb + ',.8)'; ctx.lineWidth = 1; ctx.strokeRect(cx + 0.5, cy + 0.5, c.w - 1, 15); ctx.fillText(c.label, cx + 8, cy + 12); cx += c.w + 4; }
-  });
-  ctx.restore();
+  // 상세 버프 설명(텍스트)은 하단 상세 정보에서 (조작 영웅)
 }
 const hudRow = (u, hero0, x, y, mine, isP) => {   // 영웅 목록 한 줄 (비무장·레이드 공용): 초상 · 이름 · 생명력 · 분노 · 버프 알약
 
@@ -4340,25 +4330,32 @@ function drawHUD() {
   // ===== 버프 칸 (위에서부터 쌓임) =====
   // 표기 규칙: 칸 = '효과명 +N% (출처)' + 남은 시간(초) / 발동 글자 = '효과명 +N%'. 효과명은 방어력 · 공격력 · 이동속도 · 공속·피해 로 통일, 출처는 괄호 안에 스킬 이름.
   let chipY = (mode === 'duel' || RAID) ? 160 : 66;
-  const chip = (col, label, t, dur, showTime = true) => {
-    ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(10, chipY, 240, 20); ctx.fillStyle = col + '4d'; ctx.fillRect(10, chipY, 240 * clamp(t / dur, 0, 1), 20);
-    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(10, chipY, 240, 20); ctx.fillStyle = col; circle(21, chipY + 10, 4);
-    text(label, 30, chipY + 15, 12, '#fff'); if (showTime) text(t.toFixed(1) + 's', 244, chipY + 15, 12, '#fff', 'right');
-    chipY += 23;
+  const chip = (col, label, t, dur, showTime = true, icon) => {   // icon = 버프 id(문자열) 또는 디버프 { k: 'stun' | 'hurt' | 'slow' | 'resist', n }
+    const cw = 262, rgb = col.replace('#', '').match(/../g).map(h => parseInt(h, 16)).join(',');
+    ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(10, chipY, cw, 21); ctx.fillStyle = col + '4d'; ctx.fillRect(10, chipY, cw * clamp(t / dur, 0, 1), 21);
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(10, chipY, cw, 21);
+    if (icon) drawIconItems([typeof icon === 'string' ? { k: 'buff', id: icon, rgb, t } : { ...icon, t }], 10, chipY, true); else { ctx.fillStyle = col; circle(21, chipY + 10, 4); }
+    text(fitStr(label, cw - 76, 12), 36, chipY + 15, 12, '#fff'); if (showTime) text(t.toFixed(1) + 's', 10 + cw - 6, chipY + 15, 12, '#fff', 'right');
+    chipY += 24;
   };
   const pc = v => Math.round(v * 100);
-  if (P.buffT > 0) chip('#ffc04d', '공속·이속 +30% (술)', P.buffT, WINE_DURATION);
-  if (HERO.guard && P.guardT > 0) chip('#8fb4ff', '방어력 +' + pc(HERO.guard.bonus) + '% (3단 공격)', P.guardT, HERO.guard.dur);
-  if (HERO.ultGuard && P.ultGuardT > 0) chip('#7fffd0', '방어력 +' + pc(HERO.ultGuard) + '% (' + HERO.skills.s3 + ')', P.ultGuardT, HERO.ultGuardDur);
-  if (HERO.postUltAtk && P.postUltT > 0) chip('#ff9a4a', '공격력 +' + pc(HERO.postUltAtk - 1) + '% (' + HERO.skills.s3 + ')', P.postUltT, HERO.postUltDur);
-  if (HERO.postUltAspd && P.postUltT > 0) chip('#9fdcff', '공속 +' + pc(HERO.postUltAspd - 1) + '% (' + HERO.skills.s3 + ')', P.postUltT, HERO.postUltDur);
-  if (HERO.aspdBuff && P.aspdT > 0) chip('#9fdcff', '공속 +' + pc(HERO.aspdBuff.mult - 1) + '% (3단 공격)', P.aspdT, HERO.aspdBuff.dur);
-  if (HERO.comboBuff && P.comboBuffT > 0) chip('#ffd34d', '공격력 +' + pc(HERO.comboBuff.atk - 1) + '% (3단 공격)', P.comboBuffT, HERO.comboBuff.dur);
-  if (HERO.runBonus && P.runBuffT > 0) chip('#7fd0ff', '이동속도 +' + pc(HERO.runBonus - 1) + '% (질주)', P.runBuffT, HERO.runDur);
-  if (P.floorT > 0) chip('#ffcd5a', '불사 보호 · 생명력 1 밑으로 내려가지 않음 (전투당 1회)', P.floorT, HEROES.dian.undy.floor);
-  if (P.undyT > 0 && HERO.undy) chip('#ff5a4a', '불사 · 공격 +' + pc(HERO.undy.atk - 1) + '% · 흡혈 ' + pc(HERO.undy.ls) + '% (' + HERO.skills.s3 + ')', P.undyT, HERO.undy.dur);
-  if (P.blessT > 0) chip('#ff9ac8', '공격력 +' + pc(BLESS_ATK) + '% · 방어력 +' + pc(BLESS_DEF) + '% (월하 축복)', P.blessT, BLESS_DUR);
-  if (comboTier() > 0) chip('#ff9a3a', '공속·피해 +' + pc(comboPct()) + '% (' + P.hits + ' HIT)', P.hitsT, 3, false);   // HIT 누적 효과: 3초 안에 적중하면 갱신 (막대 = 남은 유지 시간)
+  { const pa = P.act;   // 받은 디버프 (상세): 스턴 / 경직 / 둔화 / 상태 이상 저항
+    if (pa && pa.type === 'stun') chip('#ffe14a', '스턴 — 이동·공격·회피 불가', Math.max(0, pa.dur - pa.t), pa.dur, true, { k: 'stun' });
+    else if (pa && pa.type === 'hurt') chip('#ff9a4a', '경직 — 피격 중 행동 불가', Math.max(0, pa.dur - pa.t), pa.dur, true, { k: 'hurt' });
+    if (P.slowT > 0) chip('#7fd0ff', '둔화 — 이동속도 -45%', P.slowT, 1.5, true, { k: 'slow' });
+    if ((P.drN || 0) > 0) { const n = Math.min(P.drN, DR_STEPS.length); chip('#c9a0ff', '상태 이상 저항 ' + n + '회 (다음 ' + pc(DR_STEPS[Math.min(P.drN, DR_STEPS.length - 1)]) + '%)', P.drN >= DR_STEPS.length ? Math.max(0, P.drT || 0) : 1, P.drN >= DR_STEPS.length ? DR_RESET : 1, P.drN >= DR_STEPS.length, { k: 'resist', n, busy: P.drBusy > 0 }); } }
+  if (P.buffT > 0) chip('#ffc04d', '공속·이속 +30% (술)', P.buffT, WINE_DURATION, true, 'wine');
+  if (HERO.guard && P.guardT > 0) chip('#8fb4ff', '방어력 +' + pc(HERO.guard.bonus) + '% (3단 공격)', P.guardT, HERO.guard.dur, true, 'guard');
+  if (HERO.ultGuard && P.ultGuardT > 0) chip('#7fffd0', '방어력 +' + pc(HERO.ultGuard) + '% (' + HERO.skills.s3 + ')', P.ultGuardT, HERO.ultGuardDur, true, 'ultGuard');
+  if (HERO.postUltAtk && P.postUltT > 0) chip('#ff9a4a', '공격력 +' + pc(HERO.postUltAtk - 1) + '% (' + HERO.skills.s3 + ')', P.postUltT, HERO.postUltDur, true, 'postAtk');
+  if (HERO.postUltAspd && P.postUltT > 0) chip('#9fdcff', '공속 +' + pc(HERO.postUltAspd - 1) + '% (' + HERO.skills.s3 + ')', P.postUltT, HERO.postUltDur, true, 'spd');
+  if (HERO.aspdBuff && P.aspdT > 0) chip('#9fdcff', '공속 +' + pc(HERO.aspdBuff.mult - 1) + '% (3단 공격)', P.aspdT, HERO.aspdBuff.dur, true, 'aspd');
+  if (HERO.comboBuff && P.comboBuffT > 0) chip('#ffd34d', '공격력 +' + pc(HERO.comboBuff.atk - 1) + '% (3단 공격)', P.comboBuffT, HERO.comboBuff.dur, true, 'atk');
+  if (HERO.runBonus && P.runBuffT > 0) chip('#7fd0ff', '이동속도 +' + pc(HERO.runBonus - 1) + '% (질주)', P.runBuffT, HERO.runDur, true, 'run');
+  if (P.floorT > 0) chip('#ffcd5a', '불사 보호 · 생명력 1 밑으로 내려가지 않음 (전투당 1회)', P.floorT, HEROES.dian.undy.floor, true, 'floor');
+  if (P.undyT > 0 && HERO.undy) chip('#ff5a4a', '불사 · 공격 +' + pc(HERO.undy.atk - 1) + '% · 흡혈 ' + pc(HERO.undy.ls) + '% (' + HERO.skills.s3 + ')', P.undyT, HERO.undy.dur, true, 'undy');
+  if (P.blessT > 0) chip('#ff9ac8', '공격력 +' + pc(BLESS_ATK) + '% · 방어력 +' + pc(BLESS_DEF) + '% (월하 축복)', P.blessT, BLESS_DUR, true, 'bless');
+  if (comboTier() > 0) chip('#ff9a3a', '공속·피해 +' + pc(comboPct()) + '% (' + P.hits + ' HIT)', P.hitsT, 3, false, 'hit');   // HIT 누적 효과: 3초 안에 적중하면 갱신 (막대 = 남은 유지 시간)
 
   // 로그라이크 강화 효과: HIT 효과처럼 어떤 영웅으로 싸우든(태그로 바꿔도) 공통으로 적용 — 2열로 모아서 표시
   if (mode !== 'duel') { const ks = Object.keys(UPG).filter(k => RUN[k] > 0); if (ks.length) { text('강화 효과 · 전 영웅 공통', 12, chipY + 9, 10, '#ffd9a0', 'left', true, false); chipY += 13; ks.forEach((k, i) => { const x = 10 + (i % 2) * 121, y = chipY + Math.floor(i / 2) * 19; ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(x, y, 119, 17); ctx.strokeStyle = '#d8a03a'; ctx.lineWidth = 1.2; ctx.strokeRect(x, y, 119, 17); text(UPG_SHORT[k] + ' ' + UPG[k].f(RUN[k]), x + 5, y + 13, 10, '#fff', 'left', false, false); }); chipY += Math.ceil(ks.length / 2) * 19 + 4; } }
