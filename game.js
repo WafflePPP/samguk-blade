@@ -92,7 +92,7 @@ addEventListener('keydown', e => {
   if (!TUT && mode === 'yeonui' && state === 'play' && (e.code === 'KeyP' || e.code === 'Escape')) { openPause('pause'); return; }
   if (TUT && state === 'play') { if (e.code === 'Escape') { tutEnd(true); return; } if (e.code === 'Enter') { tutEvent('ok'); return; } }
   if (e.code === 'KeyM' && mode === 'duel') { meterOn = !meterOn; return; }   // 비무장 미터기 접기/펴기
-  if (e.code === 'KeyQ' && mode === 'duel' && state === 'play') { if (NET.on) netCycle(); else cycleControl(); return; }   // 비무장 모드: Q = 다음 아군으로 조작 변경
+  if (e.code === 'KeyQ' && (mode === 'duel' || RAID) && state === 'play') { if (NET.on) netCycle(); else cycleControl(); return; }   // 비무장 모드: Q = 다음 아군으로 조작 변경
   if (CAM_FREE && (e.code === 'KeyG' || e.code === 'Home')) { centerCam(); return; }   // SC1 식 시점: 영웅 위치로 이동
   if (CAM_FREE && e.code === 'KeyH') { camLock = !camLock; if (camLock) centerCam(); return; }   // 영웅 추적 켜기 / 끄기
   if (e.code === 'Tab' || e.code === 'KeyT') { toggleAuto(); return; }
@@ -171,7 +171,7 @@ cv.addEventListener('pointerdown', e => {
     if (inRect(x, y, OVERLAY_BTN)) { if (NET.on) netLeave(); else state = 'title'; } else if (inRect(x, y, OVERLAY_RETRY)) restartMode();
     return;
   }
-  const di = duelRowAt(x, y); if (di >= 0) { if (NET.on) { netSwap(di); return; } const u = allies.find(a => pcId(a.hero) === duel.order[di]); if (u) swapControl(u); return; }   // 비무장 모드: 아군 초상화 클릭 = 조작 영웅 변경
+  const di = duelRowAt(x, y); if (di >= 0) { if (NET.on) { netSwap(di); return; } const u = allies.find(a => pcId(a.hero) === (duel || RD).order[di]); if (u) swapControl(u); return; }   // 비무장 모드: 아군 초상화 클릭 = 조작 영웅 변경
   const ti = tagBtnAt(x, y); if (ti >= 0) { press('tag' + ti); return; }   // 태그 버튼 (왼쪽 화면)
   const b = BTN.find(b => Math.hypot(x - b.x, y - b.y) <= b.r + 6);
   if (b) {
@@ -932,6 +932,7 @@ function startRaid(team) {   // 레이드 모드 (오프라인): 1~3명이 태�
   BTN.find(b => b.id === 'auto').y = 375;
   resetRun(); RAID = true; resetRS(); RAID_HEROES = (team && team.length ? team : TEAM).slice(0, 3); TEAM = [RAID_HEROES[0]]; selHero = TEAM[0]; LUBU_FORM = 'lubu';   // 태그 없음: 조작 PC 1명 + AI PC 최대 2명
   mode = 'yeonui'; applyGrowth('yeonui'); allies = []; duel = null; applyHero(); resetPlayer();
+  RD.order = RAID_HEROES.slice(); RD.swapCd = 0; RD.cyc = 0;
   RAID_HEROES.slice(1).forEach((h, i) => allies.push(makeFighter(h, 'ally', P.x + (i ? 130 : -130), P.y + 70))); enemies = []; projectiles = []; fx = []; dts = []; items = [];
   kills = 0; clock = 0; winT = 0; autoDodgeCd = 0; shake = 0; hitstop = 0; slowT = 0; flashT = 0; tagFx = null; joy = null; auto = false; TUT = null;
   for (const k in buf) buf[k] = -9;
@@ -2510,6 +2511,7 @@ function footAttack(e, d, fast) {
 }
 // ---- 레이드: 조작 PC 1명 + AI PC 최대 2명이 동시에 보스와 싸운다 (태그 없음). 보스는 조작 PC 를 노리고, 공격 범위 안의 AI PC 도 함께 맞는다 ----
 let RAID_HEROES = [];
+const RD = { order: [], swapCd: 0, cyc: 0 };   // 레이드의 영웅 목록·변경 쿨타임 (비무장의 duel.order / swapCd / cyc 와 같은 역할)
 const RAID_ALLY_TAKEN = 0.6;   // AI 동료가 보스에게 받는 피해 배율 (AI 는 패턴을 사람만큼 못 피하므로 완화)
 const friendsOf = () => RAID ? [P, ...allies].filter(u => !u.dead) : [P];
 const tgtOf = e => { if (!RAID || !P.dead) return P; let b = null, bd = 1e9; for (const u of allies) if (!u.dead) { const d = dist(e, u); if (d < bd) { bd = d; b = u; } } return b || P; };
@@ -2525,6 +2527,7 @@ function raidDodgeDir(f) {   // AI 동료의 보스 공격 회피: 선딜 중인
   return null;
 }
 function updateRaidAllies(dt) {
+  RD.swapCd = Math.max(0, RD.swapCd - dt);
   for (const f of allies) if (!f.dead) updateFighter(f, dt);
   if (P.dead && !allies.some(a => !a.dead) && state === 'play') { state = 'lose'; slowT = 1.2; }
 }
@@ -3043,10 +3046,11 @@ function makeFighter(hero, team, x, y) {
 // 조작 영웅 변경: 눌린 아군 AI(f)와 지금 조작 중인 영웅(P)이 서로 역할을 맞바꿈 (위치·생명력·분노·스킬 쿨타임을 그대로 주고받음). 쓰러져 관전 중이면 살아있는 아군으로 옮겨 다시 조작 가능
 const DUEL_ROW = { x: 10, y: 10, w: 200, h: 38, step: 42 };   // HUD 왼쪽 목록 (0 = 현재 조작 영웅, 1~2 = 아군 AI)
 // 목록 순서는 영웅 선택 순서로 고정 (조작 영웅을 바꿔도 칸이 바뀌지 않고, 현재 조작 영웅 칸만 금색으로 강조)
-function duelRowAt(x, y) { if (mode !== 'duel' || state !== 'play') return -1; for (let i = 0; i < duel.order.length; i++) { const ry = DUEL_ROW.y + i * DUEL_ROW.step; if (x >= DUEL_ROW.x && x <= DUEL_ROW.x + DUEL_ROW.w && y >= ry && y <= ry + DUEL_ROW.h) return i; } return -1; }
+function duelRowAt(x, y) { if ((mode !== 'duel' && !RAID) || state !== 'play') return -1; for (let i = 0; i < (duel || RD).order.length; i++) { const ry = DUEL_ROW.y + i * DUEL_ROW.step; if (x >= DUEL_ROW.x && x <= DUEL_ROW.x + DUEL_ROW.w && y >= ry && y <= ry + DUEL_ROW.h) return i; } return -1; }
 function swapControl(f) {
   if (NET.on) return false;
-  if (mode !== 'duel' || state !== 'play' || !f || f.dead || duel.swapCd > 0) return false;
+  const D = duel || RD;
+  if ((mode !== 'duel' && !RAID) || state !== 'play' || !f || f.dead || D.swapCd > 0) return false;
   const a = P.act; if (!P.dead && a && (a.type === 'ult' || a.type === 'stun' || a.invul)) return false;   // 궁극기·스턴·무적 연출 중에는 변경 불가
   const oldHero = curHero, oldForm = HERO.id, o = { x: P.x, y: P.y, face: P.face, hp: P.hp, rage: P.rage, s1: P.cd.s1, s2: P.cd.s2, dead: P.dead, inv: P.inv, kx: P.kx, ky: P.ky, runT: P.runBuffT, guardT: P.guardT, ultGuardT: P.ultGuardT, aspdT: P.aspdT, postUltT: P.postUltT, comboBuffT: P.comboBuffT, blessT: P.blessT, undyT: P.undyT, floorT: P.floorT, floorUsed: P.floorUsed, hits: P.hits, hitsT: P.hitsT, hitTier: P.hitTier };
   const nw = { hero: f.hero, x: f.x, y: f.y, face: f.face, hp: f.hp, rage: f.rage, s1: f.cd.s1, s2: f.cd.s2, kx: f.kx, ky: f.ky, inv: f.invT, runT: f.runT, guardT: f.guardT, ultGuardT: f.ultGuardT, aspdT: f.aspdT, postUltT: f.postUltT, comboBuffT: f.comboBuffT, blessT: f.blessT, undyT: f.undyT, floorT: f.floorT, floorUsed: f.floorUsed, hits: f.hits, hitsT: f.hitsT, hitTier: f.hitTier };
@@ -3057,9 +3061,9 @@ function swapControl(f) {
   Object.assign(P, { x: nw.x, y: nw.y, face: nw.face, hp: nw.hp, rage: nw.rage, kx: nw.kx, ky: nw.ky, inv: Math.max(nw.inv, 0.3), dead: false, act: null, freeze: 0, combo: 0, comboT: 0, runT: 0, runBuffT: nw.runT, guardT: nw.guardT, ultGuardT: nw.ultGuardT, aspdT: nw.aspdT, postUltT: nw.postUltT, comboBuffT: nw.comboBuffT, blessT: nw.blessT, undyT: nw.undyT, floorT: nw.floorT, floorUsed: nw.floorUsed, hits: nw.hits, hitsT: nw.hitsT, hitTier: nw.hitTier, flash: 0 });
   P.cd.s1 = nw.s1; P.cd.s2 = nw.s2; P.atkCd = 0.4; P.autoBusy = null; for (const k in buf) buf[k] = -9;
   ring(P.x, P.y, 90, 0.4, HERO.ult.a, 8); ring(P.x, P.y, 150, 0.5, '#4fb0ff', 5); sparks(P.x, P.y - 20, 24, HERO.ult.a, 600, 0.5); sfx('skill');
-  duel.swapCd = 1.5; if (TUT) tutEvent('swap'); return true;
+  D.swapCd = 1.5; if (TUT) tutEvent('swap'); return true;
 }
-function cycleControl() { const n = allies.length; for (let k = 0; k < n; k++) { const f = allies[(duel.cyc++) % n]; if (f && !f.dead) return swapControl(f); } return false; }
+function cycleControl() { const D = duel || RD, n = allies.length; for (let k = 0; k < n; k++) { const f = allies[(D.cyc++) % n]; if (f && !f.dead) return swapControl(f); } return false; }
 function startDuel(picks) {
   resetRun(); resetRS(); BTN.find(b => b.id === 'auto').y = 375;   // 로그라이크와 같은 위치: HIT 표시와 회피 버튼의 중간
   const shuf = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(v => v[1]), POOL = HERO_IDS.slice();
@@ -3563,19 +3567,8 @@ function drawRowBuffs(u, H, mine, x, y) {   // 영웅 줄 옆에 버프 알약: 
   });
   ctx.restore();
 }
-function drawRaidAllyHud() {   // 레이드: AI 동료의 생명력 (왼쪽 위, 조작 영웅 아래)
-  allies.forEach((f, i) => {
-    const x = 10, y = 64 + i * 44, fr = clamp(f.hp / f.maxhp, 0, 1);
-    ctx.fillStyle = 'rgba(10,12,20,.55)'; ctx.fillRect(x, y, 200, 38); ctx.strokeStyle = '#4fb0ff'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, 200, 38);
-    ctx.save(); ctx.beginPath(); ctx.arc(x + 20, y + 19, 16, 0, TAU); ctx.clip(); ctx.translate(x + 20, y + 22); ctx.scale(0.52, 0.52); drawPortraitIcon(HEROES[f.hero], 0, 0); ctx.restore();
-    text(DUEL_NAME[f.hero] + '  (AI)', x + 42, y + 14, 11, '#fff');
-    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x + 42, y + 18, 150, 9); ctx.fillStyle = fr > 0.5 ? '#4fd36a' : fr > 0.25 ? '#f0b030' : '#ff3a3a'; ctx.fillRect(x + 43, y + 19, 148 * fr, 7);
-    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x + 42, y + 29, 150, 5); ctx.fillStyle = f.rage >= 100 ? '#ffd34d' : '#e0902a'; ctx.fillRect(x + 43, y + 30, 148 * clamp(f.rage / 100, 0, 1), 3);
-    if (f.dead) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x, y, 200, 38); text('쓰러짐', x + 100, y + 25, 14, '#ffd34d', 'center'); }
-  });
-}
-function drawDuelHUD() {
-  const row = (u, hero0, x, y, mine, isP) => {
+const hudRow = (u, hero0, x, y, mine, isP) => {   // 영웅 목록 한 줄 (비무장·레이드 공용): 초상 · 이름 · 생명력 · 분노 · 버프 알약
+
     const hero = isP ? HERO.id : u ? u.hero : hero0;   // 지금 모습(폼)으로 표시: 여포는 상마/하마
     const dead = isP ? P.dead : u.dead, hp = isP ? P.hp : u.hp, mx = isP ? P.maxhp : u.maxhp, rg = isP ? P.rage : u.rage, col = mine ? '#4fb0ff' : '#ff6a5a';
     ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(x, y, 200, 38); ctx.strokeStyle = isP ? '#ffd34d' : col; ctx.lineWidth = isP ? 2.5 : 1.5; ctx.strokeRect(x, y, 200, 38);
@@ -3586,7 +3579,13 @@ function drawDuelHUD() {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x + 42, y + 29, 150, 5); ctx.fillStyle = rg >= 100 ? '#ffd34d' : '#e0902a'; ctx.fillRect(x + 43, y + 30, 148 * clamp(rg / 100, 0, 1), 3);
     if (!dead) drawRowBuffs(isP ? P : u, isP ? HERO : HEROES[u.hero], mine, x, y);
     if (dead) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x, y, 200, 38); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x + 6, y + 4); ctx.lineTo(x + 36, y + 34); ctx.moveTo(x + 36, y + 4); ctx.lineTo(x + 6, y + 34); ctx.stroke(); }
-  };
+};
+function drawRaidHUD() {   // 레이드: 비무장과 같은 영웅 목록 (0 = 조작 영웅, 초상화를 누르거나 Q 로 변경)
+  RD.order.forEach((h, i) => { const isP = h === curHero; hudRow(isP ? P : allies.find(a => pcId(a.hero) === h), h, DUEL_ROW.x, DUEL_ROW.y + i * DUEL_ROW.step, true, isP); });
+  if (allies.length) text('초상화 클릭 · Q : 조작 영웅 변경', 10, 10 + RD.order.length * 42 + 8, 11, '#cfd3e6', 'left', false);
+}
+function drawDuelHUD() {
+  const row = hudRow;
   if (allies.length) text('초상화 클릭 · Q : 조작 영웅 변경', 10, 10 + duel.order.length * 42 + 8, 11, '#cfd3e6', 'left', false);
   drawDamageMeter();
   duel.order.forEach((h, i) => { const isP = h === curHero; row(isP ? P : allies.find(a => pcId(a.hero) === h), h, 10, 10 + i * 42, true, isP); });
@@ -4287,7 +4286,7 @@ function drawTagButtons() {
   });
 }
 function drawHUD() {
-  if (mode === 'duel') { if (NET.on) drawNetHUD(); else drawDuelHUD(); } else {
+  if (mode === 'duel') { if (NET.on) drawNetHUD(); else drawDuelHUD(); } else if (RAID) drawRaidHUD(); else {
   // ===== 영웅 정보 (컴팩트: 가려지는 면적 최소화) =====
   ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(10, 10, 262, 50); ctx.strokeStyle = 'rgba(212,167,58,.8)'; ctx.lineWidth = 1.5; ctx.strokeRect(10, 10, 262, 50);
   ctx.save(); ctx.translate(34, 35); ctx.scale(0.62, 0.62); ctx.beginPath(); ctx.arc(0, 0, 30, 0, TAU); ctx.clip(); drawPortraitIcon(HERO, 0, 0); ctx.restore();
@@ -4300,7 +4299,7 @@ function drawHUD() {
   }
   // ===== 버프 칸 (위에서부터 쌓임) =====
   // 표기 규칙: 칸 = '효과명 +N% (출처)' + 남은 시간(초) / 발동 글자 = '효과명 +N%'. 효과명은 방어력 · 공격력 · 이동속도 · 공속·피해 로 통일, 출처는 괄호 안에 스킬 이름.
-  let chipY = mode === 'duel' ? 160 : 66;
+  let chipY = (mode === 'duel' || RAID) ? 160 : 66;
   const chip = (col, label, t, dur, showTime = true) => {
     ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(10, chipY, 240, 20); ctx.fillStyle = col + '4d'; ctx.fillRect(10, chipY, 240 * clamp(t / dur, 0, 1), 20);
     ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(10, chipY, 240, 20); ctx.fillStyle = col; circle(21, chipY + 10, 4);
@@ -4328,7 +4327,6 @@ function drawHUD() {
   if (mode !== 'duel') text(RAID ? '레이드 모드  ·  여포 봉선' : `로그라이크 모드  ·  WAVE ${waveIdx + 1}/${WAVES.length}`, W / 2, 24, 16, '#fff', 'center');
   if (!(mode === 'yeonui' && state === 'play')) { const r = lobbyBtnRect(); ctx.fillStyle = 'rgba(10,12,20,.55)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(mode === 'yeonui' && state === 'play' ? '나가기' : '로비', r.x + r.w / 2, r.y + r.h / 2 + 5, 13, '#ffe9a0', 'center'); }   // 로비 버튼 (보스 버튼 옆) — 로그라이크 전투 중에는 '나가기'(경험치 정산)
   if (mode === 'yeonui' && state === 'play') drawPauseButton();
-  if (RAID && state !== 'title') drawRaidAllyHud();
   if (mode !== 'duel') text(`처치 ${kills}${curWave().bossWave ? '' : '   ·   남은 적 ' + (enemies.length + waveLeft())}   ·   ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`, W / 2, 42, 12, '#cfd3e6', 'center', false);
   // ===== 보스 체력바 (얇게) =====
   const boss = enemies.find(e => e.boss);
