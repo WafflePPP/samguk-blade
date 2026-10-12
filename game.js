@@ -733,8 +733,33 @@ function fxText(pc, fx, sep = ' · ') {   // 단계 효과 설명 (능력치 + �
 const META = { atk: 0, aspd: 0, crit: 0, critDmg: 0, def: 0, rage: 0, cd: 0, spd: 0, ls: 0 };   // (퍼센트 보정 자리: 레벨 성장은 더 이상 쓰지 않음 = 항상 0)
 const FLAT = { hp: 0, atk: 0, def: 0 };   // 지금 조작 중인 영웅의 레벨 성장 +N (로그라이크·비무장)
 const zeroFlat = () => ({ hp: 0, atk: 0, def: 0 });
+// ===== 장비 성장: PC마다 3종(무기 · 방어구 · 장신구) 착용, 능력치(체력·공격력·방어력) 상승. 장비는 레이드 모드에서만 획득 (장수 정보 페이지에서 장착) =====
+//  온라인 대전에서는 적용하지 않는다 (양쪽 계정의 장비가 달라 공정하지 않으므로).
+const EQ_SLOTS = ['무기', '방어구', '장신구'], EQ_MAX = 99;
+const EQ_RAR = [{ n: '일반', c: '#cfd3e6' }, { n: '희귀', c: '#6fc3ff' }, { n: '영웅', c: '#c88aff' }, { n: '전설', c: '#ffb43a' }];
+const EQ_NAME = [['녹슨 철극', '청동 월도', '적토 방천극', '봉선의 방천화극'], ['가죽 갑옷', '철찰 갑옷', '명광 흑철갑', '적토 용린갑'], ['옥 패', '호랑이 부적', '붉은 깃 허리띠', '적토마의 방울']];
+const EQ_STAT = [{ atk: [2, 4, 7, 11] }, { def: [1.5, 3, 5, 8], hp: [25, 50, 80, 120] }, { hp: [40, 80, 130, 200], atk: [1, 1.5, 2.5, 4] }];   // 슬롯별 · 등급별 기본 수치 (±10% 무작위)
+const eqData = acc => acc ? (acc.equip || (acc.equip = { inv: [], worn: {}, uid: 1 })) : null;
+const eqWornIds = id => { const d = eqData(ACC); if (!d) return [null, null, null]; return d.worn[pcId(id)] || (d.worn[pcId(id)] = [null, null, null]); };
+const eqItem = iid => { const d = eqData(ACC); return d ? d.inv.find(it => it.id === iid) || null : null; };
+const equipOn = () => !!ACC && !NET.on && !(mode === 'duel' && pickOnline);
+function equipFlat(id) { const o = { hp: 0, atk: 0, def: 0 }; if (!equipOn()) return o; for (const iid of eqWornIds(id)) { const it = iid != null && eqItem(iid); if (it) { o.hp += it.hp || 0; o.atk += it.atk || 0; o.def += it.def || 0; } } return o; }
+const flatTot = (id, lv) => { const f = flatOf(id, lv), e = equipFlat(id); return { hp: f.hp + e.hp, atk: f.atk + e.atk, def: f.def + e.def }; };   // 레벨 성장 + 장비
+function eqRoll(slot, rar) { const d = eqData(ACC), st = EQ_STAT[slot], it = { id: d.uid++, slot, rar, name: EQ_NAME[slot][rar], hp: 0, atk: 0, def: 0 }; for (const k in st) { const v = st[k][rar] * (0.9 + Math.random() * 0.2); it[k] = k === 'hp' ? Math.round(v) : +v.toFixed(1); } return it; }
+function eqRarity(w) { let r = Math.random() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; } return 0; }
+const eqStatText = it => [['hp', '체력'], ['atk', '공격력'], ['def', '방어력']].filter(([k]) => it[k] > 0).map(([k, n]) => n + ' +' + it[k]).join('  ·  ');
+const eqScore = it => (it.hp || 0) / 10 + (it.atk || 0) * 5 + (it.def || 0) * 8;
+function eqWearer(iid) { const d = eqData(ACC); if (!d) return null; for (const h in d.worn) if (d.worn[h].includes(iid)) return h; return null; }
+function eqEquip(hid, slot, iid) { const d = eqData(ACC); for (const h in d.worn) for (let k = 0; k < 3; k++) if (d.worn[h][k] === iid) d.worn[h][k] = null; eqWornIds(hid)[slot] = iid; saveSave(); sfx('skill'); }
+function eqUnequip(hid, slot) { eqWornIds(hid)[slot] = null; saveSave(); sfx('hit'); }
+function eqDrops(win) {   // 레이드 정산: 승리 = 1개 확정 + 60% 로 1개 더 / 패배·나가기 = 보스 체력을 깎은 만큼의 확률로 1개 (등급 낮음)
+  const d = eqData(ACC); if (!d) return []; let n = 0, w;
+  if (win) { n = 1 + (Math.random() < 0.6 ? 1 : 0); w = [30, 35, 28, 7]; }
+  else { const b = enemies.find(e => e.boss), pct = b ? clamp(1 - b.hp / b.maxhp, 0, 1) : 0; if (Math.random() < pct * 0.8) n = 1; w = [60, 30, 9, 1]; }
+  const out = []; for (let i = 0; i < n; i++) { if (d.inv.length >= EQ_MAX) break; const it = eqRoll((Math.random() * 3) | 0, eqRarity(w)); d.inv.push(it); out.push(it); } return out;
+}
 function flatOf(id, lv) { const g = growthFx(id, lv); return { hp: g.hp, atk: g.atk, def: g.def }; }   // 능력치 성장(체력·공격력·방어력)만
-function flatMode(id) { return ACC && (mode === 'yeonui' || mode === 'duel') && GROWTH[pcId(id)] ? flatOf(id, heroLv(id)) : zeroFlat(); }
+function flatMode(id) { return ACC && (mode === 'yeonui' || mode === 'duel') && GROWTH[pcId(id)] ? flatTot(id, heroLv(id)) : zeroFlat(); }
 const baseHp = id => { const f = flatMode(id); return mode === 'duel' ? DUEL_HP + f.hp * (DUEL_HP / HERO_STATS.hp) : HERO_STATS.hp + f.hp; };
 const heroMaxHp = id => Math.round(baseHp(id) * (1 + RUN.hp));   // 영웅별 최대 생명력 = (기본 + 성장 +N) x 로그라이크 강화
 const fmtFlat = (k, v) => '+' + (k === 'hp' ? Math.round(v) : +v.toFixed(1));
@@ -760,7 +785,14 @@ function settleRun(res) {
     }
     return row;
   });
-  ACC.runs++; if (win) ACC.wins++; saveSave();
+  ACC.runs++; if (win) ACC.wins++; if (RAID) RS.drops = eqDrops(win); saveSave();   // 장비는 레이드에서만 얻는다
+}
+function drawDropPanel() {   // 레이드 정산: 획득한 장비 (화면 위쪽)
+  if (!RAID || !RS.done) return; const dr = RS.drops || [], w = 600, x = W / 2 - w / 2, y = 92, h = 46 + Math.max(1, dr.length) * 26;
+  ctx.fillStyle = 'rgba(10,12,20,.88)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(255,211,77,.7)'; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+  text('획득 장비', x + 16, y + 26, 16, '#ffd34d', 'left'); text('장비는 레이드 모드에서만 얻을 수 있습니다  ·  장수 정보에서 장착', x + w - 14, y + 26, 11.5, '#9aa3b8', 'right', false);
+  if (!dr.length) { text('이번에는 획득한 장비가 없습니다 (보스를 많이 깎을수록 획득 확률 증가)', x + 16, y + 56, 13, '#aab3c8', 'left', false); return; }
+  dr.forEach((it, i) => { const yy = y + 52 + i * 26; text('[' + EQ_SLOTS[it.slot] + ']', x + 16, yy + 12, 13, '#9ad4ff', 'left'); text(it.name, x + 84, yy + 12, 15, EQ_RAR[it.rar].c, 'left'); text(EQ_RAR[it.rar].n, x + 262, yy + 12, 12, EQ_RAR[it.rar].c, 'left', false); text(eqStatText(it), x + 320, yy + 12, 12.5, '#e6e9f5', 'left', false); });
 }
 function drawXpSummary() {   // 승패 화면: 이번 판 경험치 · 레벨업 · 성장 변화
   if (!RS.summary) return; const bx = W / 2 - 380, bw = 760;
@@ -1643,10 +1675,56 @@ let infoSel = 0, infoLv = 1;
 const infoPc = () => HERO_IDS[infoSel];
 const infoTab = i => ({ x: 40 + i * 201, y: 82, w: 195, h: 46 });
 const INFO_CTL = { m5: { x: 56, y: 304, w: 40, h: 30 }, m1: { x: 100, y: 304, w: 40, h: 30 }, box: { x: 144, y: 304, w: 90, h: 30 }, p1: { x: 238, y: 304, w: 40, h: 30 }, p5: { x: 282, y: 304, w: 40, h: 30 }, cur: { x: 326, y: 304, w: 54, h: 30 } };
+let infoTabR = 0, eqPick = null;   // 오른쪽 패널 탭 (0 영웅 성장 / 1 장비) · 장비 선택 팝업 { slot, page }
+const INFO_RTAB = i => ({ x: 876 + i * 178, y: 148, w: 172, h: 28 }), EQ_ROW = i => ({ x: 876, y: 206 + i * 84, w: 354, h: 76 });
+const EQP = { x: W / 2 - 340, y: 100, w: 680, h: 500 }, EQP_ROWS = 7, EQP_ROW = i => ({ x: EQP.x + 20, y: EQP.y + 70 + i * 52, w: EQP.w - 40, h: 46 }), EQP_PREV = { x: EQP.x + 20, y: EQP.y + EQP.h - 52, w: 90, h: 36 }, EQP_NEXT = { x: EQP.x + 120, y: EQP.y + EQP.h - 52, w: 90, h: 36 }, EQP_OFF = { x: EQP.x + EQP.w - 250, y: EQP.y + EQP.h - 52, w: 110, h: 36 }, EQP_CLOSE = { x: EQP.x + EQP.w - 130, y: EQP.y + EQP.h - 52, w: 110, h: 36 };
+const eqList = slot => { const d = eqData(ACC); return d ? d.inv.filter(it => it.slot === slot).sort((a, b) => b.rar - a.rar || eqScore(b) - eqScore(a)) : []; };
+function drawEquipTab(R, id) {
+  const worn = eqWornIds(id), tot = equipFlat(id), d = eqData(ACC);
+  text('장비 3종 착용  (눌러서 변경)', R.x + 16, R.y + 56, 13, '#ffd34d', 'left');
+  for (let i = 0; i < 3; i++) {
+    const r = EQ_ROW(i), it = worn[i] != null ? eqItem(worn[i]) : null, rc = it ? EQ_RAR[it.rar].c : '#6c7288';
+    ctx.fillStyle = it ? 'rgba(30,24,44,.92)' : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = rc; ctx.lineWidth = it ? 2 : 1.5; if (!it) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
+    text(EQ_SLOTS[i], r.x + 12, r.y + 20, 12, '#9ad4ff', 'left');
+    if (it) { text(it.name, r.x + 12, r.y + 44, 17, rc, 'left'); text(EQ_RAR[it.rar].n, r.x + r.w - 12, r.y + 20, 12, rc, 'right'); text(fitStr(eqStatText(it), r.w - 24, 12.5), r.x + 12, r.y + 64, 12.5, '#e6e9f5', 'left', false); }
+    else text('비어 있음  —  눌러서 장착', r.x + 12, r.y + 50, 14, '#8a90a6', 'left', false);
+  }
+  const yy = EQ_ROW(3).y + 4;
+  text('장비 효과 합계', R.x + 16, yy + 6, 13, '#ffd34d', 'left');
+  text('체력 +' + tot.hp + '   ·   공격력 +' + +tot.atk.toFixed(1) + '   ·   방어력 +' + +tot.def.toFixed(1), R.x + 16, yy + 28, 14, tot.hp + tot.atk + tot.def > 0 ? '#9dff9d' : '#8a90a6', 'left', false);
+  text('보유 장비 ' + (d ? d.inv.length : 0) + ' / ' + EQ_MAX + '  ·  장비는 레이드 모드에서만 획득', R.x + 16, yy + 50, 11.5, '#9aa3b8', 'left', false);
+  text('온라인 대전에서는 장비가 적용되지 않습니다', R.x + 16, yy + 68, 11, '#7a8196', 'left', false);
+}
+function drawEqPicker() {
+  if (!eqPick) return; const slot = eqPick.slot, list = eqList(slot), pages = Math.max(1, Math.ceil(list.length / EQP_ROWS)), id = infoPc(), cur = eqWornIds(id)[slot];
+  eqPick.page = clamp(eqPick.page, 0, pages - 1);
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = 'rgba(14,10,26,.97)'; ctx.fillRect(EQP.x, EQP.y, EQP.w, EQP.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(EQP.x, EQP.y, EQP.w, EQP.h);
+  text(EQ_SLOTS[slot] + ' 선택  ·  ' + PC_NAME[id], EQP.x + 20, EQP.y + 40, 24, '#ffe9a0', 'left'); text('아이템을 누르면 장착합니다 (다른 영웅이 착용 중이면 옮겨 옵니다)', EQP.x + 20, EQP.y + 60, 12, '#9aa3b8', 'left', false);
+  list.slice(eqPick.page * EQP_ROWS, eqPick.page * EQP_ROWS + EQP_ROWS).forEach((it, i) => {
+    const r = EQP_ROW(i), rc = EQ_RAR[it.rar].c, wr = eqWearer(it.id), mine = cur === it.id;
+    ctx.fillStyle = mine ? 'rgba(60,44,16,.9)' : 'rgba(30,24,44,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = mine ? '#ffd34d' : rc; ctx.lineWidth = mine ? 2.5 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.fillStyle = rc; ctx.fillRect(r.x, r.y, 6, r.h);
+    text(it.name, r.x + 18, r.y + 29, 17, rc, 'left'); text(EQ_RAR[it.rar].n, r.x + 200, r.y + 29, 12, rc, 'left', false); text(fitStr(eqStatText(it), 300, 13), r.x + 262, r.y + 29, 13, '#e6e9f5', 'left', false);
+    if (mine) text('착용 중', r.x + r.w - 12, r.y + 29, 13, '#ffd34d', 'right'); else if (wr) text(PC_NAME[wr] + ' 착용', r.x + r.w - 12, r.y + 29, 12.5, '#9ad4ff', 'right', false);
+  });
+  if (!list.length) text('보유한 ' + EQ_SLOTS[slot] + '이(가) 없습니다  —  레이드 모드에서 획득하세요', EQP.x + EQP.w / 2, EQP.y + 220, 16, '#aab3c8', 'center', false);
+  const btn = (b, label, col, dis) => { ctx.globalAlpha = dis ? 0.4 : 1; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text(label, b.x + b.w / 2, b.y + 24, 15, col, 'center'); ctx.globalAlpha = 1; };
+  btn(EQP_PREV, '◀ 이전', '#9ad4ff', eqPick.page <= 0); btn(EQP_NEXT, '다음 ▶', '#9ad4ff', eqPick.page >= pages - 1); text((eqPick.page + 1) + ' / ' + pages, EQP.x + 240, EQP.y + EQP.h - 28, 13, '#cfd3e6', 'left', false);
+  btn(EQP_OFF, '해제', '#ff9a8a', cur == null); btn(EQP_CLOSE, '닫기', '#cfd3e6', false);
+}
+function eqPickClick(x, y) {
+  const slot = eqPick.slot, list = eqList(slot), pages = Math.max(1, Math.ceil(list.length / EQP_ROWS)), id = infoPc();
+  if (inRect(x, y, EQP_CLOSE) || !inRect(x, y, EQP)) { eqPick = null; return; }
+  if (inRect(x, y, EQP_PREV)) { eqPick.page = Math.max(0, eqPick.page - 1); return; } if (inRect(x, y, EQP_NEXT)) { eqPick.page = Math.min(pages - 1, eqPick.page + 1); return; }
+  if (inRect(x, y, EQP_OFF) && eqWornIds(id)[slot] != null) { eqUnequip(id, slot); eqPick = null; return; }
+  for (let i = 0; i < EQP_ROWS; i++) { const it = list[eqPick.page * EQP_ROWS + i]; if (it && inRect(x, y, EQP_ROW(i))) { eqEquip(id, slot, it.id); eqPick = null; return; } }
+}
 function openInfo() { state = 'info'; mode = 'yeonui'; infoSel = Math.max(0, HERO_IDS.indexOf(curHero)); infoLv = ACC ? heroLv(infoPc()) : 1; }
 function infoSetLv(v) { infoLv = clamp(v, 1, MAX_LV); }
-function infoSelect(i) { infoSel = clamp(i, 0, HERO_IDS.length - 1); infoLv = ACC ? heroLv(infoPc()) : 1; sfx('hit'); }
+function infoSelect(i) { eqPick = null; infoSel = clamp(i, 0, HERO_IDS.length - 1); infoLv = ACC ? heroLv(infoPc()) : 1; sfx('hit'); }
 function infoClick(x, y) {
+  if (eqPick) { eqPickClick(x, y); return; }
+  for (let i = 0; i < 2; i++) if (inRect(x, y, INFO_RTAB(i))) { infoTabR = i; sfx('hit'); return; }
+  if (infoTabR === 1) for (let i = 0; i < 3; i++) if (inRect(x, y, EQ_ROW(i))) { eqPick = { slot: i, page: 0 }; sfx('hit'); return; }
   if (inRect(x, y, INFO_BACK)) { state = 'title'; return; }
   for (let i = 0; i < HERO_IDS.length; i++) if (inRect(x, y, infoTab(i))) { infoSelect(i); return; }
   const c = INFO_CTL;
@@ -1654,6 +1732,8 @@ function infoClick(x, y) {
   else if (inRect(x, y, c.box)) infoSetLv(infoLv >= MAX_LV ? 1 : MAX_LV);   // 가운데 칸: 1 <-> 최대 레벨
 }
 function infoKey(code) {
+  if (eqPick) { if (code === 'Escape' || code === 'Enter') eqPick = null; return; }
+  if (code === 'KeyE' || code === 'Tab') { infoTabR = 1 - infoTabR; return; }
   if (code === 'Escape' || code === 'Enter' || code === 'KeyI') { state = 'title'; return; }
   if (code === 'ArrowLeft' || code === 'KeyA') infoSelect(infoSel - 1); else if (code === 'ArrowRight' || code === 'KeyD') infoSelect(infoSel + 1);
   else if (/^Digit[1-6]$/.test(code)) infoSelect(+code.slice(5) - 1);
@@ -1694,12 +1774,12 @@ function drawInfo() {
     text('성장 미리보기  (실제 레벨은 바뀌지 않습니다)', 56, 296, 13, '#ffd34d', 'left');
     const C = INFO_CTL; for (const [k, lab] of [['m5', '-5'], ['m1', '◀'], ['p1', '▶'], ['p5', '+5'], ['cur', '현재']]) { const b = C[k]; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#9ad4ff'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(lab, b.x + b.w / 2, b.y + 21, 14, '#9ad4ff', 'center'); }
     const bx = C.box; ctx.fillStyle = 'rgba(40,34,18,.95)'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2; ctx.strokeRect(bx.x, bx.y, bx.w, bx.h); text('Lv ' + infoLv, bx.x + bx.w / 2, bx.y + 22, 17, infoLv >= MAX_LV ? '#ffd34d' : '#fff', 'center');
-    const m = flatOf(id, infoLv), bs = { hp: HERO_STATS.hp, atk: HERO_STATS.atk, def: 0 };
+    const m = flatOf(id, infoLv), eq = equipFlat(id), bs = { hp: HERO_STATS.hp, atk: HERO_STATS.atk, def: 0 };
     text('능력치', 56, 362, 14, '#ffd34d', 'left'); text('로그라이크·레이드', 262, 362, 12, '#ffb27a', 'right', false); text('비무장', 366, 362, 12, '#9ad4ff', 'right', false);
     FLAT_KEYS.forEach((k, j) => {
-      const dv = k === 'hp' ? DUEL_HP + m.hp * DUEL_HP / HERO_STATS.hp : bs[k] + m[k], v = bs[k] + m[k], f = n => k === 'hp' ? fmtI(n) : +n.toFixed(1), yy = 388 + j * 26;
-      text(FLAT_NAME[k], 56, yy, 15, '#fff', 'left', false); text(f(v), 262, yy, 16, m[k] > 0 ? '#9dff9d' : '#fff', 'right', false); text(f(dv), 366, yy, 16, m[k] > 0 ? '#9dff9d' : '#fff', 'right', false);
-      text('기본 ' + (k === 'hp' ? fmtI(bs[k]) : bs[k]) + ' ' + fmtFlat(k, m[k]) + (k === 'hp' ? '   (비무장은 체력 기준 6,000)' : k === 'def' ? '   (받는 피해 -' + (100 - 100 / (1 + m.def / 100)).toFixed(1) + '%)' : ''), 56, yy + 13, 10.5, '#8a90a6', 'left', false);
+      const dv = k === 'hp' ? DUEL_HP + (m.hp + eq.hp) * DUEL_HP / HERO_STATS.hp : bs[k] + m[k] + eq[k], v = bs[k] + m[k] + eq[k], f = n => k === 'hp' ? fmtI(n) : +n.toFixed(1), yy = 388 + j * 26;
+      text(FLAT_NAME[k], 56, yy, 15, '#fff', 'left', false); text(f(v), 262, yy, 16, m[k] + eq[k] > 0 ? '#9dff9d' : '#fff', 'right', false); text(f(dv), 366, yy, 16, m[k] + eq[k] > 0 ? '#9dff9d' : '#fff', 'right', false);
+      text('기본 ' + (k === 'hp' ? fmtI(bs[k]) : bs[k]) + ' ' + fmtFlat(k, m[k]) + (eq[k] > 0 ? '  장비 ' + fmtFlat(k, eq[k]) : '') + (k === 'hp' ? '   (비무장은 체력 기준 6,000)' : k === 'def' ? '   (받는 피해 -' + (100 - 100 / (1 + m.def / 100)).toFixed(1) + '%)' : ''), 56, yy + 13, 10.5, '#8a90a6', 'left', false);
     });
     text('성장하지 않는 능력치 (두 모드 공통)', 56, 496, 13, '#cfd3e6', 'left');
     [['치명타 확률 / 피해', Math.round(CRIT_BASE * 100) + '%  /  x' + CRIT_BASE_DMG], ['이동속도', String(HERO_STATS.speed)], ['회피율 / 적중', PC_EVA + '%  /  ' + PC_ACC], ['회피 쿨타임 · 무적 · 거리 (모든 모드)', DASH_CD_PVE + '초 · ' + DASH_INV_PVE + '초 · +' + Math.round((DASH_DIST_PVE - 1) * 100) + '%'], ].forEach(([k, v], j) => { text(k, 56, 518 + j * 20, 13, '#aab3c8', 'left', false); text(v, 366, 518 + j * 20, 13, '#fff', 'right', false); });
@@ -1723,9 +1803,9 @@ function drawInfo() {
     HH.forEach((h, hi) => text(fitStr((id === 'lubu' ? (hi ? '하마  ' : '상마  ') : '') + h.info.map(r => r[0] + ' ' + r[1]).join('  ·  '), M.w - 32, 11.5), M.x + 16, M.y + 490 + hi * 18, 11.5, '#aab3c8', 'left', false));
     // ---- 오른쪽: 영웅 성장 (고유 성장 단계) ----
     const R = { x: 866, y: 142, w: 374, h: 514 }; ctx.fillStyle = 'rgba(12,14,24,.92)'; ctx.fillRect(R.x, R.y, R.w, R.h); ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 2; ctx.strokeRect(R.x, R.y, R.w, R.h);
-    text('영웅 성장  (Lv 1·5·10·15·20·25·30)', R.x + 16, R.y + 28, 15, '#ffd34d', 'left');
-    text(fitStr('Lv ' + infoLv + ' 누적: 체력 +' + m.hp + ' · 공격력 +' + m.atk + ' · 방어력 +' + m.def + ' · 스킬 성장 ' + g.tiers.filter(t => infoLv >= t.lv && (t.fx.dmg || t.fx.hits || t.fx.buff)).length + '개', R.w - 32, 11.5), R.x + 16, R.y + 46, 11.5, '#9dff9d', 'left', false);
-    g.tiers.forEach((t, j) => {
+    ['영웅 성장', '장비'].forEach((nm, i) => { const t = INFO_RTAB(i), on = infoTabR === i; ctx.fillStyle = on ? 'rgba(212,167,58,.9)' : 'rgba(30,24,44,.9)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeStyle = on ? '#ffd34d' : 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(t.x, t.y, t.w, t.h); text(nm, t.x + t.w / 2, t.y + 20, 15, on ? '#2a1c06' : '#cfd3e6', 'center'); });
+    if (infoTabR === 0) text(fitStr('Lv ' + infoLv + ' 누적: 체력 +' + m.hp + ' · 공격력 +' + m.atk + ' · 방어력 +' + m.def + ' · 스킬 성장 ' + g.tiers.filter(t => infoLv >= t.lv && (t.fx.dmg || t.fx.hits || t.fx.buff)).length + '개', R.w - 32, 11.5), R.x + 16, R.y + 46, 11.5, '#9dff9d', 'left', false);
+    if (infoTabR === 0) g.tiers.forEach((t, j) => {
       const yy = R.y + 56 + j * 64, on = infoLv >= t.lv, cur = curLv >= t.lv, skill = !!(t.fx.dmg || t.fx.hits || t.fx.buff), stat = !!(t.fx.hp || t.fx.atk || t.fx.def);
       ctx.fillStyle = on ? 'rgba(60,200,90,.14)' : 'rgba(255,255,255,.04)'; ctx.fillRect(R.x + 10, yy, R.w - 20, 58); ctx.strokeStyle = on ? '#4fd36a' : 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.strokeRect(R.x + 10, yy, R.w - 20, 58);
       text('Lv ' + t.lv, R.x + 20, yy + 17, 13, on ? '#9dff9d' : '#7a8196', 'left'); text(t.name, R.x + 74, yy + 17, 14, on ? '#fff' : '#8a90a6', 'left');
@@ -1733,8 +1813,10 @@ function drawInfo() {
       const parts = fxText(id, t.fx, '\n').split('\n'); parts.slice(0, 3).forEach((p, k) => text(fitStr(p, R.w - 40, 10.5), R.x + 20, yy + 31 + k * 12, 10.5, on ? '#cfeed6' : '#6c7288', 'left', false));
       if (cur) text('✔ 달성', R.x + R.w - 20, yy + 53, 10.5, '#7dff9a', 'right', false);
     });
+    if (infoTabR === 1) drawEquipTab(R, id);
   } finally { rec.lv = old; applyGrowth('yeonui'); mode = 'yeonui'; }
   const b = INFO_BACK; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text('뒤로', b.x + b.w / 2, b.y + 21, 15, '#cfd3e6', 'center');
+  drawEqPicker();
 }
 function applyGrowth(m) {
   m = m || mode; const on = !!ACC && (m === 'yeonui' || m === 'duel'), G = pc => growthFx(pc, on ? heroLv(pc) : 0);
@@ -2914,7 +2996,7 @@ function pickKey(code) {
 const fmtI = n => Math.round(n).toLocaleString('en-US');
 function heroSkillRows(id) {
   if (id === 'lubu') {   // 여포: 상마 / 하마 두 폼의 수치를 함께 표시
-    const A = HERO_STATS.atk + (ACC ? flatOf(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, hm = HEROES.lubu.bal, hf = HEROES.lubu2.bal, sp = RUSH_SPECS.three, sum = tb => tb.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0);
+    const A = HERO_STATS.atk + (ACC ? flatTot(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, hm = HEROES.lubu.bal, hf = HEROES.lubu2.bal, sp = RUSH_SPECS.three, sum = tb => tb.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0);
     return [
       { n: 'J · 공격 (상마 / 하마)', c1: '3단 콤보 합계 ' + fmtI(sum(LUBU_ATK) * A * hm.a) + ' / ' + fmtI(sum(LUBU2_ATK) * A * hf.a), c2: '범위 ' + LUBU_ATK.map(c => Math.round(c.rad)).join('·') + ' / ' + LUBU2_ATK.map(c => Math.round(c.rad)).join('·') },
       { n: 'K · ' + HEROES.lubu.skills.s1 + ' / ' + HEROES.lubu2.skills.s1, c1: '상마 ↔ 하마 전환 + 360° 베기 1회', c2: '쿨 ' + CD.s1 + '초 · 체력·분노 유지 · 스킬2 쿨은 폼별' },
@@ -2923,7 +3005,7 @@ function heroSkillRows(id) {
     ];
   }
   if (id === 'huang') {   // 황충: 백보천양 · 화살비 · 마법의 수정화살
-    const H = HEROES.huang, b = H.bal, A = HERO_STATS.atk + (ACC ? flatOf(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, sum = HUANG_ATK.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0);
+    const H = HEROES.huang, b = H.bal, A = HERO_STATS.atk + (ACC ? flatTot(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, sum = HUANG_ATK.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0);
     return [
       { n: 'J · ' + H.skills.attack, c1: '3단 콤보 합계 피해 ' + fmtI(sum * A * b.a) + ' (5발) · 먼 적 최대 +' + Math.round(HUANG_FAR * 100) + '%', c2: '사거리 ' + HUANG_ATK.map(c => Math.round(c.rad)).join('·') + ' · 이동 사격 · 3단 성공 시 공속 +' + Math.round((H.aspdBuff.mult - 1) * 100) + '% (' + H.aspdBuff.dur + '초)' },
       { n: 'K · ' + H.skills.s1, c1: '후퇴 사격 · 강궁 ' + HUANG_K + '발 관통 · 한 발 피해 ' + fmtI(A * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * 3.0 * b.s1) + ' (먼 적 최대 +40%)', c2: '사거리 ' + Math.round(SNIPE_SPD * SNIPE_LIFE) + ' · 쿨 ' + CD.s1 + '초' },
@@ -2931,7 +3013,7 @@ function heroSkillRows(id) {
       { n: '; · ' + H.skills.s3, c1: '피해 ' + fmtI(A * 6.5 * SKILL_DMG_MULT * ULT_DMG_MULT * b.u) + ' · 기절 ' + (1 * (1 + CRYSTAL_STUN_UP)).toFixed(1) + ' ~ ' + Math.min(3.5 * (1 + CRYSTAL_STUN_UP), 7).toFixed(1) + '초 (멀수록 길게)', c2: '사거리 ' + Math.round(CRYSTAL_SPD * CRYSTAL_LIFE) + ' · 주변 폭발 피해 40% · 보스는 기절 최대 2초' }];
   }
   if (id === 'dian') {   // 전위: 쌍극 투척 · 지축 강타 · 불사의 광기
-    const H = HEROES.dian, b = H.bal, A = HERO_STATS.atk + (ACC ? flatOf(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, sum = DIAN_ATK.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0), U = H.undy;
+    const H = HEROES.dian, b = H.bal, A = HERO_STATS.atk + (ACC ? flatTot(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, sum = DIAN_ATK.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0), U = H.undy;
     return [
       { n: 'J · ' + H.skills.attack, c1: '3단 콤보 합계 피해 ' + fmtI(sum * A * b.a) + ' (3타)', c2: '범위 ' + DIAN_ATK.map(c => Math.round(c.rad)).join('·') + ' · 3단 성공 시 공격력 +' + Math.round((H.comboBuff.atk - 1) * 100) + '% (' + H.comboBuff.dur + '초)' },
       { n: 'K · ' + H.skills.s1, c1: '쌍극 ' + DIAN_BLADES + '자루 관통 · 한 자루 피해 ' + fmtI(A * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * 1.6 * b.s1), c2: '사거리 ' + Math.round(BLADE_SPEED * BLADE_LIFE) + ' · 쿨 ' + CD.s1 + '초' },
@@ -2939,7 +3021,7 @@ function heroSkillRows(id) {
       { n: '; · ' + H.skills.s3, c1: '시전마다 ' + U.dur.toFixed(1) + '초 공격력 +' + Math.round((U.atk - 1) * 100) + '% · 흡혈 ' + Math.round(U.ls * 100) + '%', c2: '전투당 1회 ' + U.floor + '초간 죽지 않음(생명력 1 보호) · 포효 폭발 ' + fmtI(SK * 2.0 * b.u) + ' (반경 240) · 시전 중 무적' }];
   }
   if (id === 'diao') {   // 초선(힐러): 회복량 중심 표기
-    const H = HEROES.diao, b = H.bal, A = HERO_STATS.atk + (ACC ? flatOf(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, hm = healMul(), q = v => +(v * 100 * hm).toFixed(1), qo = v => +(v * 100 * (mode === 'duel' ? DUEL_HEAL_OTHER : hm)).toFixed(1), hs = v => mode === 'duel' ? '자신 +' + q(v) + '% / 다른 아군 +' + qo(v) + '%' : '아군 +' + q(v) + '%', n = DIAO_S1_TIMES.length, sum = DIAO_ATK.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0);
+    const H = HEROES.diao, b = H.bal, A = HERO_STATS.atk + (ACC ? flatTot(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, hm = healMul(), q = v => +(v * 100 * hm).toFixed(1), qo = v => +(v * 100 * (mode === 'duel' ? DUEL_HEAL_OTHER : hm)).toFixed(1), hs = v => mode === 'duel' ? '자신 +' + q(v) + '% / 다른 아군 +' + qo(v) + '%' : '아군 +' + q(v) + '%', n = DIAO_S1_TIMES.length, sum = DIAO_ATK.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0);
     return [
       { n: 'J · ' + H.skills.attack, c1: '3단 콤보 합계 피해 ' + fmtI(sum * A * b.a) + ' (3타)', c2: '범위 ' + DIAO_ATK.map(c => Math.round(c.rad)).join('·') + ' · 3단 성공 시 아군 생명력 +' + q(DIAO_HEAL.combo * HEAL_POW) + '%' },
       { n: 'K · ' + H.skills.s1, c1: '연꽃 ' + n + '회 · 매회 생명력 ' + hs(DIAO_HEAL.pulse * HEAL_POW), c2: '회복 범위 ' + HEAL_R + ' · 적 합계 피해 ' + fmtI(A * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * b.s1 * n) + ' · 쿨 ' + CD.s1 + '초 · 슈퍼아머' },
@@ -2947,7 +3029,7 @@ function heroSkillRows(id) {
       { n: '; · ' + H.skills.s3, c1: '범위 ' + ULT_HEAL_R + ' 생명력 ' + hs(DIAO_HEAL.ult * ULT_HEAL_POW) + ' · 적 피해 ' + fmtI(A * 6.5 * SKILL_DMG_MULT * ULT_DMG_MULT * b.u), c2: '범위 ' + ULT_RADIUS + ' 적 기절 2.2초 · 무적 연출' + (mode === 'duel' ? '' : ' · 대기 중인 동료도 회복') },
     ];
   }
-  const H = HEROES[id], b = H.bal, A = HERO_STATS.atk + (ACC ? flatOf(id, heroLv(id)).atk : 0), S1U = A * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * b.s1, SK = A * SKILL_DMG_MULT;
+  const H = HEROES[id], b = H.bal, A = HERO_STATS.atk + (ACC ? flatTot(id, heroLv(id)).atk : 0), S1U = A * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * b.s1, SK = A * SKILL_DMG_MULT;
   const tb = id === 'zhao' ? ZHAO_ATK : id === 'lubu' ? LUBU_ATK : id === 'lubu2' ? LUBU2_ATK : id === 'diao' ? DIAO_ATK : id === 'dian' ? DIAN_ATK : id === 'huang' ? HUANG_ATK : GUAN_ATK;
   const comboDmg = tb.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0) * A * b.a, comboHits = tb.reduce((t, c) => t + c.hits.length, 0);
   const rows = [{ n: 'J · ' + H.skills.attack, c1: tb.length + '단 콤보 합계 피해 ' + fmtI(comboDmg) + ' (' + comboHits + '타)', c2: '범위 ' + tb.map(c => Math.round(c.rad)).join('·') + (id === 'lubu' ? ' · 공속 -10%' : '') }];
@@ -3037,8 +3119,8 @@ function drawPickNew() {
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.x + 22, p.y + 80, p.w - 44, 12); ctx.fillStyle = '#4fd36a'; ctx.fillRect(p.x + 23, p.y + 81, (p.w - 46) * (lv >= MAX_LV ? 1 : rec.xp / xpNeed(lv)), 10); text(lv >= MAX_LV ? 'MAX' : 'EXP ' + rec.xp + ' / ' + xpNeed(lv), p.x + p.w - 22, p.y + 108, 11, '#9aa3b8', 'right', false);
     ['스테이터스', '스킬'].forEach((nm, i) => { const r = PK.tab(i), on = pickTab === i; ctx.fillStyle = on ? 'rgba(212,167,58,.9)' : 'rgba(30,24,44,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = on ? '#ffd34d' : 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(nm, r.x + r.w / 2, r.y + 26, 17, on ? '#2a1c06' : '#cfd3e6', 'center'); });
     if (pickTab === 0) {
-      const lf = ACC ? flatOf(id, lv) : zeroFlat(), hb = duelP ? DUEL_HP : HERO_STATS.hp, ha = duelP ? lf.hp * DUEL_HP / HERO_STATS.hp : lf.hp, atk = HERO_STATS.atk + lf.atk, df = lf.def;
-      let refHp = 1, refAtk = 1, refDef = 1; for (const q of HERO_IDS) { const f = ACC ? flatOf(q, heroLv(q)) : zeroFlat(); refHp = Math.max(refHp, hb + (duelP ? f.hp * DUEL_HP / HERO_STATS.hp : f.hp)); refAtk = Math.max(refAtk, HERO_STATS.atk + f.atk); refDef = Math.max(refDef, f.def, 1); }
+      const lf = ACC ? flatTot(id, lv) : zeroFlat(), hb = duelP ? DUEL_HP : HERO_STATS.hp, ha = duelP ? lf.hp * DUEL_HP / HERO_STATS.hp : lf.hp, atk = HERO_STATS.atk + lf.atk, df = lf.def;
+      let refHp = 1, refAtk = 1, refDef = 1; for (const q of HERO_IDS) { const f = ACC ? flatTot(q, heroLv(q)) : zeroFlat(); refHp = Math.max(refHp, hb + (duelP ? f.hp * DUEL_HP / HERO_STATS.hp : f.hp)); refAtk = Math.max(refAtk, HERO_STATS.atk + f.atk); refDef = Math.max(refDef, f.def, 1); }
       const bars = [['체력', hb + ha, refHp, fmtI(hb + ha) + '  (기본 ' + fmtI(hb) + ' +' + fmtI(ha) + ')', '#ff5a6a'], ['공격력', atk, refAtk, (+atk.toFixed(1)) + '  (기본 ' + HERO_STATS.atk + ' +' + (+lf.atk.toFixed(1)) + ')', '#ff9a3a'], ['방어력', df, refDef, (+df.toFixed(1)) + '  ·  받는 피해 -' + (+(100 - 100 / (1 + df / 100)).toFixed(1)) + '%', '#5aa8ff']];
       bars.forEach((b, i) => { const y = p.y + 176 + i * 68; ctx.fillStyle = b[4]; circle(p.x + 44, y + 12, 18); text(b[0], p.x + 76, y + 6, 15, '#fff', 'left'); text(b[3], p.x + p.w - 22, y + 6, 13, '#dfe3f5', 'right', false); const bw = p.w - 98, n = 10, on = Math.max(b[1] > 0 ? 1 : 0, Math.round(clamp(b[1] / b[2], 0, 1) * n)); for (let k = 0; k < n; k++) { ctx.fillStyle = k < on ? b[4] : 'rgba(255,255,255,.12)'; ctx.fillRect(p.x + 76 + k * (bw / n), y + 16, bw / n - 4, 14); } });
       text('이동속도 ' + HERO_STATS.speed + '  ·  회피율 ' + PC_EVA + '%  ·  적중 ' + PC_ACC + '  ·  치명타 ' + Math.round(CRIT_BASE * 100) + '% (x' + CRIT_BASE_DMG + ')', p.x + 22, p.y + 400, 12, '#8a90a6', 'left', false);
@@ -3083,7 +3165,7 @@ function drawPick() {
     text(PC_NAME[id], r.x + 92, r.y + 64, 22, on ? '#ffe9a0' : '#dfe3f5', 'left'); text(g.theme, r.x + 92, r.y + 84, 12, '#ffb27a', 'left', false); text((i + 1) + ' 키', r.x + 92, r.y + 102, 11, 'rgba(255,255,255,.5)', 'left', false);
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(r.x + r.w - 80, r.y + 10, 70, 24); ctx.strokeStyle = lv >= MAX_LV ? '#ffd34d' : 'rgba(255,255,255,.45)'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x + r.w - 80, r.y + 10, 70, 24); text('Lv ' + lv, r.x + r.w - 45, r.y + 28, 15, lv >= MAX_LV ? '#ffd34d' : '#9dff9d', 'center');
     // 능력치: 기본 능력치 + 레벨 성장 (+N). 성장하는 것은 체력·공격력·방어력뿐 (이동속도·공격속도는 성장 없음)
-    const lf = ACC ? flatOf(id, lv) : zeroFlat(), hb = duelP ? DUEL_HP : HERO_STATS.hp, ha = duelP ? lf.hp * DUEL_HP / HERO_STATS.hp : lf.hp, f1 = n2 => +n2.toFixed(1);
+    const lf = ACC ? flatTot(id, lv) : zeroFlat(), hb = duelP ? DUEL_HP : HERO_STATS.hp, ha = duelP ? lf.hp * DUEL_HP / HERO_STATS.hp : lf.hp, f1 = n2 => +n2.toFixed(1);
     text(duelP ? '능력치 · 비무장 수치  (기본 + 레벨 ' + lv + ' 성장)' : '능력치  (기본 + 레벨 ' + lv + ' 성장 +N)', r.x + 14, r.y + 128, 12, duelP ? '#9ad4ff' : '#ffd34d', 'left');
     text('체력 ' + fmtI(hb + ha) + '   (기본 ' + fmtI(hb) + ' +' + fmtI(ha) + ')', r.x + 14, r.y + 145, 12, '#fff', 'left', false);
     text('공격력 ' + f1(HERO_STATS.atk + lf.atk) + '   (기본 ' + HERO_STATS.atk + ' +' + f1(lf.atk) + ')', r.x + 14, r.y + 161, 12, '#fff', 'left', false);
@@ -4741,7 +4823,7 @@ function render() {
     if (state === 'win') { if (winT > 1.2) drawOverlay('VICTORY', TYPES.boss.short + '를 쓰러뜨렸습니다!', '#ffd34d'); }
     if (state === 'lose') { if (RS.exited) drawOverlay('나가기', '지금까지의 경험치를 정산했습니다', '#9ad4ff'); else drawOverlay('DEFEAT', HERO.short + '가 쓰러졌습니다...', '#ff5a5a'); }
   }
-  if ((state === 'win' && winT > 1.2) || (state === 'lose' && winT > 0.7)) drawXpSummary();   // 이번 판 경험치·레벨업
+  if ((state === 'win' && winT > 1.2) || (state === 'lose' && winT > 0.7)) drawXpSummary(); drawDropPanel();   // 이번 판 경험치·레벨업
 }
 
 // ===================================================================
