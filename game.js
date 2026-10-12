@@ -861,18 +861,19 @@ function sparks(x, y, n, color, spd = 300, life = 0.4) { for (let i = 0; i < n; 
 function ghost(x, y, face, hero, extra) { fx.push({ k: 'ghost', x, y, face, hero, t: 0, dur: 0.3, ...extra }); }
 // ---------- 타격 이펙트: 장수의 무기·주문 컨셉별 HIT 연출 ----------
 //  관우 청룡언월도 = 비취빛 초승달 베기 / 상마 방천화극 = 붉은 사선 난도 + 균열 / 하마·조운 창·화극 = 관통 직선 / 초선 = 꽃잎 소용돌이 / 전위 쌍철극 = 엑스(X) 참격 + 충격파 / 황충 활 = 금빛 방사형 화살 충격
+const HIT_SCALE = 0.5;   // 타격 이펙트 전체 크기 배율
 const HIT_STYLE = { guan: 'blade', lubu: 'heavy', lubu2: 'pierce', zhao: 'pierce', diao: 'petal', dian: 'twin', huang: 'arrow' };
 const HIT_COL = { guan: ['#aaffe6', '#2fd0a0'], lubu: ['#ffb27a', '#c9302c'], lubu2: ['#ff8a7a', '#9a1c1c'], zhao: ['#f4fbff', '#7fd0ff'], diao: ['#ffd0ea', '#ff6aa8'], dian: ['#ffd29a', '#ff6a2a'], huang: ['#fff0b0', '#ffb030'] };
 function hitFx(e, o, crit, big) {
   const hid = o.ai ? (o.by && o.by.hero) : HERO.id, st = HIT_STYLE[hid]; if (!st || fx.length > 260) return;
-  const ang = o.from ? angTo(o.from, e) : 0, c = HIT_COL[hid], x = e.x, y = e.y - e.r, sz = (big ? 1.45 : 1) * (crit ? 1.2 : 1) * Math.max(0.8, Math.min(1.6, e.r / 26));
+  const ang = o.from ? angTo(o.from, e) : 0, c = HIT_COL[hid], x = e.x, y = e.y - e.r, sz = HIT_SCALE * (big ? 1.45 : 1) * (crit ? 1.2 : 1) * Math.max(0.8, Math.min(1.6, e.r / 26));
   fx.push({ k: 'hfx', st, x, y, ang, t: 0, dur: big ? 0.36 : 0.27, sz, c1: c[0], c2: c[1], sd: Math.random() * TAU });
   const n = big ? 9 : 5, fwd = o.from ? ang : rand(0, TAU);
-  if (st === 'heavy' || st === 'twin') { for (let i = 0; i < n; i++) { const a = fwd + rand(-0.9, 0.9), sp = rand(200, 520); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.25, 0.5), color: i % 2 ? c[0] : c[1], sz: rand(3, 6) }); } if (big) ring(e.x, e.y, 70 * sz, 0.28, c[1], 6); if (!o.ai) { P.freeze = Math.max(P.freeze, big ? 0.075 : 0.05); doShake(big ? 6 : 4); } }
-  else if (st === 'pierce') { for (let i = 0; i < n; i++) { const a = fwd + rand(-0.25, 0.25), sp = rand(380, 780); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.2, 0.4), color: i % 2 ? c[0] : c[1], sz: rand(2, 4) }); } streak(x - Math.cos(ang) * 30, y - Math.sin(ang) * 30, ang, 110 * sz, 4, 0.2, c[0]); }
-  else if (st === 'blade') { for (let i = 0; i < n; i++) { const a = ang + Math.PI / 2 * (i % 2 ? 1 : -1) + rand(-0.4, 0.4), sp = rand(240, 520); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.25, 0.45), color: i % 2 ? c[0] : c[1], sz: rand(2, 5) }); } }
-  else if (st === 'petal') { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(80, 260); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, t: 0, dur: rand(0.4, 0.7), color: i % 2 ? c[0] : c[1], sz: rand(3, 6) }); } }
-  else { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(260, 560); fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.2, 0.4), color: i % 2 ? c[0] : c[1], sz: rand(2, 4) }); } if (big) ring(e.x, e.y, 60 * sz, 0.25, c[1], 4); }
+  if (st === 'heavy' || st === 'twin') { for (let i = 0; i < n; i++) { const a = fwd + rand(-0.9, 0.9), sp = rand(200, 520) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.25, 0.5), color: i % 2 ? c[0] : c[1], sz: rand(3, 6) * HIT_SCALE + 1 }); } if (big) ring(e.x, e.y, 70 * sz, 0.28, c[1], 6); if (!o.ai) { P.freeze = Math.max(P.freeze, big ? 0.075 : 0.05); doShake(big ? 6 : 4); } }
+  else if (st === 'pierce') { for (let i = 0; i < n; i++) { const a = fwd + rand(-0.25, 0.25), sp = rand(380, 780) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.2, 0.4), color: i % 2 ? c[0] : c[1], sz: rand(2, 4) * HIT_SCALE + 1 }); } streak(x - Math.cos(ang) * 30, y - Math.sin(ang) * 30, ang, 110 * sz, 4, 0.2, c[0]); }
+  else if (st === 'blade') { for (let i = 0; i < n; i++) { const a = ang + Math.PI / 2 * (i % 2 ? 1 : -1) + rand(-0.4, 0.4), sp = rand(240, 520) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.25, 0.45), color: i % 2 ? c[0] : c[1], sz: rand(2, 5) * HIT_SCALE + 1 }); } }
+  else if (st === 'petal') { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(80, 260) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, t: 0, dur: rand(0.4, 0.7), color: i % 2 ? c[0] : c[1], sz: rand(3, 6) * HIT_SCALE + 1 }); } }
+  else { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(260, 560) * HIT_SCALE; fx.push({ k: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, dur: rand(0.2, 0.4), color: i % 2 ? c[0] : c[1], sz: rand(2, 4) * HIT_SCALE + 1 }); } if (big) ring(e.x, e.y, 60 * sz, 0.25, c[1], 4); }
 }
 function drawHitFx(f, p) {
   const s = f.sz, e = 1 - (1 - p) * (1 - p);
