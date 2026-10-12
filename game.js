@@ -296,13 +296,13 @@ HEROES.dian = {
 // 황충(黃忠): 노장 궁수. 수치(체력·공격력·이동속도·쿨타임·공격 1~3단계 범위)는 다른 PC 와 같고, 스킬이 원거리 중심이다.
 //  K 백보천양(관통 강궁) / L 화살비(지정 구역에 연속 낙하) / ; 마법의 수정화살 (롤 애쉬의 R: 아주 멀리 날아가 처음 맞은 적을 기절 — 멀리 날아갈수록 길게)
 HEROES.huang = {
-  id: 'huang', name: '황충 (黃忠)', short: '황충', sub: '3단 공격 성공 시 공속 +12% (8초)', sub2: '마법의 수정화살: 멀리 날아가 처음 맞은 적을 기절 (멀리 날수록 길게, 최대 3.5초)', mounted: false, pc: 'huang',
+  id: 'huang', name: '황충 (黃忠)', short: '황충', sub: '원거리 저격: 멀리서 맞힐수록 피해 증가 (최대 +30~40%) · 이동하며 사격', sub2: '마법의 수정화살: 멀리 날아가 처음 맞은 적을 기절 (멀리 날수록 길게, 최대 3.5초)', mounted: false, pc: 'huang',
   skills: { attack: '공격', s1: '백보천양', s2: '화살비', s3: '수정화살' },
-  info: [['J', '공격', '화살 · 화살 · 3연사 (3단 성공 시 공속 +12%)'], ['K', '백보천양', '긴 사거리의 강궁 한 발 — 일직선의 적을 관통'], ['L', '화살비', '지정한 구역(반경 185)에 화살이 4번 연속 쏟아짐'], [';', '마법의 수정화살', '아주 멀리 날아가 처음 맞은 적을 기절 (거리 비례 1~3.5초) + 주변 폭발']],
+  info: [['J', '공격', '긴 사거리 화살 · 화살 · 3연사 — 이동하며 사격(이동속도 50%), 멀수록 피해 +30% (3단 성공 시 공속 +12%)'], ['K', '백보천양', '뒤로 물러나며 사거리 1400의 강궁 한 발 — 일직선의 적을 관통, 멀수록 피해 +40%'], ['L', '화살비', '지정한 구역(반경 185, 사거리 900)에 화살이 4번 연속 쏟아지며 적을 둔화(이동속도 -45%) · 시전 중 이동 가능'], [';', '마법의 수정화살', '아주 멀리(사거리 3000) 날아가 처음 맞은 적을 기절 (거리 비례 1~3.5초) + 주변 폭발 · 조준 중 이동 가능']],
   style: { body: '#5c5a3c', trim: '#d4a73a', skin: '#d9a98a', helm: true, helmColor: '#c9a24a', plume: 1, beard: true, beardColor: '#e8e4da', pauldrons: true, cape: '#a8321f', weapon: 'bow' },
   fx: { a: '#fff1c8', s: '#ffe08a' },
-  bal: { a: 1.38, s1: 1.05, s2: 1.28, u: 1.05 },
-  combo: 'huang', s1Snipe: true, rainS2: true, crystalUlt: true, ultStyle: 'crystal', aspdBuff: { mult: 1.12, dur: 8 }, s2cdMul: 1,
+  bal: { a: 0.92, s1: 0.88, s2: 1.01, u: 0.88 },
+  combo: 'huang', kite: true, aimR: 600, s1Snipe: true, rainS2: true, crystalUlt: true, ultStyle: 'crystal', aspdBuff: { mult: 1.12, dur: 8 }, s2cdMul: 1,
   tag: { name: '백발백중', title: '황충 (黃忠)', rgb: '255,220,120' },
   ult: { a: '#9fe8ff', b: '#e6faff', c: '#4ab8ff', rgb: '120,210,255', light: '190,235,255', core: '230,248,255', bar: '#3a9ad9', barBg: '#10283a', tipH: 140 },
 };
@@ -1026,6 +1026,7 @@ function hitEnemy(e, dmg, o = {}) {
   const gm = (e.d && e.d.guard && o.from && !o.stun && !o.ai && angDiff(e.face, angTo(e, o.from)) < 1.0) ? e.d.guard : 1;   // 방패병·방패 장군: 정면 막기
   const d = Math.round(gm * dmg * (o.ai ? (o.by ? fAtkMul(o.by) : 1) : comboMul() * atkBuffMul()) * (crit ? 1.8 + (o.ai ? (o.by && o.by.meta ? o.by.meta.critDmg : 0) : (RUN.critDmg + META.critDmg)) : 1) / (e.fighter ? fDef(e) : 1) * rand(0.92, 1.08));
   if (mode === 'duel' && e.fighter) recStat(o.ai ? o.by : P, e, Math.min(d, Math.max(0, e.hp)));
+  if (o.slow) { e.slowT = Math.max(e.slowT || 0, e.boss ? o.slow * 0.6 : o.slow); sparks(e.x, e.y + 8, 2, '#9fe8ff', 120, 0.4); }
   e.hp -= d; if (e.floorT > 0 && e.hp < 1) e.hp = 1; e.flash = 0.1; if (e.fighter) { e.hitT = 0.42; e.hitMag = d >= 100 ? 1.35 : 1; e.hitAng = o.from ? angTo(o.from, e) : 0; }
   const ang = o.from ? angTo(o.from, e) : 0, kb = (o.kb || 0) * (e.armor ? 0.25 : 1);
   e.kx += Math.cos(ang) * kb; e.ky += Math.sin(ang) * kb;
@@ -1055,6 +1056,7 @@ function killEnemy(e) {
   sparks(e.x, e.y - e.r, e.boss ? 60 : 16, '#ffcf70', e.boss ? 700 : 400, 0.7); ring(e.x, e.y, e.r * 2.4, 0.4, '#fff');
   if (e.boss) { slowT = 1.6; doShake(24); flashT = 0.5; sfx('boom'); }
 }
+const farMul = (far, over, span) => 1 + far * clamp(over / Math.max(1, span), 0, 1);   // 먼 적일수록 피해 증가 (150px 부터 사거리 끝까지 선형)
 function doArc(radius, half, dmg, o) {
   let n = 0;
   for (const e of enemies) {
@@ -1062,7 +1064,7 @@ function doArc(radius, half, dmg, o) {
     const d = dist(P, e);
     if (d - e.r > radius) continue;
     if (half < Math.PI && d > e.r + 24 && angDiff(P.face, angTo(P, e)) > half + Math.atan2(e.r, Math.max(d, 1))) continue;
-    if (hitEnemy(e, dmg, { ...o, from: P })) n++;
+    if (hitEnemy(e, o && o.far ? dmg * farMul(o.far, d - 150, radius - 150) : dmg, { ...o, from: P })) n++;
   }
   return n;
 }
@@ -1074,7 +1076,7 @@ function nearest(maxD = Infinity) {
   return b;
 }
 function aim(m) {
-  const t = nearest(320);
+  const t = nearest(HERO.aimR || 320);
   if (t) P.face = angTo(P, t);
   else if (Math.hypot(m.mx, m.my) > 0.2) P.face = Math.atan2(m.my, m.mx);
 }
@@ -1122,10 +1124,11 @@ const DIAN_ATK = [
   { dur: AB.dur[1], hits: [AB.hit[1]], dirs: [-1], mult: [1.0], rad: AB.rad[1], half: 1.15, kb: 170, move: [0, 0.14, 570] },
   { dur: AB.dur[2], hits: [AB.hit[2]], dirs: [1], mult: [1.5], rad: AB.rad[2], half: Math.PI, span: Math.PI, kb: 380, move: [0.03, 0.3, 430], swing: 0.2, slam: true }];
 //  황충: 1단 화살 -> 2단 화살 -> 3단 3연사 (공격 범위는 모든 PC 공통 AB — 화살이 날아가는 연출만 다르다). 3단이 적중하면 공속 +12%
+const HUANG_RANGE = [400, 420, 460], HUANG_FAR = 0.3;   // 황충 공격 사거리(1~3단) / 먼 적일수록 피해 증가율 (사거리 끝에서 +30%)
 const HUANG_ATK = [
-  { dur: AB.dur[0], hits: [AB.hit[0]], dirs: [1], mult: [1.0], rad: AB.rad[0], half: 0.7, kb: 120, move: [0, 0, 0], thrust: true, ranged: true },
-  { dur: AB.dur[1], hits: [AB.hit[1]], dirs: [1], mult: [1.0], rad: AB.rad[1], half: 0.7, kb: 140, move: [0, 0, 0], thrust: true, ranged: true },
-  { dur: AB.dur[2], hits: [0.08, 0.16, 0.24], dirs: [1, 1, 1], mult: [0.5, 0.5, 0.5], rad: AB.rad[2], half: 0.85, kb: 160, move: [0, 0, 0], thrust: true, ranged: true, fan: [-0.2, 0, 0.2] }];
+  { dur: AB.dur[0], hits: [AB.hit[0]], dirs: [1], mult: [1.0], rad: HUANG_RANGE[0], half: 0.3, kb: 120, move: [0, 0, 0], thrust: true, ranged: true, far: HUANG_FAR },
+  { dur: AB.dur[1], hits: [AB.hit[1]], dirs: [1], mult: [1.0], rad: HUANG_RANGE[1], half: 0.3, kb: 140, move: [0, 0, 0], thrust: true, ranged: true, far: HUANG_FAR },
+  { dur: AB.dur[2], hits: [0.08, 0.16, 0.24], dirs: [1, 1, 1], mult: [0.5, 0.5, 0.5], rad: HUANG_RANGE[2], half: 0.45, kb: 160, move: [0, 0, 0], thrust: true, ranged: true, fan: [-0.2, 0, 0.2], far: HUANG_FAR }];
 const comboTable = () => HERO.combo === 'zhao' ? ZHAO_ATK : HERO.combo === 'lubu' ? LUBU_ATK : HERO.combo === 'lubu2' ? LUBU2_ATK : HERO.combo === 'guan' ? GUAN_ATK : HERO.combo === 'diao' ? DIAO_ATK : HERO.combo === 'dian' ? DIAN_ATK : HERO.combo === 'huang' ? HUANG_ATK : ATK;
 const S1_RADIUS = 215, S2_WIDTH = 85, S2_BLAST = 170;   // 회전참 반경(+10%) / 청룡참 돌진 폭 / 청룡참 종료 폭발 반경
 const S2_SPEED_MULT = 1.5, S2_KB_MULT = 3;               // 청룡참: 돌진 이동 속도 +50%, 적 넉백 3배
@@ -1342,7 +1345,7 @@ function rageStart(u) {   // 불사의 광기 발동: 포효 폭발 + 불사 상
   blastAt(u, 240, Math.PI, dmg, { kb: 600, rec: 2, shake: 8 });
 }
 // ===== 황충: 백보천양(K) · 화살비(L) · 마법의 수정화살(;) =====
-const SNIPE_SPD = 1400, SNIPE_LIFE = 0.75, RAIN_R = 185, RAIN_T0 = 0.2, RAIN_IV = 0.15, CRYSTAL_SPD = 1500, CRYSTAL_LIFE = 1.8, CRYSTAL_RANGE_REF = 1200; let HUANG_K = 1, RAIN_N = 4, CRYSTAL_STUN_UP = 0;
+const SNIPE_SPD = 1400, SNIPE_LIFE = 1.0, RAIN_R = 185, RAIN_T0 = 0.2, RAIN_IV = 0.15, CRYSTAL_SPD = 1500, CRYSTAL_LIFE = 2.0, CRYSTAL_RANGE_REF = 1200; let HUANG_K = 1, RAIN_N = 4, CRYSTAL_STUN_UP = 0;
 const RAIN_DUR = () => RAIN_T0 + (RAIN_N - 1) * RAIN_IV + 0.25;   // 화살비 시전 시간(행동 시간)
 function arrowStreak(u, len, off) {   // 근접 공격 판정 위치에 화살이 날아가는 연출 (황충의 공격 1~3단)
   const a = u.face + (off || 0); fx.push({ k: 'beam', hid: fxHeroNow, x: u.x + Math.cos(a) * len / 2, y: u.y - 14 + Math.sin(a) * len / 2, ang: a, len: len / 2, w: 9, t: 0, dur: 0.2 }); sparks(u.x + Math.cos(a) * 36, u.y - 14 + Math.sin(a) * 36, 3, '#fff1c8', 220, 0.25); sfx('swing');
@@ -1352,17 +1355,17 @@ function areaHit(u, x, y, r, dmg, o) {   // 임의의 지점 (x, y) 반경 r 안
   else for (const t of oppUnits(u)) if (dist(t, { x, y }) - t.r <= r) dmgUnit(u, t, dmg, o);
 }
 function sniperShot(u) {   // 백보천양: 긴 사거리의 강궁 — 일직선 관통 (HUANG_K 발)
-  const H = HEROES.huang, isP = u === P, tg = isP ? nearest(1000) : nearestOpp(u), dmg = (isP ? P.atk : u.atk) * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * 3.0 * H.bal.s1;
+  const H = HEROES.huang, isP = u === P, tg = isP ? nearest(1400) : nearestOpp(u), dmg = (isP ? P.atk : u.atk) * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * 3.0 * H.bal.s1;
   if (tg) u.face = angTo(u, tg);
   for (let k = 0; k < HUANG_K; k++) {
-    const ang = u.face + (k - (HUANG_K - 1) / 2) * 0.12, pr = { x: u.x + Math.cos(u.face) * 30, y: u.y - 14 + Math.sin(u.face) * 30, vx: Math.cos(ang) * SNIPE_SPD, vy: Math.sin(ang) * SNIPE_SPD, dmg, life: SNIPE_LIFE, r: 16, arrow: true, big: true, hit: new Set() };
+    const ang = u.face + (k - (HUANG_K - 1) / 2) * 0.12, pr = { x: u.x + Math.cos(u.face) * 30, y: u.y - 14 + Math.sin(u.face) * 30, vx: Math.cos(ang) * SNIPE_SPD, vy: Math.sin(ang) * SNIPE_SPD, dmg, life: SNIPE_LIFE, r: 16, arrow: true, big: true, hit: new Set(), far: 0.4, farR: 1000, x0: u.x, y0: u.y };
     if (isP) pr.friendly = true; else { pr.team = u.team; pr.owner = u; }
     projectiles.push(pr);
   }
   sparks(u.x + Math.cos(u.face) * 30, u.y - 14, 8, '#fff1c8', 320, 0.3); sfx('swing');
 }
 function rainZone(u, a) {   // 화살비가 떨어질 지점: 가장 가까운 적의 위치 (없으면 정면 350)
-  if (a.rx != null) return; const t = u === P ? nearest(700) : (a.target && !a.target.dead ? a.target : nearestOpp(u));
+  if (a.rx != null) return; const t = u === P ? nearest(900) : (a.target && !a.target.dead ? a.target : nearestOpp(u));
   a.rx = t ? t.x : u.x + Math.cos(u.face) * 350; a.ry = t ? t.y : u.y + Math.sin(u.face) * 350;
 }
 function rainPulse(u, a) {   // 화살비 한 번: 구역 안의 적에게 피해 + 위에서 쏟아지는 화살 연출
@@ -1370,10 +1373,10 @@ function rainPulse(u, a) {   // 화살비 한 번: 구역 안의 적에게 피�
   ring(a.rx, a.ry, RAIN_R, 0.35, '#ffe08a', 6);
   for (let k = 0; k < 9; k++) { const ox = rand(-RAIN_R, RAIN_R) * 0.9, oy = rand(-RAIN_R, RAIN_R) * 0.6; streak(a.rx + ox, a.ry + oy - 300, Math.PI / 2, 300, 3, 0.22, k % 2 ? '#fff1c8' : '#ffd27a'); sparks(a.rx + ox, a.ry + oy, 2, '#ffe08a', 200, 0.3); }
   sfx('swing'); if (isP || dist(u, P) < 700) doShake(3);
-  areaHit(u, a.rx, a.ry, RAIN_R, dmg, { kb: 80, rec: 1, shake: 2 });
+  areaHit(u, a.rx, a.ry, RAIN_R, dmg, { kb: 80, rec: 1, shake: 2, slow: 1.5 });
 }
 function crystalFire(u) {   // 마법의 수정화살: 아주 멀리까지 날아가는 거대한 화살 (처음 맞은 적에서 멈춤)
-  const H = HEROES.huang, isP = u === P, tg = isP ? nearest(1600) : nearestOpp(u);
+  const H = HEROES.huang, isP = u === P, tg = isP ? nearest(2200) : nearestOpp(u);
   if (tg) u.face = angTo(u, tg);
   const pr = { x: u.x + Math.cos(u.face) * 36, y: u.y - 14 + Math.sin(u.face) * 36, vx: Math.cos(u.face) * CRYSTAL_SPD, vy: Math.sin(u.face) * CRYSTAL_SPD, dmg: (isP ? P.atk : u.atk) * 6.5 * SKILL_DMG_MULT * ULT_DMG_MULT * H.bal.u, life: CRYSTAL_LIFE, r: 36, arrow: true, crystal: true, x0: u.x, y0: u.y, hit: new Set() };
   if (isP) pr.friendly = true; else { pr.team = u.team; pr.owner = u; }
@@ -1706,7 +1709,7 @@ function updatePlayer(dt) {
       if (HERO.ultRush) startRush(m, RUSH_SPECS.three); else if (HERO.zUlt) { aim(m); P.act = { type: 'zult', t: 0, dur: 99, invul: true, set: new Set(), done: false }; } else if (HERO.lUlt) { aim(m); P.act = { type: 'lult', t: 0, dur: 99, invul: true, set: new Set(), done: false }; } else if (HERO.crystalUlt) { aim(m); startAct('crystal', 1.0, m); } else if (HERO.rageUlt) { aim(m); startAct('rage', 0.7, m); P.act.invul = true; } else startAct('ult', 1.3, m); sfx('skill'); if (!HERO.ultRush) flashT = 0.15; if (HERO.ultGuard) { p.ultGuardT = HERO.ultGuardDur; dmgText(p.x, p.y - 100, '방어력 +' + Math.round(HERO.ultGuard * 100) + '%', '#7fffd0', 24); } }
     else if (want('s2') && s2Ready()) { use('s2'); castS2(); if (HERO.rush) startRush(m, RUSH_SPECS[HERO.rushSpec || 'one']); else if (HERO.rainS2) { startAct('rain', RAIN_DUR(), m); P.act.rn = 0; rainZone(P, P.act); ring(P.act.rx, P.act.ry, RAIN_R, 0.7, '#ffe08a', 5); } else if (HERO.slam) startAct('slam', 0.5, m); else if (HERO.bless) startAct('bless', 0.55, m); else if (HERO.shoot) startAct('shoot', 0.5 + 0.12 * (SHOOT_N - 3), m); else startAct('s2', S2_DASH_END + 0.26, m); sfx('swing'); }
     else if (want('s1') && p.cd.s1 <= 0 && HERO.s1Switch) { use('s1'); p.cd.s1 = CD.s1 * (1 - (RUN.cd + META.cd)); doFormSwitch(); p.act = { type: 'switch', t: 0, dur: 0.3, set: new Set(), done: false }; }   // 여포: 상마 <-> 하마 전환 (찌르기·방천 베기를 대체)
-    else if (want('s1') && p.cd.s1 <= 0) { use('s1'); p.cd.s1 = CD.s1 * (HERO.s1cdMul || 1) * (1 - (RUN.cd + META.cd)); startAct(HERO.s1Throw ? 'throw' : HERO.s1Snipe ? 'snipe' : 's1', HERO.s1Throw ? 0.6 : HERO.s1Snipe ? 0.8 : HERO.s1Heal ? DIAO_S1_DUR() : HERO.s1Cone ? CONE_DUR : HERO.s1Flurry ? FLURRY_DUR : HERO.thrust ? 0.45 : 0.7 + 0.15 * (GUAN_S1_N - 3), m); if (HERO.thrust) { const tg = nearest(THRUST_LEN); if (tg) P.face = angTo(P, tg); } sfx('swing'); }
+    else if (want('s1') && p.cd.s1 <= 0) { use('s1'); p.cd.s1 = CD.s1 * (HERO.s1cdMul || 1) * (1 - (RUN.cd + META.cd)); startAct(HERO.s1Throw ? 'throw' : HERO.s1Snipe ? 'snipe' : 's1', HERO.s1Throw ? 0.6 : HERO.s1Snipe ? 0.7 : HERO.s1Heal ? DIAO_S1_DUR() : HERO.s1Cone ? CONE_DUR : HERO.s1Flurry ? FLURRY_DUR : HERO.thrust ? 0.45 : 0.7 + 0.15 * (GUAN_S1_N - 3), m); if (HERO.thrust) { const tg = nearest(THRUST_LEN); if (tg) P.face = angTo(P, tg); } sfx('swing'); }
     else if (want('attack')) { use('attack'); startAttack(m); }
   }
   a = p.act;
@@ -1718,7 +1721,8 @@ function updatePlayer(dt) {
   }
   p.blessT = Math.max(0, p.blessT - dt); p.undyT = Math.max(0, (p.undyT || 0) - dt); p.floorT = Math.max(0, (p.floorT || 0) - dt); p.lungeT = Math.max(0, (p.lungeT || 0) - dt); p.aspdT = Math.max(0, p.aspdT - dt); p.postUltT = Math.max(0, p.postUltT - dt); p.comboBuffT = Math.max(0, p.comboBuffT - dt); p.ultGuardT = Math.max(0, p.ultGuardT - dt);
   if (HERO.guard && p.guardT > 0) p.guardT = Math.max(0, p.guardT - dt);   // 관우 방어: 3단계 공격 성공 시 켜지고 guard.dur(10초) 동안 지속
-  const spd = p.speed * (HERO.runBonus && p.runBuffT > 0 ? HERO.runBonus : 1) * (p.buffT > 0 ? WINE_MOVE_SPEEDUP : 1);   // 술 버프 중 이동속도 +30%
+  if (p.slowT > 0) p.slowT -= dt;
+  const spd = p.speed * (HERO.runBonus && p.runBuffT > 0 ? HERO.runBonus : 1) * (p.buffT > 0 ? WINE_MOVE_SPEEDUP : 1) * (p.slowT > 0 ? 0.55 : 1);   // 술 버프 중 이동속도 +30%
   let vx = 0, vy = 0;
   if (!a) {
     vx = mv.x * spd; vy = mv.y * spd;
@@ -1733,6 +1737,7 @@ function updatePlayer(dt) {
     const f = p.face, cx = Math.cos(f), sy = Math.sin(f);
     if (a.type === 'atk') {
       const c = comboTable()[a.c];
+      if (HERO.kite) { vx = mv.x * spd * 0.5; vy = mv.y * spd * 0.5; if (ml > 0.2) { p.walk += dt * 8; p.mvAmt = 0.5; p.mvAng = Math.atan2(mv.y, mv.x); } }   // 원거리 장수: 이동하며 사격
       if (a.t >= c.move[0] && a.t < c.move[1]) {
         const env = lungeEase((a.t - c.move[0]) / (c.move[1] - c.move[0]));   // 모든 PC: 공격 전진 속도를 부드럽게 가속·감속 (총 이동 거리는 그대로)
         vx = cx * c.move[2] * rate * env; vy = sy * c.move[2] * rate * env;
@@ -1745,7 +1750,7 @@ function updatePlayer(dt) {
           if (i > 0) { const tg = nearest(420); if (tg) p.face = angTo(p, tg); }
           arcFx(p.x, p.y, p.face, c.rad, 1.5, 0.2, HERO.fx.a, c.dirs[i]); arcFx(p.x, p.y, p.face + Math.PI, c.rad, 1.5, 0.2, HERO.fx.a, c.dirs[i]); sfx('swing');
         } else { if (c.ranged) arrowStreak(p, c.rad, c.fan ? c.fan[i] : 0); else arcFx(p.x, p.y, p.face, c.rad, c.half, 0.22, HERO.fx.a, c.dirs[i]); if (c.slam) { ring(p.x + Math.cos(p.face) * 110, p.y + Math.sin(p.face) * 110, 90, 0.3, '#ffb070', 10); sparks(p.x + Math.cos(p.face) * 120, p.y, 12, '#c9a46a', 420, 0.5); doShake(7); sfx('boom'); } }
-        const hitN = doArc(c.rad, c.half, p.atk * c.mult[i] * HERO.bal.a, { kb: c.kb });
+        const hitN = doArc(c.rad, c.half, p.atk * c.mult[i] * HERO.bal.a, { kb: c.kb, far: c.far });
         if (a.c === 2 && hitN > 0) {   // 3단계(360° 베기)가 적에게 적중 = 공격 3단계 성공
           if (HERO.guard) { const wasOn = p.guardT > 0; p.guardT = HERO.guard.dur; if (!wasOn) { dmgText(p.x, p.y - 100, '방어력 +' + Math.round(HERO.guard.bonus * 100) + '%', '#8fb4ff', 24); ring(p.x, p.y, 60, 0.3, '#8fb4ff', 5); } }   // 관우: 방어력 증가 (10초, 다시 성공하면 갱신)
           if (HERO.runBonus) { if (p.runBuffT <= 0) { dmgText(p.x, p.y - 100, '이동속도 +' + Math.round((HERO.runBonus - 1) * 100) + '%', '#7fd0ff', 24); ring(p.x, p.y, 70, 0.3, '#7fd0ff', 5); } p.runBuffT = HERO.runDur; }   // 여포(상마): 질주 (10초)
@@ -1781,16 +1786,18 @@ function updatePlayer(dt) {
         doArc(S2_BLAST, Math.PI, p.atk * 1.0 * SKILL_DMG_MULT * HERO.bal.s2, { kb: 350 * S2_KB_MULT });
       }
       if (a.t >= a.dur) p.act = null;
-    } else if (a.type === 'snipe') {   // 황충 백보천양: 시위를 당겼다가 강궁 한 발
-      vx = mv.x * spd * 0.35; vy = mv.y * spd * 0.35;
-      if (!a.done && a.t >= 0.35) { a.done = true; sniperShot(p); }
+    } else if (a.type === 'snipe') {   // 황충 백보천양: 뒤로 물러나며 시위를 당겼다가 강궁 한 발
+      if (a.t < 0.16) { vx = -cx * 1700 * rate; vy = -sy * 1700 * rate; p.inv = Math.max(p.inv, 0.2); p.walk += dt * 20; if (Math.random() < 0.7) sparks(p.x, p.y + 10, 1, '#e8dcc0', 120, 0.3); }
+      else { vx = mv.x * spd * 0.5; vy = mv.y * spd * 0.5; }
+      if (!a.done && a.t >= 0.3) { a.done = true; sniperShot(p); }
       if (a.t >= a.dur) p.act = null;
     } else if (a.type === 'rain') {   // 황충 화살비: 지정 구역에 화살 N 번 낙하 (시전 중 슈퍼아머)
-      vx = mv.x * spd * 0.3; vy = mv.y * spd * 0.3;
+      vx = mv.x * spd * 0.6; vy = mv.y * spd * 0.6;
       while (a.rn < RAIN_N && a.t >= RAIN_T0 + a.rn * RAIN_IV) { a.rn++; rainPulse(p, a); }
       if (a.t >= a.dur) p.act = null;
     } else if (a.type === 'crystal') {   // 황충 마법의 수정화살: 기운을 모으고 한 발 (시전 중 슈퍼아머)
-      if (a.t < 0.5) { const tg = nearest(1600); if (tg) p.face = angTo(p, tg); }
+      vx = mv.x * spd * 0.35; vy = mv.y * spd * 0.35;
+      if (a.t < 0.5) { const tg = nearest(2200); if (tg) p.face = angTo(p, tg); }
       if (!a.done && a.t >= 0.5) { a.done = true; crystalFire(p); }
       if (a.t >= a.dur) p.act = null;
     } else if (a.type === 'throw') {   // 전위 쌍극 투척
@@ -1962,8 +1969,8 @@ function dodgeEvents(at) {   // 공격자 at 의 곧 닿을 공격 판정들: { 
     else if (a.type === 'ult') add(0.55, { fx: 'cone', r: ULT_RADIUS, half: Math.PI });
     else if (a.type === 'bless') { if (!a.done) add(0.2, { fx: 'cone', r: 260, half: Math.PI }); }
     else if (a.type === 'slam') { if (!a.done) add(0.2, { fx: 'cone', r: SLAM_R, half: Math.PI }); }
-    else if (a.type === 'snipe') { if (!a.done) add(0.35, { fx: 'line', len: 1000, w: 24 }); }
-    else if (a.type === 'crystal') { if (!a.done) add(0.5, { fx: 'line', len: 1500, w: 40 }); }
+    else if (a.type === 'snipe') { if (!a.done) add(0.3, { fx: 'line', len: 1400, w: 24 }); }
+    else if (a.type === 'crystal') { if (!a.done) add(0.5, { fx: 'line', len: 2000, w: 40 }); }
     else if (a.type === 'rain') { for (let k = a.rn; k < RAIN_N; k++) add(RAIN_T0 + k * RAIN_IV, { fx: 'zone', cx: a.rx, cy: a.ry, r: RAIN_R }); }
     else if (a.type === 'rage') { if (!a.done) add(0.25, { fx: 'cone', r: 240, half: Math.PI }); }
     else if (a.type === 'switch') { if (!a.done) { const tt = 0.2 - a.t; if (tt >= -0.02 && tt <= 0.25) out.push({ tt, fx: 'cone', r: FORM_SLASH_R, half: Math.PI }); } }
@@ -2028,12 +2035,13 @@ function duelAutoInput(dt) {
   P.face = angTo(P, tgt);
   const d = dist(P, tgt), reach = FKIT[HERO.id].reach + tgt.r, sk = SKD[HERO.id] || (SKD[HERO.id] = skillDefs(HERO.id));
   if (P.atkCd <= 0) {
-    if (P.rage >= 100 && (HERO.crystalUlt ? d > 250 && d < 1100 : d < 300)) press('s3');
+    if (P.rage >= 100 && (HERO.crystalUlt ? d > 250 && d < 1600 : d < 300)) press('s3');
     else if (P.cd.s2 <= 0 && d <= sk.s2.range[1] && (!HERO.bless || P.blessT < 3) && Math.random() < 0.5) press('s2');
     else if (P.cd.s1 <= 0 && d <= sk.s1.range && (!HERO.s1Switch || (P.s2Store[HERO.id === 'lubu' ? 'lubu2' : 'lubu'] <= 0 && P.cd.s2 > 1.5)) && (!HERO.s1Heal || lotusWanted(P) || d < 230) && (!HERO.s1Throw || d > 200) && (!HERO.s1Snipe || d > 220) && Math.random() < 0.5) press('s1');
     else if (d <= reach + 25) press('attack');
   }
   const ux = Math.cos(P.face), uy = Math.sin(P.face);
+  const kp = FKIT[HERO.id].keep; if (kp && d < kp + tgt.r) { const sg = Math.sin(T * 0.9) > 0 ? 0.5 : -0.5, c = Math.cos(sg), s = Math.sin(sg); return { mx: -(ux * c - uy * s), my: -(ux * s + uy * c) }; }   // 원거리 장수: 가까우면 거리를 벌림
   if (d > reach * 0.85) return { mx: ux, my: uy };
   const sd = Math.sin(T * 1.3 + (P.seed || (P.seed = rand(0, 6)))) > 0 ? 1 : -1, k = 70 / (P.speed * (HERO.runBonus && P.runBuffT > 0 ? HERO.runBonus : 1));
   return { mx: -uy * sd * k, my: ux * sd * k };
@@ -2069,9 +2077,16 @@ function autoInput(dt) {
   if (bun) return toBun();
   if (potion && (d > 170 || (potion.kind === 'bun' && P.hp < P.maxhp * 0.6))) return toPotion();
   let near = 0; for (const e of enemies) if (!e.dead && dist(P, e) < S1_RADIUS - 20 + e.r) near++;
-  if (P.rage >= 100 && (HERO.crystalUlt ? d > 300 && d < 1100 : mode === 'duel' ? d < (HERO.ultRush ? 440 : ULT_RADIUS - 30) : (near >= 3 || tgt.boss || tgt.type === 'captain') && d < 330)) press('s3');   // 비무장: 상대 영웅이 궁극기 범위 안에 있으면 자동 발동
-  if (P.cd.s1 <= 0 && (HERO.s1Switch ? (P.s2Store[HERO.id === 'lubu' ? 'lubu2' : 'lubu'] <= 0 && P.cd.s2 > 1.5 && d < 700) : HERO.s1Snipe ? (d > 260 && d < 900) : HERO.s1Throw ? (d > 220 && d < 560) : HERO.s1Heal ? (lotusWanted(P) || near >= 1) : HERO.s1Flurry ? d < FLURRY_LEN - 40 : near >= (mode === 'duel' ? 1 : 2))) press('s1');
-  if (s2Ready() && (HERO.rainS2 ? (d > 200 && d < 650 && (tgt.boss || enemies.filter(e => !e.dead && e.spawnT <= 0 && dist(e, tgt) < RAIN_R + e.r).length >= 2)) : HERO.slam ? d < 250 : HERO.bless ? (P.blessT < 3 && d < 520) : d > 160 && d < (HERO.rush ? 560 : HERO.shoot ? 650 : 330))) press('s2');
+  if (P.rage >= 100 && (HERO.crystalUlt ? d > 300 && d < 1800 : mode === 'duel' ? d < (HERO.ultRush ? 440 : ULT_RADIUS - 30) : (near >= 3 || tgt.boss || tgt.type === 'captain') && d < 330)) press('s3');   // 비무장: 상대 영웅이 궁극기 범위 안에 있으면 자동 발동
+  if (P.cd.s1 <= 0 && (HERO.s1Switch ? (P.s2Store[HERO.id === 'lubu' ? 'lubu2' : 'lubu'] <= 0 && P.cd.s2 > 1.5 && d < 700) : HERO.s1Snipe ? (d > 120 && d < 1100) : HERO.s1Throw ? (d > 220 && d < 560) : HERO.s1Heal ? (lotusWanted(P) || near >= 1) : HERO.s1Flurry ? d < FLURRY_LEN - 40 : near >= (mode === 'duel' ? 1 : 2))) press('s1');
+  if (s2Ready() && (HERO.rainS2 ? (d > 200 && d < 900 && (tgt.boss || enemies.filter(e => !e.dead && e.spawnT <= 0 && dist(e, tgt) < RAIN_R + e.r).length >= 2)) : HERO.slam ? d < 250 : HERO.bless ? (P.blessT < 3 && d < 520) : d > 160 && d < (HERO.rush ? 560 : HERO.shoot ? 650 : 330))) press('s2');
+  if (HERO.kite) {   // 원거리 장수: 사거리 안에서 쏘면서 거리를 유지 (가까우면 물러나며 사격)
+    if (d < HUANG_RANGE[0] + tgt.r - 30) press('attack');
+    const ax = Math.cos(angTo(P, tgt)), ay = Math.sin(angTo(P, tgt));
+    if (d < 230 + tgt.r) { const sg = Math.sin(T * 0.8) > 0 ? 0.55 : -0.55, c = Math.cos(sg), s = Math.sin(sg); return { mx: -(ax * c - ay * s), my: -(ax * s + ay * c) }; }
+    if (d > HUANG_RANGE[0] + tgt.r - 60) return { mx: ax, my: ay };
+    return { mx: 0, my: 0 };
+  }
   if (d < 125 + tgt.r) press('attack');
   if (d > 95 + tgt.r) return { mx: Math.cos(angTo(P, tgt)), my: Math.sin(angTo(P, tgt)) };
   return { mx: 0, my: 0 };
@@ -2408,8 +2423,8 @@ function updateEnemies(dt) {
       else if (st > e.stage) { e.stage = st; if (st !== 3) { ring(e.x, e.y, 240, 0.5, '#ff6a4a', 12); ring(e.x, e.y, 140, 0.4, '#fff', 8); sparks(e.x, e.y - 30, 30, '#ffcf70', 600, 0.7); doShake(12); flashT = Math.max(flashT, 0.15); sfx('boom'); reinforceMsg = '여포의 기세가 오른다!  (' + (st + 1) + '/6단계)'; reinforceT = 3; } }
     }
     e.x += e.kx * dt; e.y += e.ky * dt; const kf = Math.exp(-9 * dt); e.kx *= kf; e.ky *= kf;
-    const d = dist(e, P), toP = angTo(e, P), sp = e.speed * (e.boss ? (e.mounted ? 1.5 : 1.25) : 1);
-    e.atkCd -= dt;
+    const d = dist(e, P), toP = angTo(e, P), sp = e.speed * (e.boss ? (e.mounted ? 1.5 : 1.25) : 1) * (e.slowT > 0 ? (e.boss ? 0.75 : 0.55) : 1);
+    e.atkCd -= dt; if (e.slowT > 0) e.slowT -= dt;
     if (e.state !== 'wind') e.lift = 0;
     if (e.state === 'stun' || e.state === 'hit') { e.t -= dt; if (e.t <= 0) { e.state = 'chase'; e.atkCd = Math.max(e.atkCd, 0.3); } }
     else if (e.state === 'chase') {
@@ -2496,7 +2511,7 @@ function updateProjectiles(dt) {
     if (p.team) { duelProjectile(p); continue; }   // 비무장 모드 AI 화살
     if (p.crystal && p.friendly) crystalStep(p);
     else if (p.friendly) {   // 관통 화살: 지나가는 모든 적에게 한 번씩 적중
-      for (const e of enemies) if (!e.dead && e.spawnT <= 0 && !p.hit.has(e) && dist(p, { x: e.x, y: e.y - 14 }) < p.r + e.r) { p.hit.add(e); hitEnemy(e, p.dmg, { from: P, kb: 120 }); }
+      for (const e of enemies) if (!e.dead && e.spawnT <= 0 && !p.hit.has(e) && dist(p, { x: e.x, y: e.y - 14 }) < p.r + e.r) { p.hit.add(e); hitEnemy(e, p.far ? p.dmg * farMul(p.far, Math.hypot(p.x - p.x0, p.y - p.y0) - 150, p.farR) : p.dmg, { from: P, kb: 120 }); }
     }
     else if (dist(p, { x: P.x, y: P.y - 18 }) < p.r + P.r && P.inv <= 0 && !(P.act && (P.act.type === 'ult' || P.act.invul))) { hurtPlayer(p.dmg, null, p.boss); p.life = 0; }
     if (p.x < 40 || p.y < 40 || p.x > WORLD.w - 40 || p.y > WORLD.h - 40) p.life = 0;
@@ -2651,9 +2666,9 @@ function heroSkillRows(id) {
   if (id === 'huang') {   // 황충: 백보천양 · 화살비 · 마법의 수정화살
     const H = HEROES.huang, b = H.bal, A = HERO_STATS.atk + (ACC ? flatOf(id, heroLv(id)).atk : 0), SK = A * SKILL_DMG_MULT, sum = HUANG_ATK.reduce((t, c) => t + c.mult.reduce((x, y) => x + y, 0), 0);
     return [
-      { n: 'J · ' + H.skills.attack, c1: '3단 콤보 합계 피해 ' + fmtI(sum * A * b.a) + ' (5발)', c2: '범위 ' + HUANG_ATK.map(c => Math.round(c.rad)).join('·') + ' · 3단 성공 시 공속 +' + Math.round((H.aspdBuff.mult - 1) * 100) + '% (' + H.aspdBuff.dur + '초)' },
-      { n: 'K · ' + H.skills.s1, c1: '강궁 ' + HUANG_K + '발 관통 · 한 발 피해 ' + fmtI(A * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * 3.0 * b.s1), c2: '사거리 ' + Math.round(SNIPE_SPD * SNIPE_LIFE) + ' · 쿨 ' + CD.s1 + '초' },
-      { n: 'L · ' + H.skills.s2, c1: '구역 ' + RAIN_N + '회 낙하 · 한 번 피해 ' + fmtI(A * 0.75 * SKILL_DMG_MULT * 3.0 * b.s2), c2: '반경 ' + RAIN_R + ' · 시전 중 슈퍼아머 · 쿨 ' + CD.s2 + '초' },
+      { n: 'J · ' + H.skills.attack, c1: '3단 콤보 합계 피해 ' + fmtI(sum * A * b.a) + ' (5발) · 먼 적 최대 +' + Math.round(HUANG_FAR * 100) + '%', c2: '사거리 ' + HUANG_ATK.map(c => Math.round(c.rad)).join('·') + ' · 이동 사격 · 3단 성공 시 공속 +' + Math.round((H.aspdBuff.mult - 1) * 100) + '% (' + H.aspdBuff.dur + '초)' },
+      { n: 'K · ' + H.skills.s1, c1: '후퇴 사격 · 강궁 ' + HUANG_K + '발 관통 · 한 발 피해 ' + fmtI(A * 0.85 * SKILL_DMG_MULT * S1_DMG_MULT * 3.0 * b.s1) + ' (먼 적 최대 +40%)', c2: '사거리 ' + Math.round(SNIPE_SPD * SNIPE_LIFE) + ' · 쿨 ' + CD.s1 + '초' },
+      { n: 'L · ' + H.skills.s2, c1: '구역 ' + RAIN_N + '회 낙하 · 한 번 피해 ' + fmtI(A * 0.75 * SKILL_DMG_MULT * 3.0 * b.s2), c2: '반경 ' + RAIN_R + ' · 사거리 900 · 둔화 -45% · 시전 중 슈퍼아머·이동 가능 · 쿨 ' + CD.s2 + '초' },
       { n: '; · ' + H.skills.s3, c1: '피해 ' + fmtI(A * 6.5 * SKILL_DMG_MULT * ULT_DMG_MULT * b.u) + ' · 기절 ' + (1 * (1 + CRYSTAL_STUN_UP)).toFixed(1) + ' ~ ' + Math.min(3.5 * (1 + CRYSTAL_STUN_UP), 7).toFixed(1) + '초 (멀수록 길게)', c2: '사거리 ' + Math.round(CRYSTAL_SPD * CRYSTAL_LIFE) + ' · 주변 폭발 피해 40% · 보스는 기절 최대 2초' }];
   }
   if (id === 'dian') {   // 전위: 쌍극 투척 · 지축 강타 · 불사의 광기
@@ -2747,7 +2762,7 @@ function restartMode() { if (NET.on) { netBackToRoom(); return; } if (mode === '
 function comboDef(hero, stage) {
   const tb = hero === 'zhao' ? ZHAO_ATK : hero === 'lubu' ? LUBU_ATK : hero === 'lubu2' ? LUBU2_ATK : hero === 'diao' ? DIAO_ATK : hero === 'dian' ? DIAN_ATK : hero === 'huang' ? HUANG_ATK : GUAN_ATK, c = tb[stage], rate = ATK_SPEED * (HEROES[hero].atkSlow || 1);
   return { name: 'atk', dur: c.dur / rate, aim: 0.12, move: [c.move[0] / rate, c.move[1] / rate, c.move[2] * rate], armor: false,
-    ev: c.hits.map((h, i) => ({ t: h / rate, fx: 'cone', r: c.rad, half: c.half, mult: c.mult[i] * HEROES[hero].bal.a, kb: c.kb, spin: !!c.span, thrust: !!c.thrust, slam: !!c.slam, dir: c.dirs[i], stg: stage, retar: !!c.span && i > 0, ranged: !!c.ranged, off: c.fan ? c.fan[i] : 0 })) };
+    ev: c.hits.map((h, i) => ({ t: h / rate, fx: 'cone', r: c.rad, half: c.half, mult: c.mult[i] * HEROES[hero].bal.a, kb: c.kb, spin: !!c.span, thrust: !!c.thrust, slam: !!c.slam, dir: c.dirs[i], stg: stage, retar: !!c.span && i > 0, ranged: !!c.ranged, off: c.fan ? c.fan[i] : 0, far: c.far })) };
 }
 function rushDef(sp, armor, inv, bal) {   // 돌격(1회) / 적토 돌격(3연속): 선딜 -> 질주 반복 + 마지막 폭발 (연출·피해는 플레이어와 동일)
   const ev = [], ult = !!sp.invul; let t = 0;
@@ -2772,9 +2787,9 @@ function switchFighterForm(f) {   // AI 여포의 상마 <-> 하마 전환 (플�
 function huangDefs() {   // 황충 AI: 백보천양(중거리) / 화살비(목표 지점에 연속 낙하) / 마법의 수정화살(아주 먼 거리까지)
   const bl = HEROES.huang.bal;
   return {
-    s1: { name: 's1', dur: 0.8 / ATK_SPEED, aim: 0.3, range: 900, cond: f => { const t = nearestOpp(f); return !t || dist(f, t) > 220; }, ev: [{ t: 0.35 / ATK_SPEED, fx: 'snipe', len: 1000, w: 24 }] },
-    s2: { name: 's2', dur: RAIN_DUR() / ATK_SPEED, armor: true, aim: 0.25, range: [0, 650], ev: Array.from({ length: RAIN_N }, (_, i) => ({ t: (RAIN_T0 + i * RAIN_IV) / ATK_SPEED, fx: 'rain', r: RAIN_R })) },
-    ult: { name: 'ult', dur: 1.6, armor: true, aim: 0.7, ev: [{ t: 0.7, fx: 'crystal', len: 1500, w: 40 }] } };
+    s1: { name: 's1', dur: 0.7 / ATK_SPEED, aim: 0.3, inv: 0.25, range: 1100, ev: [{ t0: 0, t1: 0.16 / ATK_SPEED, fx: 'move', v: 1700 * ATK_SPEED, back: true }, { t: 0.3 / ATK_SPEED, fx: 'snipe', len: 1400, w: 24 }] },
+    s2: { name: 's2', dur: RAIN_DUR() / ATK_SPEED, armor: true, aim: 0.25, range: [0, 900], ev: Array.from({ length: RAIN_N }, (_, i) => ({ t: (RAIN_T0 + i * RAIN_IV) / ATK_SPEED, fx: 'rain', r: RAIN_R })) },
+    ult: { name: 'ult', dur: 1.6, armor: true, aim: 0.7, ev: [{ t: 0.7, fx: 'crystal', len: 2000, w: 40 }] } };
 }
 function dianDefs() {   // 전위 AI: 쌍극 투척(중거리) / 지축 강타(근접: 파고들어 내려찍음) / 불사의 광기
   const bl = HEROES.dian.bal;
@@ -2811,7 +2826,7 @@ function diaoDefs() {   // 초선 AI: 연꽃 치유(다친 아군이 있거나 �
     s2: { name: 's2', dur: 0.55 / ATK_SPEED, armor: true, aim: 0.1, range: [0, 420], cond: f => f.blessT < 3, ev: [{ t: 0.2 / ATK_SPEED, fx: 'bless', r: 260, half: Math.PI }] },
     ult: ultDef('diao') };
 }
-const FKIT = { guan: { reach: 175 }, lubu: { reach: 175 }, lubu2: { reach: 175 }, zhao: { reach: 175 }, diao: { reach: 175 }, dian: { reach: 175 }, huang: { reach: 175 } };   // AI 접근 거리: 공격 범위가 비슷해졌으므로 비슷하게
+const FKIT = { guan: { reach: 175 }, lubu: { reach: 175 }, lubu2: { reach: 175 }, zhao: { reach: 175 }, diao: { reach: 175 }, dian: { reach: 175 }, huang: { reach: 380, keep: 230 } };   // AI 접근 거리: 공격 범위가 비슷해졌으므로 비슷하게
 
 function makeFighter(hero, team, x, y) {
   const mt = metaFull(hero), hm = heroMaxHp(hero);
@@ -2882,6 +2897,7 @@ function dmgUnit(f, u, dmg, o) {   // f 가 u 에게 dmg 피해 (u = 플레이�
   let landed;
   if (u === P) { if (P.dead) return false; const crit = Math.random() < 0.2 + f.meta.crit, before = P.hp; hurtPlayer(Math.round(dmg * fAtkMul(f) * (crit ? 1.8 + f.meta.critDmg : 1) * rand(0.92, 1.08)), f, false, o.stun || 0, o.rec, o.kb || 0); landed = P.hp < before; }
   else landed = hitEnemy(u, dmg, { from: f, kb: o.kb || 0, rec: o.rec, stun: o.stun, ai: true, by: f, rage: 0 });
+  if (landed && o.slow) u.slowT = Math.max(u.slowT || 0, o.slow);
   if (landed) fHit(f, o, dmg * fAtkMul(f));
   return landed;
 }
@@ -2890,7 +2906,7 @@ function arcHit(f, radius, half, dmg, o) {
   for (const u of oppUnits(f)) {
     const d = dist(f, u); if (d - u.r > radius) continue;
     if (half < Math.PI && d > u.r + 24 && angDiff(f.face, angTo(f, u)) > half + Math.atan2(u.r, Math.max(d, 1))) continue;
-    if (dmgUnit(f, u, dmg, o)) n++;
+    if (dmgUnit(f, u, o && o.far ? dmg * farMul(o.far, d - 150, radius - 150) : dmg, o)) n++;
   }
   return n;
 }
@@ -2954,7 +2970,7 @@ function execEv(f, ev, a) {
 }
 function duelProjectile(p) {
   if (p.crystal) { crystalStep(p); if (p.x < 40 || p.y < 40 || p.x > WORLD.w - 40 || p.y > WORLD.h - 40) p.life = 0; return; }
-  for (const u of oppUnits({ team: p.team })) if (!p.hit.has(u) && dist(p, { x: u.x, y: u.y - 14 }) < p.r + u.r) { p.hit.add(u); dmgUnit(p.owner, u, p.dmg, { kb: 120 }); }
+  for (const u of oppUnits({ team: p.team })) if (!p.hit.has(u) && dist(p, { x: u.x, y: u.y - 14 }) < p.r + u.r) { p.hit.add(u); dmgUnit(p.owner, u, p.far ? p.dmg * farMul(p.far, Math.hypot(p.x - p.x0, p.y - p.y0) - 150, p.farR) : p.dmg, { kb: 120 }); }
   if (p.x < 40 || p.y < 40 || p.x > WORLD.w - 40 || p.y > WORLD.h - 40) p.life = 0;
 }
 
@@ -3009,7 +3025,7 @@ function runAct(f, dt) {
   for (const ev of a.ev) {
     if (ev.fx === 'dash' || ev.fx === 'move') {
       if (a.t >= ev.t0 && a.t < ev.t1) {
-        const ang = ev.ang != null ? ev.ang : f.face, ca = Math.cos(f.face), sa = Math.sin(f.face);
+        const ang = ev.back ? f.face + Math.PI : ev.ang != null ? ev.ang : f.face, ca = Math.cos(f.face), sa = Math.sin(f.face);
         if (ev.fx === 'dash' && !ev.started) { ev.started = true; if (ev.rush) { sfx('swing'); if (ev.ult) { for (let k = 0; k < 10; k++) { const off = rand(-ev.w, ev.w); streak(f.x - sa * off, f.y + ca * off - 6, f.face + Math.PI, rand(140, 260), rand(2, 4), 0.3, k % 2 ? '#fff4d0' : '#ff9a4a'); } sparks(f.x, f.y + 8, 10, '#ffd27a', 500, 0.3); } } }
         f.x += Math.cos(ang) * ev.v * dtr; f.y += Math.sin(ang) * ev.v * dtr; f.dashing = true; f.walk += dtr * 20;
         if (ev.fx === 'move') { if (Math.random() < 0.7) fx.push({ k: 'spark', x: f.x, y: f.y + 8, vx: rand(-60, 60), vy: rand(-60, 60), t: 0, dur: 0.3, color: '#bfe8ff', sz: 5 }); }
@@ -3037,7 +3053,7 @@ function updateFighter(f, dt) {
   if (f.hitsT > 0) { f.hitsT -= dt; if (f.hitsT <= 0) { f.hits = 0; f.hitTier = 0; } }   // 3초간 적중이 없으면 HIT 초기화
   if (f.runT > 0) f.runT = (f.moving || (f.act && f.act.def.name === 'rush')) ? Hf.runDur : Math.max(0, f.runT - dt);   // 질주: 이동 중이거나 돌격 중이면 지속시간 갱신
   f.moving = false;
-  f.lungeT = Math.max(0, (f.lungeT || 0) - dt); f.hitT = Math.max(0, f.hitT - dt); f.flash = Math.max(0, f.flash - dt); f.invT = Math.max(0, f.invT - dt); f.rage = Math.min(100, f.rage + dt / ULT_CD * 100 * (1 + f.meta.rage)); f.cd.s1 = Math.max(0, f.cd.s1 - dt); f.cd.s2 = Math.max(0, f.cd.s2 - dt); for (const k in f.s2Store) f.s2Store[k] = Math.max(0, f.s2Store[k] - dt); f.dashCd = Math.max(0, f.dashCd - dt); f.atkCd -= dt; f.comboT -= dt;
+  f.lungeT = Math.max(0, (f.lungeT || 0) - dt); f.hitT = Math.max(0, f.hitT - dt); f.flash = Math.max(0, f.flash - dt); f.invT = Math.max(0, f.invT - dt); f.rage = Math.min(100, f.rage + dt / ULT_CD * 100 * (1 + f.meta.rage)); f.cd.s1 = Math.max(0, f.cd.s1 - dt); f.cd.s2 = Math.max(0, f.cd.s2 - dt); for (const k in f.s2Store) f.s2Store[k] = Math.max(0, f.s2Store[k] - dt); f.dashCd = Math.max(0, f.dashCd - dt); if (f.slowT > 0) f.slowT -= dt; f.atkCd -= dt; f.comboT -= dt;
   f.x += f.kx * dt; f.y += f.ky * dt; const kf = Math.exp(-9 * dt); f.kx *= kf; f.ky *= kf;
   if (f.freeze > 0) { f.freeze -= dt; arenaClamp(f); return; }
   if ((!f.human || netAuto(f)) && f.state !== 'stun' && f.dashCd <= 0 && !(f.act && (f.act.def.invul || f.act.def.name === 'ult' || f.act.def.name === 'dodge'))) {   // 자동 회피 (AUTO 플레이어와 동일 규칙)
@@ -3051,11 +3067,12 @@ function updateFighter(f, dt) {
   const d = dist(f, tgt), kit = FKIT[f.hero], sk = f.skills; f.face = angTo(f, tgt);
   // 이동: 사정거리까지 접근, 가까우면 좌우로 조금씩 움직임
   const reach = kit.reach + tgt.r;
-  if (d > reach * 0.85) { const sp = f.speed * (Hf.runBonus && f.runT > 0 ? Hf.runBonus : 1); f.moving = true; f.x += Math.cos(f.face) * sp * dt; f.y += Math.sin(f.face) * sp * dt; f.walk += dt * 12; }
+  if (kit.keep && d < kit.keep + tgt.r) { const sp = f.speed * 0.8 * (f.slowT > 0 ? 0.55 : 1), aw = f.face + Math.PI + (Math.sin(T * 0.9 + f.seed) > 0 ? 0.5 : -0.5); f.moving = true; f.x += Math.cos(aw) * sp * dt; f.y += Math.sin(aw) * sp * dt; f.walk += dt * 12; }   // 원거리 장수: 가까워지면 거리를 벌림
+  else if (d > reach * 0.85) { const sp = f.speed * (Hf.runBonus && f.runT > 0 ? Hf.runBonus : 1) * (f.slowT > 0 ? 0.55 : 1); f.moving = true; f.x += Math.cos(f.face) * sp * dt; f.y += Math.sin(f.face) * sp * dt; f.walk += dt * 12; }
   else { const sd = Math.sin(T * 1.3 + f.seed) > 0 ? 1 : -1; f.x += Math.cos(f.face + Math.PI / 2) * sd * 70 * dt; f.y += Math.sin(f.face + Math.PI / 2) * sd * 70 * dt; f.walk += dt * 6; f.moving = true; }
   // 공격 결정: 궁극기 > 스킬2 > 스킬1 > 콤보
   if (f.atkCd <= 0) {
-    if (f.rage >= 100 && (HEROES[f.hero].crystalUlt ? d < 1100 : d < 300)) { f.rage = 0; beginAct(f, sk.ult, tgt); sfx('skill'); }
+    if (f.rage >= 100 && (HEROES[f.hero].crystalUlt ? d < 1600 : d < 300)) { f.rage = 0; beginAct(f, sk.ult, tgt); sfx('skill'); }
     else if (f.cd.s2 <= 0 && d <= sk.s2.range[1] && (!sk.s2.cond || sk.s2.cond(f)) && Math.random() < 0.5) { f.cd.s2 = CD.s2 * (HEROES[f.hero].s2cdMul || 1) * (1 - f.meta.cd); beginAct(f, sk.s2, tgt); }
     else if (f.cd.s1 <= 0 && d <= sk.s1.range && (!sk.s1.cond || sk.s1.cond(f)) && Math.random() < 0.5) { f.cd.s1 = CD.s1 * (HEROES[f.hero].s1cdMul || 1) * (1 - f.meta.cd); beginAct(f, sk.s1, tgt); }
     else if (d <= reach + 25) { const st = f.comboT > 0 ? (f.combo + 1) % 3 : 0; f.combo = st; f.comboT = 1.0; beginAct(f, comboDef(f.hero, st), tgt); }
@@ -3622,7 +3639,7 @@ function playerStyle(alpha, face) {
 }
 // 영웅 본체 그리기: 보병은 몸만, 기마(여포)는 적토마 + 기수. lift = 말이 솟구친 높이
 // PC 아웃라인: 영웅(말·무기 포함)을 오프스크린에 그려 실루엣을 만들고, 바깥으로 OUTLINE_W 만큼 번진 테두리만 남겨서 모든 유닛 위에 덧그림 → 몬스터와 구분되고 몬스터에 가려져도 테두리는 보인다.
-const OUTLINE_W = 2.5, OUTLINE_COLOR = '#ffffff', OUTLINE_ALPHA = 0.5, OLN = 440;
+const OUTLINE_W = 3, OUTLINE_COLOR = '#ffffff', OUTLINE_ALPHA = 1, OLN = 440;
 let shadowOff = false;
 const olA = document.createElement('canvas'), olB = document.createElement('canvas'); olA.width = olA.height = olB.width = olB.height = OLN;
 function drawPcOutline() {
@@ -4393,7 +4410,7 @@ function humanFighter(f, dt, tgt) {   // 사람이 조종하는 파이터: AI �
   if (has('s2') && f.cd.s2 <= 0) { eat('s2'); f.cd.s2 = CD.s2 * (Hf.s2cdMul || 1) * (1 - f.meta.cd); beginAct(f, sk.s2, tgt); return; }
   if (has('s1') && f.cd.s1 <= 0) { eat('s1'); f.cd.s1 = CD.s1 * (Hf.s1cdMul || 1) * (1 - f.meta.cd); beginAct(f, sk.s1, tgt); return; }
   if (has('attack') || inp.h) { eat('attack'); const st = f.comboT > 0 ? (f.combo + 1) % 3 : 0; f.combo = st; f.comboT = 1.0; beginAct(f, comboDef(f.hero, st), tgt); sfx('swing'); return; }
-  const sp = f.speed * (Hf.runBonus && f.runT > 0 ? Hf.runBonus : 1);
+  const sp = f.speed * (Hf.runBonus && f.runT > 0 ? Hf.runBonus : 1) * (f.slowT > 0 ? 0.55 : 1);
   if (ml > 0.2) { f.moving = true; f.x += mvx * sp * dt; f.y += mvy * sp * dt; f.walk += dt * 12 * Math.min(1, ml); }
 }
 function netMatchAbort(msg) {   // 상대가 나가거나 연결이 끊김: 남은 사람이 승리 처리
