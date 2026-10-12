@@ -96,7 +96,7 @@ addEventListener('keydown', e => {
   if (TUT && state === 'play') { if (e.code === 'Escape') { tutEnd(true); return; } if (e.code === 'Enter') { tutEvent('ok'); return; } }
   if (speedCtlOn() && (e.code === 'BracketLeft' || e.code === 'BracketRight')) { speedStep(e.code === 'BracketLeft' ? -1 : 1); return; }   // [ ] : 전투 속도
   if (e.code === 'KeyM' && mode === 'duel') { meterOn = !meterOn; return; }   // 비무장 미터기 접기/펴기
-  if (e.code === 'KeyQ' && (mode === 'duel' || RAID) && state === 'play') { if (NET.on) netCycle(); else cycleControl(); return; }   // 비무장 모드: Q = 다음 아군으로 조작 변경
+  if (e.code === 'KeyQ' && (mode === 'duel' || RAID) && state === 'play') { if (NET.on) { if (!NET.raid) netCycle(); } else cycleControl(); return; }   // 비무장 모드: Q = 다음 아군으로 조작 변경 (온라인 레이드는 각자 1명만 조작)
   if (CAM_FREE && (e.code === 'KeyG' || e.code === 'Home')) { centerCam(); return; }   // SC1 식 시점: 영웅 위치로 이동
   if (CAM_FREE && e.code === 'KeyH') { camLock = !camLock; if (camLock) centerCam(); return; }   // 영웅 추적 켜기 / 끄기
   if (e.code === 'Tab' || e.code === 'KeyT') { toggleAuto(); return; }
@@ -125,17 +125,22 @@ const tagBtnPos = i => ({ x: 54, y: 262 + i * 108 });
 function tagBtnAt(x, y) { if (state !== 'play' || mode === 'duel') return -1; for (let i = 0; i < TEAM.length; i++) { const b = tagBtnPos(i); if (Math.hypot(x - b.x, y - b.y) <= TAG_BTN_R + 12) return i; } return -1; }
 let paused = false, pauseKind = 'pause';   // 로그라이크 일시정지 (pauseKind: 'pause' = 일시정지 / 'exit' = 나가기 확인)
 const PAUSE_BTN = { x: 1146, y: 14, w: 122, h: 46 }, PAUSE_UI = { go: { x: W / 2 - 260, y: 500, w: 240, h: 56 }, exit: { x: W / 2 + 20, y: 500, w: 240, h: 56 } };
-function openPause(kind) { if (TUT || mode !== 'yeonui' || state !== 'play') return; paused = true; pauseKind = kind; joy = null; for (const k in holdSrc) delete holdSrc[k]; for (const k in buf) buf[k] = -9; sfx('hit'); }
+function openPause(kind) { if (TUT || mode !== 'yeonui' || state !== 'play') return; paused = true; pauseKind = NET.on ? 'exit' : kind; joy = null; for (const k in holdSrc) delete holdSrc[k]; for (const k in buf) buf[k] = -9; sfx('hit'); }
 function closePause() { paused = false; for (const k in buf) buf[k] = -9; sfx('hit'); }
-function pauseExit() { paused = false; RS.exited = true; state = 'lose'; winT = 0; sfx('skill'); }   // 나가기: 지금까지의 기록으로 경험치를 정산 (update 에서 settleRun)
+function pauseExit() { if (NET.on) { paused = false; netLeave(); return; } paused = false; RS.exited = true; state = 'lose'; winT = 0; sfx('skill'); }   // 나가기: 지금까지의 기록으로 경험치를 정산 (update 에서 settleRun)
 function xpGains() {   // 지금 나가면 받게 될 경험치 (settleRun 의 패배 정산과 같은 식)
   const heroes = (RAID ? RAID_HEROES : TEAM).slice(), dmgOf = h => RS.dmg[h] || 0, pool = RS.waves * 50 + RS.boss * 250 + Math.floor(heroes.reduce((t, h) => t + dmgOf(h), 0) / 30) + RS.kills, sumD = heroes.reduce((t, h) => t + dmgOf(h), 0), n = heroes.length;
   return heroes.map(h => ({ hero: h, gain: Math.round(pool * (0.3 / n + 0.7 * (sumD ? dmgOf(h) / sumD : 1 / n))) }));
 }
 function pauseClick(x, y) { if (inRect(x, y, PAUSE_UI.go)) closePause(); else if (inRect(x, y, PAUSE_UI.exit)) pauseExit(); }
-function drawPauseButton() { for (const [r, label, col, tc] of [[PAUSE_BTN, '정지', '#9ad4ff', '#cfe8ff']]) { ctx.fillStyle = 'rgba(10,12,20,.6)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + r.h / 2 + 7, 20, tc, 'center'); } }   // 오른쪽 위: 정지 / 나가기 (AUTO 가 있던 자리)
+function drawPauseButton() { for (const [r, label, col, tc] of [[PAUSE_BTN, NET.on ? '나가기' : '정지', '#9ad4ff', '#cfe8ff']]) { ctx.fillStyle = 'rgba(10,12,20,.6)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + r.h / 2 + 7, 20, tc, 'center'); } }   // 오른쪽 위: 정지 / 나가기 (AUTO 가 있던 자리)
 function drawPauseOverlay() {
   ctx.fillStyle = 'rgba(4,6,12,.78)'; ctx.fillRect(0, 0, W, H);
+  if (NET.on) {   // 온라인: 전투는 멈추지 않는다
+    text('나가시겠습니까?', W / 2, 190, 54, '#ff9a8a', 'center'); text('온라인 전투는 멈추지 않습니다 — 나가면 이 전투에서 빠지고 경험치·장비를 받지 못합니다', W / 2, 240, 17, '#cfd3e6', 'center', false); text('(방장이 나가면 파티의 전투가 끝납니다)', W / 2, 270, 15, '#9aa3b8', 'center', false);
+    for (const [r, label, col] of [[PAUSE_UI.go, '계속하기' + (IS_TOUCH ? '' : '  (P)'), '#7dff9a'], [PAUSE_UI.exit, '나가기', '#ff9a8a']]) { ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + 37, 24, col, 'center'); }
+    return;
+  }
   text(pauseKind === 'exit' ? '나가시겠습니까?' : '일시정지', W / 2, 150, 54, pauseKind === 'exit' ? '#ff9a8a' : '#ffd34d', 'center');
   text('나가면 지금까지 획득한 경험치가 영웅 레벨에 한꺼번에 반영됩니다  (현재 WAVE ' + (waveIdx + 1) + ' · 처치 ' + kills + ')', W / 2, 196, 17, '#cfd3e6', 'center', false);
   const g = xpGains(); text('지금 나가면 받는 경험치', W / 2, 250, 20, '#ffe9a0', 'center');
@@ -143,7 +148,7 @@ function drawPauseOverlay() {
   const bt = (r, label, col) => { ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + 37, 24, col, 'center'); };
   bt(PAUSE_UI.go, '계속하기' + (IS_TOUCH ? '' : '  (P)'), '#7dff9a'); bt(PAUSE_UI.exit, '나가기 · 경험치 정산', '#ff9a8a');
 }
-function toggleAuto() { auto = !auto; if (TUT && auto) tutEvent('auto'); if (NET.on && NET.role === 'guest') netSend({ k: 'auto', on: auto }); }   // 온라인 게스트는 방장에게 자동 전투 여부를 알림
+function toggleAuto() { auto = !auto; if (TUT && auto) tutEvent('auto'); if (NET.on && NET.role === 'guest') netSend({ k: NET.raid ? 'rauto' : 'auto', on: auto }); }   // 온라인 게스트는 방장에게 자동 전투 여부를 알림
 function goLobby() { if (NET.on) { netLeave(); return; } state = 'title'; auto = false; joy = null; for (const k in holdSrc) delete holdSrc[k]; for (const k in buf) buf[k] = -9; }   // 로비(영웅 선택) 화면으로 이동
 function pt(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
 // 화면 상단의 웨이브 선택 버튼 (전투 중에도 눌러서 해당 웨이브의 시작 시점으로 즉시 이동)
@@ -747,7 +752,8 @@ const eqData = acc => acc ? (acc.equip || (acc.equip = { inv: [], worn: {}, uid:
 const eqWornIds = id => { const d = eqData(ACC); if (!d) return [null, null, null]; return d.worn[pcId(id)] || (d.worn[pcId(id)] = [null, null, null]); };
 const eqItem = iid => { const d = eqData(ACC); return d ? d.inv.find(it => it.id === iid) || null : null; };
 const equipOn = () => !!ACC && !NET.on && !(mode === 'duel' && pickOnline);
-function equipFlat(id) { const o = { hp: 0, atk: 0, def: 0 }; if (!equipOn()) return o; for (const iid of eqWornIds(id)) { const it = iid != null && eqItem(iid); if (it) { o.hp += it.hp || 0; o.atk += it.atk || 0; o.def += it.def || 0; } } return o; }
+function equipRaw(id) { const o = { hp: 0, atk: 0, def: 0 }; if (!ACC) return o; for (const iid of eqWornIds(id)) { const it = iid != null && eqItem(iid); if (it) { o.hp += it.hp || 0; o.atk += it.atk || 0; o.def += it.def || 0; } } return o; }
+function equipFlat(id) { if (NET.on && NET.raid) return (NET.eqf && NET.eqf[pcId(id)]) || { hp: 0, atk: 0, def: 0 }; if (!equipOn()) return { hp: 0, atk: 0, def: 0 }; return equipRaw(id); }   // 온라인 레이드: 파티원이 보낸 장비 수치
 const flatTot = (id, lv) => { const f = flatOf(id, lv), e = equipFlat(id); return { hp: f.hp + e.hp, atk: f.atk + e.atk, def: f.def + e.def }; };   // 레벨 성장 + 장비
 function eqRoll(slot, rar, src) { const d = eqData(ACC), st = EQ_STAT[slot], it = { id: d.uid++, slot, rar, name: (src === 'dianBoss' ? EQ_NAME_DIAN : EQ_NAME)[slot][rar], src: src || 'raidBoss', hp: 0, atk: 0, def: 0 }; for (const k in st) { const v = st[k][rar] * (0.9 + Math.random() * 0.2); it[k] = k === 'hp' ? Math.round(v) : +v.toFixed(1); } return it; }
 function eqRarity(w) { let r = Math.random() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return i; } return 0; }
@@ -780,7 +786,7 @@ function settleRun(res) {
   if (RS.done || !ACC) return; RS.done = true; if (mode !== 'yeonui') return;   // 경험치는 로그라이크 모드에서만 획득 (비무장은 기록·경험치 없음)
   const win = res === 'win', heroes = (RAID ? RAID_HEROES : TEAM).slice(), dmgOf = h => RS.dmg[h] || 0, pool = RS.waves * 50 + RS.boss * 250 + (win ? 1000 : 0) + Math.floor(heroes.reduce((t, h) => t + dmgOf(h), 0) / 30) + RS.kills;
   const sumD = heroes.reduce((t, h) => t + dmgOf(h), 0), n = heroes.length;
-  RS.summary = heroes.map(h => {
+  RS.summary = heroes.filter(h => !(NET.on && NET.raid) || h === NET.myHero).map(h => {
     const gain = Math.round(pool * (0.3 / n + 0.7 * (sumD ? dmgOf(h) / sumD : 1 / n))), r = addXp(ACC, h, gain), row = { hero: h, gain, before: r.before, after: r.after };
     if (r.after > r.before) {   // 레벨업: 기본 능력치에 더해지는 +N 이 이전 -> 현재 로 얼마나 늘었는지, 새로 풀린 고유 성장 효과
       const m0 = flatOf(h, r.before), m1 = flatOf(h, r.after);
@@ -1155,8 +1161,13 @@ function rollDrop(e) {
 }
 function updateItems(dt) {
   P.buffT = Math.max(0, P.buffT - dt);
+  const onl = NET.on && NET.raid;
   for (const it of items) {
     it.t += dt; it.life -= dt;
+    if (onl) {   // 온라인 레이드: 가까이 간 사람 PC 가 만두를 먹는다
+      const f = allies.find(a => a.human && !a.dead && dist(it, a) < a.r + 24); if (!f) continue; it.life = 0;
+      const before = f.hp; f.hp = Math.min(f.maxhp, f.hp + f.maxhp * BUN_HEAL_PCT); dmgText(f.x, f.y - 70, f.hp > before ? '+' + Math.round(f.hp - before) : 'MAX', '#7dff9a', 28); sparks(f.x, f.y - 20, 12, '#7dff9a', 240, 0.5); ring(f.x, f.y, 60, 0.35, '#7dff9a', 4); sfx('heal'); continue;
+    }
     if (dist(it, P) >= P.r + 24) continue;   // 관우가 아이템 위에 닿으면 즉시 적용
     it.life = 0;
     if (it.kind === 'bun') {
@@ -2660,7 +2671,14 @@ const RD = { order: [], swapCd: 0, cyc: 0 };   // 레이드의 영웅 목록·�
 const RAID_ALLY_TAKEN = 0.6;   // AI 동료가 보스에게 받는 피해 배율 (AI 는 패턴을 사람만큼 못 피하므로 완화)
 const friendsOf = () => RAID ? [P, ...allies].filter(u => !u.dead) : [P];
 const tgtOf = e => { if (!RAID || !P.dead) return P; let b = null, bd = 1e9; for (const u of allies) if (!u.dead) { const d = dist(e, u); if (d < bd) { bd = d; b = u; } } return b || P; };
-function foeHurt(e, u, dmg, stunT) { if (u === P) hurtPlayer(dmg, e, false, stunT); else if (!u.dead) hitEnemy(u, dmg * RAID_ALLY_TAKEN, { ai: true, from: e, kb: 260, stun: stunT || 0, nocrit: true, rec: 1.5 }); }
+const RAID_HUMAN_TAKEN = 1.0;   // 온라인 레이드: 사람이 조작하는 PC 가 보스에게 받는 피해 배율 (AI 동료는 RAID_ALLY_TAKEN)
+function foeHurt(e, u, dmg, stunT) {
+  if (u === P) { hurtPlayer(dmg, e, false, stunT); return; }
+  if (u.dead) return; const hum = !!u.human && !netAuto(u);
+  if (hum && u.bgT > 0) return;   // 보스에게 맞은 경직·스턴 시간 동안은 연계 공격이 겹쳐 맞지 않음
+  const ok = hitEnemy(u, dmg * (hum ? RAID_HUMAN_TAKEN : RAID_ALLY_TAKEN), { ai: true, from: e, kb: 260, stun: stunT || 0, nocrit: true, rec: 1.5 });
+  if (hum && ok) u.bgT = Math.max(u.bgT || 0, 0.5, stunT || 0);
+}
 function raidDodgeDir(f) {   // AI 동료의 보스 공격 회피: 선딜 중인 공격 범위 안에 있으면 범위를 가장 많이 벗어나는 방향으로
   for (const e of enemies) {
     if (e.dead || !e.boss || e.state !== 'wind' || !e.cur) continue; const c = e.cur;
@@ -2916,7 +2934,7 @@ function enterMode(i) { if (i === 0) openWaves(); else if (i === 1) openDuelMenu
 // 레이드 입장: 오프라인(내 PC 1~3명) / 온라인(준비 중)
 let raidMsgT = 0;
 function openRaidMenu() { state = 'raidMenu'; mode = 'yeonui'; raidMsgT = 0; applyGrowth('yeonui'); }
-function raidMenuPick(online) { if (online) { raidMsgT = 2.5; sfx('hit'); return; } openRaidBoss(); sfx('skill'); }
+function raidMenuPick(online) { pickOnline = online; openRaidBoss(); sfx('skill'); }
 // 레이드 보스 선택 (지금은 여포 봉선만 열려 있음)
 const RAID_BOSSES = [
   { id: 'raidBoss', name: '여포 봉선', sub: '기마 → 하마 · 8단계', open: true, art: 'lubu', desc: ['체력이 줄수록 8단계로 강해지고 기마에서 하마로 변하는 보스', '3·6단계에서 부하 소환 · 하마 후 회전 폭풍 · 전쟁의 함성 · 최후의 광폭', '고유 능력: 상태 이상 저항 (경직·스턴·둔화가 거듭될수록 지속시간 감소)'] },
@@ -2927,13 +2945,13 @@ let raidBossId = 'raidBoss';   // 선택한 레이드 보스
 let raidSel = 0;
 const RB = { card: i => ({ x: W / 2 - 430 + i * 295, y: 130, w: 270, h: 320 }), go: { x: W / 2 - 160, y: 600, w: 320, h: 60 }, back: { x: 14, y: 14, w: 56, h: 56 } };
 function openRaidBoss() { state = 'raidBoss'; mode = 'yeonui'; applyGrowth('yeonui'); raidSel = 0; }
-function raidBossNext() { if (!RAID_BOSSES[raidSel].open) { raidMsgT = 2; sfx('hit'); return; } raidBossId = RAID_BOSSES[raidSel].id; openPick('raid'); sfx('skill'); }
+function raidBossNext() { if (!RAID_BOSSES[raidSel].open) { raidMsgT = 2; sfx('hit'); return; } raidBossId = RAID_BOSSES[raidSel].id; if (pickOnline) NET.status = ''; openPick('raid'); sfx('skill'); }
 function raidBossClick(x, y) { if (inRect(x, y, RB.back)) { state = 'raidMenu'; return; } for (let i = 0; i < RAID_BOSSES.length; i++) if (inRect(x, y, RB.card(i))) { raidSel = i; if (!RAID_BOSSES[i].open) { raidMsgT = 2; sfx('hit'); } else sfx('hit'); return; } if (inRect(x, y, RB.go)) raidBossNext(); }
 function raidBossKey(code) { if (code === 'Escape') state = 'raidMenu'; else if (code === 'ArrowLeft') raidSel = (raidSel + RAID_BOSSES.length - 1) % RAID_BOSSES.length; else if (code === 'ArrowRight') raidSel = (raidSel + 1) % RAID_BOSSES.length; else if (code === 'Enter' || code === 'Space') raidBossNext(); }
 function drawRaidBoss() {
   drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.55)'; ctx.fillRect(0, 0, W, H);
   backBtn(RB.back);
-  text('레이드 보스 선택', W / 2, 62, 40, '#ff8a7a', 'center'); text('오프라인  ·  보스 한 마리를 쓰러뜨리는 협동 전투', W / 2, 96, 15, '#cfd3e6', 'center', false);
+  text('레이드 보스 선택', W / 2, 62, 40, '#ff8a7a', 'center'); text((pickOnline ? '온라인  ·  보스는 방장이 정합니다 (친구 방에 참가할 때는 아무 보스나 골라도 됩니다)' : '오프라인') + '  ·  보스 한 마리를 쓰러뜨리는 협동 전투', W / 2, 96, 15, '#cfd3e6', 'center', false);
   RAID_BOSSES.forEach((b, i) => {
     const r = RB.card(i), sel = i === raidSel; ctx.save(); ctx.globalAlpha = b.open ? 1 : 0.55;
     ctx.fillStyle = sel ? 'rgba(62,26,22,.92)' : 'rgba(18,12,28,.88)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = sel ? '#ffd34d' : 'rgba(255,255,255,.28)'; ctx.lineWidth = sel ? 4 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.fillStyle = '#e0504a'; ctx.fillRect(r.x, r.y, r.w, 4);
@@ -2962,8 +2980,7 @@ function drawRaidMenu() {
     lines.forEach((ln, i) => text(fitStr(ln, r.w - 40, 15), r.x + r.w / 2, r.y + 150 + i * 28, 15, i ? '#cfd3e6' : '#fff', 'center', false)); ctx.globalAlpha = 1;
   };
   card(DM.off, '1', '오프라인', '#ffd34d', ['PC 1 ~ 3명이 동시에 보스와 전투', '내가 1명을 직접 조작 · 나머지는 AI 동료 (태그 없음)', '내 계정의 영웅 레벨 성장 적용', '보스는 체력에 따라 8단계로 강해집니다']);
-  card(DM.on, '2', '온라인', '#7dff9a', ['친구와 함께 보스를 토벌 (협동)', '준비 중입니다'], true);
-  if (raidMsgT > 0) text('온라인 레이드는 준비 중입니다', W / 2, 560, 24, '#ffe9a0', 'center');
+  card(DM.on, '2', '온라인', '#7dff9a', ['친구와 함께 보스를 토벌 (협동 · 최대 3명)', '각자 장수 1명을 골라 동시에 전투', '방 코드로 입장 · 보스는 방장이 정함', '장수 레벨·장비는 각자의 계정 기준']);
   const b = DM.back; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text('뒤로', b.x + b.w / 2, b.y + 21, 15, '#cfd3e6', 'center');
 }
 // 비무장 입장: 오프라인(AI 와 대전) / 온라인(친구와 대전) 선택
@@ -3008,9 +3025,12 @@ function drawFoeRow(R, label, sub, ids, lvOf, rawOf, emptyMsg) {
   });
 }
 const f1n = n => +n.toFixed(1);
-function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); pickTab = 0; pickFocus = null; duelFoes = []; duelPick = (m === 'duel' ? (duelLast ? duelLast.slice() : []) : TEAM.slice()); }
-function togglePick(id) { const k = duelPick.indexOf(id); if (k >= 0) duelPick.splice(k, 1); else if (duelPick.length < 3) duelPick.push(id); if (pickFor === 'duel' && pickOnline) netSendTeam(); }
-function pickBack() { if (pickFor === 'duel') { if (pickOnline) { netClose(); NET.status = ''; } state = 'duelMenu'; } else state = pickFor === 'raid' ? 'raidBoss' : 'waves'; }
+function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); pickTab = 0; pickFocus = null; duelFoes = []; duelPick = (m === 'duel' ? (duelLast ? duelLast.slice() : []) : m === 'raid' && pickOnline ? TEAM.slice(0, 1) : TEAM.slice()); }
+const rOn = () => pickFor === 'raid' && pickOnline;   // 온라인 레이드 방 화면인가
+function togglePick(id) {
+  if (rOn()) { if (netRaidTaken(id)) { NET.status = '다른 파티원이 이미 고른 장수입니다'; sfx('hit'); return; } if (duelPick[0] === id) duelPick.length = 0; else { duelPick.length = 0; duelPick.push(id); } netRaidMine(); return; }
+  const k = duelPick.indexOf(id); if (k >= 0) duelPick.splice(k, 1); else if (duelPick.length < 3) duelPick.push(id); if (pickFor === 'duel' && pickOnline) netSendTeam(); }
+function pickBack() { if (rOn()) { netClose(); NET.status = ''; } if (pickFor === 'duel') { if (pickOnline) { netClose(); NET.status = ''; } state = 'duelMenu'; } else state = pickFor === 'raid' ? 'raidBoss' : 'waves'; }
 // 온라인 방 조작 영역 (영웅 선택 화면 아래): 서버 · 방 만들기 · 방 참가 · 대전 시작 · 장수 정보 접기/펴기 + 상대 팀 정보
 function onlineLayout() {
   const by = 130 + pickCardH() + 12, fd = pickFold;
@@ -3125,12 +3145,12 @@ function pickClickNew(x, y) {
   if (inRect(x, y, PK.arrL)) { pickCycleFocus(-1); return; } if (inRect(x, y, PK.arrR)) { pickCycleFocus(1); return; }
   if (inRect(x, y, PK.toggle)) { togglePick(pickFocus || HERO_IDS[0]); sfx('hit'); return; }
   for (let i = 0; i < 2; i++) if (inRect(x, y, PK.tab(i))) { pickTab = i; sfx('hit'); return; }
-  for (let i = 0; i < 3; i++) if (inRect(x, y, PK.slot(i))) { if (duelPick[i]) { pickFocus = duelPick[i]; if (duelPick.length > 0) { togglePick(duelPick[i]); } } sfx('hit'); return; }
-  if (pickFor === 'duel' && pickOnline) {   // 온라인 대전: 서버 · 방 만들기 · 방 참가 · 대전 시작
+  if (!rOn()) for (let i = 0; i < 3; i++) if (inRect(x, y, PK.slot(i))) { if (duelPick[i]) { pickFocus = duelPick[i]; if (duelPick.length > 0) { togglePick(duelPick[i]); } } sfx('hit'); return; }
+  if ((pickFor === 'duel' || pickFor === 'raid') && pickOnline) {   // 온라인 대전·레이드: 서버 · 방 만들기 · 방 참가 · 시작
     if (!NET.ws && inRect(x, y, PK.on.url)) { netPromptUrl(); return; }
     if (!NET.ws && duelPick.length >= 1 && inRect(x, y, PK.on.create)) { netCreate(); return; }
     if (!NET.ws && duelPick.length >= 1 && inRect(x, y, PK.on.join)) { netPromptJoin(); return; }
-    if (NET.role === 'host' && inRect(x, y, PK.go)) netStartHost();
+    if (NET.role === 'host' && inRect(x, y, PK.go)) { if (pickFor === 'raid') netRaidStartHost(); else netStartHost(); }
     return;
   }
   if (inRect(x, y, PK.go) && duelPick.length >= pickNeed()) pickStart();
@@ -3139,7 +3159,7 @@ function pickKeyNew(code) {
   const m = /^Digit([1-6])$/.exec(code); if (m) { pickFocus = HERO_IDS[+m[1] - 1]; togglePick(pickFocus); return; }
   if (code === 'ArrowLeft' || code === 'ArrowUp') pickCycleFocus(-1); else if (code === 'ArrowRight' || code === 'ArrowDown') pickCycleFocus(1);
   else if (code === 'Space') togglePick(pickFocus || HERO_IDS[0]); else if (code === 'Tab' || code === 'KeyF') pickTab = 1 - pickTab;
-  else if (code === 'Enter') { if (pickFor === 'duel' && pickOnline) netStartHost(); else if (duelPick.length >= pickNeed()) pickStart(); } else if (code === 'Escape') pickBack();
+  else if (code === 'Enter') { if (rOn()) netRaidStartHost(); else if (pickFor === 'duel' && pickOnline) netStartHost(); else if (duelPick.length >= pickNeed()) pickStart(); } else if (code === 'Escape') pickBack();
 }
 function drawPickOnline() {   // 아래 가운데: 서버 · 방 만들기 · 방 참가 / 방 코드·상태 / 상대 팀(적용 레벨)
   const L = PK.on, busy = !!NET.ws, none = duelPick.length < 1;
@@ -3158,8 +3178,8 @@ function drawPickNew() {
   drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.62)'; ctx.fillRect(0, 0, W, H);
   const duelP = pickFor === 'duel', id = pickFocus, h = HEROES[id], inT = duelPick.indexOf(id), rec = ACC ? heroRec(ACC, id) : { lv: 1, xp: 0 }, lv = rec.lv;
   backBtn(PK.back);
-  const ttl = pickFor === 'raid' ? '레이드  ·  ' + RAID_CFG[raidBossId].name : pickFor === 'duel' ? '비무장 모드 (' + (pickOnline ? '온라인' : '오프라인') + ')' : '로그라이크  ·  W' + waveSel + '부터';
-  text(ttl, 90, 40, 24, '#ffd34d', 'left'); text('장수 선택  —  최대 3명 · ' + (pickFor === 'yeonui' ? '선택한 순서대로 시작 영웅과 태그(Z/X/C)' : '첫 번째 영웅을 직접 조작, 나머지는 AI 동료') + (pickFor === 'duel' && pickOnline ? '  ·  같은 영웅이 양 팀에 있으면 낮은 쪽 레벨로 맞춰 적용' : ''), 90, 62, 13, '#cfd3e6', 'left', false);
+  const ttl = pickFor === 'raid' ? '레이드' + (pickOnline ? ' (온라인)' : '') + '  ·  ' + RAID_CFG[raidBossId].name : pickFor === 'duel' ? '비무장 모드 (' + (pickOnline ? '온라인' : '오프라인') + ')' : '로그라이크  ·  W' + waveSel + '부터';
+  text(ttl, 90, 40, 24, '#ffd34d', 'left'); text(rOn() ? '장수 선택  —  파티원마다 1명씩 · 같은 영웅은 중복 선택 불가 · 각자 자기 영웅을 직접 조작' : '장수 선택  —  최대 3명 · ' + (pickFor === 'yeonui' ? '선택한 순서대로 시작 영웅과 태그(Z/X/C)' : '첫 번째 영웅을 직접 조작, 나머지는 AI 동료') + (pickFor === 'duel' && pickOnline ? '  ·  같은 영웅이 양 팀에 있으면 낮은 쪽 레벨로 맞춰 적용' : ''), 90, 62, 13, '#cfd3e6', 'left', false);
   // 왼쪽 영웅 목록
   HERO_IDS.forEach((hid, i) => {
     const r = PK.list(i), hh = HEROES[hid], foc = hid === id, k = duelPick.indexOf(hid), rc = ACC ? heroRec(ACC, hid) : { lv: 1 };
@@ -3167,13 +3187,14 @@ function drawPickNew() {
     ctx.save(); ctx.beginPath(); ctx.arc(r.x + 40, r.y + 36, 26, 0, TAU); ctx.clip(); ctx.translate(r.x + 40, r.y + 40); ctx.scale(0.9, 0.9); drawPortraitIcon(hh, 0, 0); ctx.restore(); ctx.strokeStyle = '#d4a73a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(r.x + 40, r.y + 36, 26, 0, TAU); ctx.stroke();
     text(PC_NAME[hid], r.x + 76, r.y + 32, 18, foc ? '#ffe9a0' : '#fff', 'left'); text('Lv ' + rc.lv, r.x + 76, r.y + 54, 13, rc.lv >= MAX_LV ? '#ffd34d' : '#9dff9d', 'left', false);
     if (k >= 0) { ctx.fillStyle = k === 0 ? '#ffd34d' : '#4fb0ff'; circle(r.x + r.w - 20, r.y + 20, 14); text(String(k + 1), r.x + r.w - 20, r.y + 26, 17, '#111', 'center'); }
+    if (rOn() && netRaidTaken(hid)) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(r.x, r.y, r.w, r.h); text('선택됨', r.x + r.w - 10, r.y + r.h - 10, 12, '#ff9a8a', 'right'); }
   });
   // 가운데 영웅
   { const fx0 = 432, fy0 = 500, sp = ctx.createRadialGradient(fx0, fy0 + 8, 10, fx0, fy0 + 8, 200); sp.addColorStop(0, 'rgba(255,214,140,.4)'); sp.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = sp; ctx.save(); ctx.translate(fx0, fy0 + 8); ctx.scale(1, 0.26); ctx.translate(-fx0, -(fy0 + 8)); ctx.fillRect(fx0 - 220, fy0 - 220, 440, 440); ctx.restore();
     ctx.save(); ctx.translate(fx0, fy0); const sc = h.mounted ? 1.8 : 2.2; ctx.scale(sc, sc); drawCardFigure(h, 0, 0); ctx.restore();
     for (const [b, d] of [[PK.arrL, -1], [PK.arrR, 1]]) { ctx.fillStyle = 'rgba(10,8,20,.55)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(b.x + b.w / 2 - d * 6, b.y + 26); ctx.lineTo(b.x + b.w / 2 + d * 6, b.y + b.h / 2); ctx.lineTo(b.x + b.w / 2 - d * 6, b.y + b.h - 26); ctx.stroke(); }
     if (inT >= 0) { ctx.fillStyle = inT === 0 ? '#ffd34d' : '#4fb0ff'; ctx.fillRect(fx0 - 56, 112, 112, 30); text((inT + 1) + '번  ' + pickSlotLabels()[inT], fx0, 133, 15, '#111', 'center'); }
-    const t = PK.toggle; ctx.fillStyle = inT >= 0 ? 'rgba(60,18,18,.9)' : 'rgba(18,40,24,.9)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeStyle = inT >= 0 ? '#ff9a8a' : '#7dff9a'; ctx.lineWidth = 2.5; ctx.strokeRect(t.x, t.y, t.w, t.h); text(inT >= 0 ? '파티에서 제외' : duelPick.length >= 3 ? '파티가 가득 찼습니다 (3/3)' : '파티에 추가', t.x + t.w / 2, t.y + 30, 19, inT >= 0 ? '#ff9a8a' : duelPick.length >= 3 ? '#8a90a6' : '#7dff9a', 'center'); }
+    const t = PK.toggle; ctx.fillStyle = inT >= 0 ? 'rgba(60,18,18,.9)' : 'rgba(18,40,24,.9)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeStyle = inT >= 0 ? '#ff9a8a' : '#7dff9a'; ctx.lineWidth = 2.5; ctx.strokeRect(t.x, t.y, t.w, t.h); const tk = rOn() && inT < 0 && netRaidTaken(id); text(rOn() ? (inT >= 0 ? '선택 해제' : tk ? '다른 파티원이 고른 장수입니다' : '이 장수로 참가') : inT >= 0 ? '파티에서 제외' : duelPick.length >= 3 ? '파티가 가득 찼습니다 (3/3)' : '파티에 추가', t.x + t.w / 2, t.y + 30, 19, inT >= 0 ? '#ff9a8a' : tk || (!rOn() && duelPick.length >= 3) ? '#8a90a6' : '#7dff9a', 'center'); }
   // 오른쪽 정보 패널
   { const p = PK.panel; ctx.fillStyle = 'rgba(14,10,26,.9)'; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.strokeStyle = 'rgba(255,211,77,.55)'; ctx.lineWidth = 2; ctx.strokeRect(p.x, p.y, p.w, p.h);
     text(PC_NAME[id], p.x + 22, p.y + 44, 32, '#ffe9a0', 'left'); text('Lv ' + lv, p.x + p.w - 22, p.y + 44, 30, lv >= MAX_LV ? '#ffd34d' : '#9dff9d', 'right'); text(GROWTH[id].theme, p.x + 22, p.y + 68, 14, '#ffb27a', 'left', false);
@@ -3193,17 +3214,18 @@ function drawPickNew() {
   }
   // 아래: 파티 슬롯 + 시작
   ctx.fillStyle = 'rgba(8,6,18,.82)'; ctx.fillRect(0, 590, W, H - 590); ctx.fillStyle = 'rgba(255,211,77,.5)'; ctx.fillRect(0, 590, W, 2);
-  for (let i = 0; i < 3; i++) {
+  if (rOn()) drawRaidSlots(); else for (let i = 0; i < 3; i++) {
     const r = PK.slot(i), hid = duelPick[i], lab = pickSlotLabels()[i]; ctx.fillStyle = hid ? 'rgba(30,24,44,.92)' : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = hid ? (i === 0 ? '#ffd34d' : '#4fb0ff') : 'rgba(255,255,255,.25)'; ctx.lineWidth = hid ? 2.5 : 1.5; if (!hid) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
     text(String(i + 1) + '  ' + lab, r.x + 10, r.y + 20, 12, i === 0 ? '#ffd34d' : '#9ad4ff', 'left');
     if (hid) { ctx.save(); ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 54, 22, 0, TAU); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + 58); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[hid], 0, 0); ctx.restore(); text(PC_NAME[hid] + '  Lv ' + (ACC ? heroRec(ACC, hid).lv : 1), r.x + r.w / 2, r.y + 92, 13, '#fff', 'center', false); }
     else text('+', r.x + r.w / 2, r.y + 66, 38, 'rgba(255,255,255,.3)', 'center');
   }
-  if (duelP && pickOnline) drawPickOnline();
+  if (rOn()) drawPickRaidOnline();
+  else if (duelP && pickOnline) drawPickOnline();
   else if (duelP) { foeSync(); text('상대 (AI)', 560, 624, 12, '#ff9a8a', 'left'); duelFoes.forEach((fid, i) => { const x = 590 + i * 70; ctx.save(); ctx.beginPath(); ctx.arc(x, 664, 22, 0, TAU); ctx.clip(); ctx.translate(x, 668); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[fid], 0, 0); ctx.restore(); ctx.strokeStyle = '#ff6a5a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, 664, 22, 0, TAU); ctx.stroke(); text('Lv ' + (ACC ? heroRec(ACC, fid).lv : 1), x, 702, 11, '#cfd3e6', 'center', false); }); if (!duelFoes.length) text('영웅을 고르면 상대 팀이 표시됩니다', 560, 664, 13, '#8a90a6', 'left', false); }
   else text(pickFor === 'raid' ? '보스 : ' + RAID_CFG[raidBossId].name + (raidBossId === 'dianBoss' ? ' (5단계)' : ' (8단계)') : '시작 웨이브 W' + waveSel, 560, 650, 15, '#ffb27a', 'left', false);
-  { const g = PK.go, on = duelP && pickOnline, ok = on ? (NET.role === 'host' && NET.paired && netReady()) : duelPick.length >= pickNeed(); ctx.globalAlpha = ok ? 1 : 0.4; ctx.fillStyle = 'rgba(80,24,18,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3.5; ctx.strokeRect(g.x, g.y, g.w, g.h);
-    text(on ? (NET.role === 'guest' && NET.paired ? '방장 대기 중' : '대전 시작') : duelP ? '전투 시작' : pickFor === 'raid' ? '레이드 시작' : '출전', g.x + g.w / 2, g.y + 40, 30, '#ffe9a0', 'center'); text(duelPick.length + ' / 3 선택  ·  Enter', g.x + g.w / 2, g.y + 68, 13, '#ffd9a0', 'center', false); ctx.globalAlpha = 1; }
+  { const g = PK.go, on = (duelP || rOn()) && pickOnline, ok = rOn() ? netRaidCanStart() : on ? (NET.role === 'host' && NET.paired && netReady()) : duelPick.length >= pickNeed(); ctx.globalAlpha = ok ? 1 : 0.4; ctx.fillStyle = 'rgba(80,24,18,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3.5; ctx.strokeRect(g.x, g.y, g.w, g.h);
+    text(rOn() ? (NET.role === 'guest' ? '방장 대기 중' : '레이드 시작') : on ? (NET.role === 'guest' && NET.paired ? '방장 대기 중' : '대전 시작') : duelP ? '전투 시작' : pickFor === 'raid' ? '레이드 시작' : '출전', g.x + g.w / 2, g.y + 40, 30, '#ffe9a0', 'center'); text((rOn() ? '파티 ' + netRaidCount() + ' / 3' : duelPick.length + ' / 3 선택') + '  ·  Enter', g.x + g.w / 2, g.y + 68, 13, '#ffd9a0', 'center', false); ctx.globalAlpha = 1; }
 }
 function drawPick() {
   if (newPickUI()) { drawPickNew(); return; }
@@ -3252,7 +3274,7 @@ function drawPick() {
     else { foeSync(); drawFoeRow({ x: 24, y: pickGoRect().y + 60, w: 1232, h: pickFold ? 112 : 60 }, '상대 팀 (AI)', '같은 영웅은 내 레벨', duelFoes, id => ACC ? heroRec(ACC, id).lv : 1, null, '영웅을 고르면 상대 팀이 표시됩니다'); }
   } else text('카드를 누르면 선택 / 해제됩니다 · 선택한 순서가 곧 시작 영웅과 태그 순서입니다', W / 2, pickGoRect().y + 76, 14, '#cfd3e6', 'center', false);
 }
-function restartMode() { if (NET.on) { netBackToRoom(); return; } if (mode === 'duel') { duelFoes = []; startDuel(duelLast); } else if (RAID) startRaid(RAID_HEROES); else startGame(null, lastStartWave); }
+function restartMode() { if (NET.on) { if (NET.raid) netRaidBackToRoom(); else netBackToRoom(); return; } if (mode === 'duel') { duelFoes = []; startDuel(duelLast); } else if (RAID) startRaid(RAID_HEROES); else startGame(null, lastStartWave); }
 
 // ---------- AI 스킬 세트 (플레이어와 같은 수치, 시간은 실제 초 = 행동 시간 / 행동 속도) ----------
 function comboDef(hero, stage) {
@@ -3547,7 +3569,7 @@ function runAct(f, dt) {
   if (a.t >= def.dur) endAct(f);
 }
 function updateFighter(f, dt) {
-  const Hf = HEROES[f.hero];
+  const Hf = HEROES[f.hero]; f.bgT = Math.max(0, (f.bgT || 0) - dt);
   f.guardT = Math.max(0, f.guardT - dt); f.ultGuardT = Math.max(0, f.ultGuardT - dt); f.aspdT = Math.max(0, f.aspdT - dt); f.postUltT = Math.max(0, f.postUltT - dt); f.comboBuffT = Math.max(0, f.comboBuffT - dt); f.blessT = Math.max(0, f.blessT - dt); f.undyT = Math.max(0, (f.undyT || 0) - dt); f.floorT = Math.max(0, (f.floorT || 0) - dt);
   if (f.hitsT > 0) { f.hitsT -= dt; if (f.hitsT <= 0) { f.hits = 0; f.hitTier = 0; } }   // 3초간 적중이 없으면 HIT 초기화
   if (f.runT > 0) f.runT = (f.moving || (f.act && f.act.def.name === 'rush')) ? Hf.runDur : Math.max(0, f.runT - dt);   // 질주: 이동 중이거나 돌격 중이면 지속시간 갱신
@@ -3955,8 +3977,9 @@ function update(rdt) {
   if ((state === 'win' || state === 'lose') && !RS.done) settleRun(state);   // 한 판 경험치 정산
   if (state === 'upgrade') { updateUpgrade(rdt); return; }
   if (state === 'title' || state === 'pick' || state === 'account' || state === 'info' || state === 'waves' || state === 'net' || state === 'duelMenu' || state === 'raidMenu' || state === 'raidBoss') return;
-  if (paused) { if (state === 'play' && mode === 'yeonui') { updateCamera(rdt); return; } paused = false; }   // 일시정지: 전투 계산 중단
-  if (NET.on && NET.role === 'guest') { netGuestStep(rdt); updateCamera(rdt); return; }   // 온라인 게스트: 전투 계산 없이 받은 상태만 그림
+  if (paused && !NET.on) { if (state === 'play' && mode === 'yeonui') { updateCamera(rdt); return; } paused = false; }   // 일시정지: 전투 계산 중단
+  else if (paused && state !== 'play') paused = false;   // 온라인: 정지 화면은 확인창일 뿐 전투는 계속
+  if (NET.on && NET.role === 'guest') { if (NET.raid) netRaidGuestStep(rdt); else netGuestStep(rdt); updateCamera(rdt); return; }   // 온라인 게스트: 전투 계산 없이 받은 상태만 그림
   if (hitstop > 0) { hitstop -= rdt; dt = 0; }
   if (NET.on) netHostPre();
   const sub = Math.max(1, Math.ceil(dt / 0.034)); dt /= sub;   // 빠른 배속에서는 한 프레임을 여러 번 나눠 계산 (충돌·판정이 건너뛰지 않게)
@@ -3965,7 +3988,7 @@ function update(rdt) {
     else { winT += dt; }
     updateEnemies(dt); updateProjectiles(dt); updateFx(dt);
   }
-  if (NET.on) netHostPost(rdt);
+  if (NET.on) { if (NET.raid) netRaidHostPost(rdt); else netHostPost(rdt); }
   updateCamera(rdt);
 }
 
@@ -4666,7 +4689,7 @@ function drawTagButtons() {
   });
 }
 function drawHUD() {
-  if (mode === 'duel') { if (NET.on) drawNetHUD(); else drawDuelHUD(); } else if (RAID) drawRaidHUD(); else {
+  if (mode === 'duel') { if (NET.on) drawNetHUD(); else drawDuelHUD(); } else if (RAID) { if (NET.on) drawRaidNetHUD(); else drawRaidHUD(); } else {
   // ===== 영웅 정보 (컴팩트: 가려지는 면적 최소화) =====
   ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(10, 10, 262, 50); ctx.strokeStyle = 'rgba(212,167,58,.8)'; ctx.lineWidth = 1.5; ctx.strokeRect(10, 10, 262, 50);
   ctx.save(); ctx.translate(34, 35); ctx.scale(0.62, 0.62); ctx.beginPath(); ctx.arc(0, 0, 30, 0, TAU); ctx.clip(); drawPortraitIcon(HERO, 0, 0); ctx.restore();
@@ -4740,9 +4763,9 @@ function drawHUD() {
   if (joy) { ctx.globalAlpha = .5; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(joy.cx, joy.cy, 70, 0, TAU); ctx.stroke(); const dx = joy.x - joy.cx, dy = joy.y - joy.cy, l = Math.hypot(dx, dy), k = l > 70 ? 70 / l : 1; circle(joy.cx + dx * k, joy.cy + dy * k, 30); ctx.globalAlpha = 1; }
   for (const b of BTN) drawButton(b);
   drawTagButtons();
-  if (!IS_TOUCH) text(`WASD 이동 · J/클릭 공격 · K ${HERO.skills.s1} · L ${HERO.skills.s2} · ; ${HERO.skills.s3} · Space 회피 · ${mode === 'duel' ? 'Q 조작 변경' : 'Z/X/C 태그'} · T 오토`, 12, H - 8, 12, 'rgba(255,255,255,.7)', 'left', false);
+  if (!IS_TOUCH) text(`WASD 이동 · J/클릭 공격 · K ${HERO.skills.s1} · L ${HERO.skills.s2} · ; ${HERO.skills.s3} · Space 회피 · ${mode === 'duel' ? 'Q 조작 변경' : RAID ? (NET.on ? '온라인 협동' : 'Q 조작 변경') : 'Z/X/C 태그'} · T 오토`, 12, H - 8, 12, 'rgba(255,255,255,.7)', 'left', false);
   else if (clock < 12 && !joy) text('◀ 왼쪽 화면을 누르고 드래그해서 이동', 100, H - 40, 14, 'rgba(255,255,255,.8)', 'left', false);
-  if (auto) text(IS_TOUCH ? 'AUTO 전투 중 — 조이스틱을 움직이면 해제 · 생명력 10% 이하 자동 태그' : 'AUTO 전투 중 — 이동 입력 시 해제 · 생명력 10% 이하 자동 태그', W / 2, H - 44, 14, '#7dff9a', 'center');
+  if (auto) text(RAID ? (IS_TOUCH ? 'AUTO 전투 중 — 조이스틱을 움직이면 해제' : 'AUTO 전투 중 — 이동 입력 시 해제') : IS_TOUCH ? 'AUTO 전투 중 — 조이스틱을 움직이면 해제 · 생명력 10% 이하 자동 태그' : 'AUTO 전투 중 — 이동 입력 시 해제 · 생명력 10% 이하 자동 태그', W / 2, H - 44, 14, '#7dff9a', 'center');
   if (reinforceT > 0 && state === 'play') text(reinforceMsg, W / 2, 168, 26, `rgba(255,214,120,${Math.min(1, reinforceT * 2)})`, 'center');
   // 웨이브 배너
   if (bannerT > 0 && state === 'play') {
@@ -4887,7 +4910,7 @@ function render() {
   if (mode === 'duel' && duel) { if (state === 'win' && winT > 1.0 || state === 'lose' && winT > 0.6) drawOverlay(duel.title, duel.sub, duel.col); }
   else {
     if (state === 'win') { if (winT > 1.2) drawOverlay('VICTORY', (RAID ? TYPES[raidBossId].short : TYPES.boss.short) + '를 쓰러뜨렸습니다!', '#ffd34d'); }
-    if (state === 'lose') { if (RS.exited) drawOverlay('나가기', '지금까지의 경험치를 정산했습니다', '#9ad4ff'); else drawOverlay('DEFEAT', HERO.short + '가 쓰러졌습니다...', '#ff5a5a'); }
+    if (state === 'lose') { if (RS.exited) drawOverlay('나가기', NET.on ? (NET.abortMsg || '전투에서 나갔습니다') : '지금까지의 경험치를 정산했습니다', '#9ad4ff'); else drawOverlay('DEFEAT', NET.raid ? '파티가 모두 쓰러졌습니다...' : HERO.short + '가 쓰러졌습니다...', '#ff5a5a'); }
   }
   if ((state === 'win' && winT > 1.2) || (state === 'lose' && winT > 0.7)) drawXpSummary(); drawDropPanel();   // 이번 판 경험치·레벨업
 }
@@ -4901,37 +4924,41 @@ function render() {
 Object.assign(NET, { team: ['guan'], peerTeam: [], hostTeam: [], guestTeam: [], mine: [], theirs: [], ci: [0, 0], inpH: null, inpG: null, swapT: [0, 0], retry: 0, hb: null, fold: true });
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
 const netNewInp = () => ({ mx: 0, my: 0, h: false, b: { attack: -9, s1: -9, s2: -9, s3: -9, dash: -9 } });
-function netClose() { if (NET.ws) { try { NET.ws.onclose = null; NET.ws.close(); } catch (_) { } } NET.ws = null; NET.open = false; NET.paired = false; NET.code = ''; NET.peerTeam = []; NET.role = null; }
+function netClose() { if (NET.ws) { try { NET.ws.onclose = null; NET.ws.close(); } catch (_) { } } NET.ws = null; NET.open = false; NET.paired = false; NET.code = ''; NET.peerTeam = []; NET.role = null; NET.rr = false; NET.rp = [null, null, null]; NET.slot = 0; }
 function netConnect(then, again) {
-  const keep = NET.retry, role = NET.role; netClose(); NET.role = role; NET.retry = again ? keep : (/^wss:/i.test(NET.url) ? 8 : 0); NET.url = NET.url.trim(); if (!new RegExp('^wss?://', 'i').test(NET.url)) NET.url = 'ws://' + NET.url;   // 앞의 ws:// 를 빼먹어도 보정
+  const keep = NET.retry, role = NET.role, rr = NET.rr; netClose(); NET.role = role; NET.rr = rr; NET.retry = again ? keep : (/^wss:/i.test(NET.url) ? 8 : 0); NET.url = NET.url.trim(); if (!new RegExp('^wss?://', 'i').test(NET.url)) NET.url = 'ws://' + NET.url;   // 앞의 ws:// 를 빼먹어도 보정
   if (location.protocol === 'https:' && new RegExp('^ws://', 'i').test(NET.url)) { NET.status = '이 앱은 보안(https) 방식이라 ws:// 서버에 접속할 수 없습니다 — wss:// 주소를 쓰거나 LAN 테스트용 앱을 설치하세요'; return; }
   NET.status = '서버 연결 중...';
   let ws; try { ws = new WebSocket(NET.url); } catch (e) { NET.status = '서버 주소가 올바르지 않습니다'; return; }
   NET.ws = ws;
   ws.onopen = () => { NET.open = true; NET.retry = 0; NET.status = '서버에 연결됨'; if (then) then(); clearInterval(NET.hb); NET.hb = setInterval(() => netRaw({ t: 'ping' }), 20000); };
   ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch (_) { return; } netOnMsg(m); };
-  ws.onclose = () => { const was = NET.open; clearInterval(NET.hb); if (!was && NET.retry > 0 && NET.ws === ws) { NET.retry--; NET.status = '서버를 깨우는 중... (무료 서버는 처음 접속에 최대 1분 걸립니다)'; setTimeout(() => { if (NET.ws === ws && !NET.open) netConnect(then, true); }, 6000); return; } NET.ws = null; NET.open = false; NET.paired = false; NET.peerTeam = []; NET.status = was ? '서버 연결이 끊어졌습니다' : '서버에 연결하지 못했습니다: ' + NET.url + (IS_TOUCH && /localhost|127.0.0.1/.test(NET.url) ? ' — localhost 는 이 폰 자신입니다. 서버 주소를 눌러 PC 의 IP(예: ws://192.168.1.9:8787)로 바꾸세요' : ' (같은 와이파이·서버 실행·방화벽 확인)'); if (NET.inMatch) netMatchAbort('서버 연결이 끊어졌습니다'); };
+  ws.onclose = () => { const was = NET.open; clearInterval(NET.hb); if (!was && NET.retry > 0 && NET.ws === ws) { NET.retry--; NET.status = '서버를 깨우는 중... (무료 서버는 처음 접속에 최대 1분 걸립니다)'; setTimeout(() => { if (NET.ws === ws && !NET.open) netConnect(then, true); }, 6000); return; } NET.ws = null; NET.open = false; NET.paired = false; NET.peerTeam = []; NET.rp = [null, null, null]; NET.status = was ? '서버 연결이 끊어졌습니다' : '서버에 연결하지 못했습니다: ' + NET.url + (IS_TOUCH && /localhost|127.0.0.1/.test(NET.url) ? ' — localhost 는 이 폰 자신입니다. 서버 주소를 눌러 PC 의 IP(예: ws://192.168.1.9:8787)로 바꾸세요' : ' (같은 와이파이·서버 실행·방화벽 확인)'); if (NET.inMatch) netMatchAbort('서버 연결이 끊어졌습니다'); };
   ws.onerror = () => { };
 }
 const netRaw = o => { if (NET.ws && NET.open) NET.ws.send(JSON.stringify(o)); };
 const netSend = d => netRaw({ t: 'r', d });
-function netCreate() { NET.role = 'host'; netConnect(() => netRaw({ t: 'host' })); NET.role = 'host'; }
-function netJoin(code) { if (!code) return; NET.role = 'guest'; netConnect(() => netRaw({ t: 'join', code })); NET.role = 'guest'; }
+const netSendTo = (slot, d) => netRaw({ t: 'r', d, to: slot });
+function netCreate() { const raid = rOn(); NET.role = 'host'; netConnect(() => netRaw(raid ? { t: 'host', max: 2 } : { t: 'host' })); NET.role = 'host'; NET.rr = raid; NET.slot = 0; }
+function netJoin(code) { if (!code) return; const raid = rOn(); NET.role = 'guest'; netConnect(() => netRaw({ t: 'join', code })); NET.role = 'guest'; NET.rr = raid; }
 function netPromptJoin() { let c = null; try { c = window.prompt('친구에게 받은 방 코드(4글자)를 입력하세요', ''); } catch (_) { } if (c) netJoin(c.trim().toUpperCase()); }
 function netPromptUrl() { let u = null; try { u = window.prompt('중계 서버 주소 (예: wss://내서버.onrender.com 또는 ws://192.168.0.5:8787)', NET.url); } catch (_) { } if (u) { NET.url = u.trim(); try { localStorage.setItem('sgb_net_url', NET.url); } catch (_) { } } }
 function netOnMsg(m) {
-  if (m.t === 'room') { NET.code = m.code; NET.status = '방 코드 ' + m.code + ' — 상대를 기다리는 중'; }
+  if (m.t === 'room') { NET.code = m.code; NET.status = '방 코드 ' + m.code + (NET.rr ? ' — 참가자를 기다리는 중 (최대 3명)' : ' — 상대를 기다리는 중'); }
   else if (m.t === 'err') { NET.status = m.msg; netClose(); }
-  else if (m.t === 'paired') { NET.paired = true; NET.status = '상대와 연결되었습니다'; netSendTeam(); }
+  else if (m.t === 'paired') { if (NET.rr) netRaidPaired(m); else { NET.paired = true; NET.status = '상대와 연결되었습니다'; netSendTeam(); } }
+  else if (m.t === 'party') { if (NET.rr) NET.status = '파티 ' + m.n + '명 입장'; }
   else if (m.t === 'left') {
+    if (NET.rr) { netRaidLeft(m); return; }
     NET.peerTeam = []; NET.paired = false;
     if (NET.inMatch) netMatchAbort('상대가 나갔습니다');
     if (NET.role === 'guest') { NET.status = '방장이 방을 닫았습니다'; netClose(); } else NET.status = '상대가 나갔습니다 — 방 코드 ' + NET.code + ' 로 다시 기다리는 중';
   }
-  else if (m.t === 'm') netOnData(m.d);
+  else if (m.t === 'm') netOnData(m.d, m.from);
 }
-function netOnData(d) {
+function netOnData(d, from) {
   if (!d) return;
+  if (typeof d.k === 'string' && d.k[0] === 'r') { netRaidData(d, from); return; }   // 온라인 레이드 메시지
   if (d.k === 'team') NET.peerLv = d.lv || {};
   if (d.k === 'team') NET.peerTeam = Array.isArray(d.team) ? d.team.filter(id => HEROES[id] && id !== 'lubu2').slice(0, 3) : [];
   else if (d.k === 'start' && NET.role === 'guest' && !NET.inMatch) netBeginGuest(d.ht, d.gt, d.lv);
@@ -4952,10 +4979,10 @@ function netSendTeam() { if (NET.paired) netSend({ k: 'team', team: NET.team, lv
 function netPickToggle(id) { const k = NET.team.indexOf(id); if (k >= 0) NET.team.splice(k, 1); else if (NET.team.length < 3) NET.team.push(id); netSendTeam(); sfx('hit'); }
 function netReady() { return NET.team.length >= 1 && NET.peerTeam.length >= 1; }
 function netStartHost() { if (NET.role !== 'host' || !NET.paired || !netReady()) return; const ht = NET.team.slice(), gt = NET.peerTeam.slice(), lv = netLvTable(ht, gt); netSend({ k: 'start', ht, gt, lv }); netBeginHost(ht, gt, lv); }
-const netAuto = f => !!f.human && (f.team === 'ally' ? auto : NET.autoG);   // 온라인: 사람이 조종하는 영웅이 자동 전투 중인가 (방장 = 내 AUTO / 게스트 = 받은 신호)
-function netResetWorld() {
+const netAuto = f => !!f.human && (NET.raid ? (f.slot === 0 ? auto : !!NET.autoS[f.slot]) : (f.team === 'ally' ? auto : NET.autoG));   // 온라인: 사람이 조종하는 영웅이 자동 전투 중인가 (방장 = 내 AUTO / 게스트 = 받은 신호)
+function netResetWorld(raid) {
   BTN.find(b => b.id === 'auto').y = 375; NET.autoG = false;
-  resetRun(); resetRS(); mode = 'duel'; applyGrowth('duel'); LUBU_FORM = 'lubu'; resetPlayer(); P.dead = true; P.hp = 0; P.act = null;
+  resetRun(); resetRS(); mode = raid ? 'yeonui' : 'duel'; applyGrowth(raid ? 'yeonui' : 'duel'); RAID = !!raid; NET.me = null; NET.fl = []; NET.emap = new Map(); NET.eFull = {}; NET.eLast = {}; NET.enid = 0; NET.inps = [null, null, null]; NET.autoS = [false, false, false]; LUBU_FORM = 'lubu'; resetPlayer(); P.dead = true; P.hp = 0; P.act = null;
   enemies = []; allies = []; projectiles = []; fx = []; dts = []; items = [];
   kills = 0; clock = 0; winT = 0; autoDodgeCd = 0; shake = 0; hitstop = 0; slowT = 0; flashT = 0; tagFx = null; joy = null; auto = false; waveIdx = 0; bannerT = 0; pendingSpawn = false; spawnQ = []; TUT = null;
   for (const k in buf) buf[k] = -9; NET.snaps = []; NET.sfxQ.length = 0; NET.fxSeen = new WeakSet(); NET.dtSeen = new WeakSet(); NET.lastEnd = null; NET.lastNew = null; NET.sendT = 0; NET.inT = 0; NET.aborted = false;
@@ -4972,7 +4999,7 @@ function netBuildTeams(ht, gt, hostSide) {   // 방장 시점: 방장 팀 = 'all
   duel = { stats: {}, order: (hostSide ? ht : gt).slice(), t: DUEL_TIME, t0: 0, swapCd: 0, cyc: 0, foes: NET.theirs.slice(), title: '', sub: '', col: '' };
 }
 const netSide = () => NET.role === 'host' ? 0 : 1;
-const netCur = () => NET.mine[NET.ci[netSide()]] || NET.mine[0];
+const netCur = () => NET.raid ? NET.me : NET.mine[NET.ci[netSide()]] || NET.mine[0];
 function netBeginHost(ht, gt, lv) {
   NET.lv = lv; NET.on = true; NET.role = 'host'; NET.inMatch = true; selHero = ht[0]; netResetWorld(); applyHero(); P.dead = true;
   netBuildTeams(ht, gt, true);
@@ -4993,7 +5020,7 @@ function netSetCtl(side, idx) {   // 한 팀에서 사람이 조종하는 영웅
   for (const k in inp.b) inp.b[k] = -9;
   f.human = true; f.inp = inp; NET.ci[side] = idx; NET.swapT[side] = 1.0; ring(f.x, f.y, 90, 0.4, side === 0 ? '#4fb0ff' : '#ff9a6a', 8); sfx('skill'); return true;
 }
-function netSwap(i) { if (NET.role === 'host') netSetCtl(0, i); else if (NET.mine[i] && !NET.mine[i].dead) netSend({ k: 'sw', i }); }
+function netSwap(i) { if (NET.raid) return; if (NET.role === 'host') netSetCtl(0, i); else if (NET.mine[i] && !NET.mine[i].dead) netSend({ k: 'sw', i }); }
 function netCycle() { const n = NET.mine.length, c = NET.ci[netSide()]; for (let k = 1; k < n; k++) { const i = (c + k) % n; if (NET.mine[i] && !NET.mine[i].dead) return netSwap(i); } }
 function netSyncP() {   // 조작·버튼 HUD 가 쓰는 P 를 지금 조종 중인 영웅에 맞춰 둔다 (P 는 그려지지 않는 허수)
   const f = netCur(); if (!f) return;
@@ -5001,7 +5028,7 @@ function netSyncP() {   // 조작·버튼 HUD 가 쓰는 P 를 지금 조종 중
   P.act = f.act && f.act.def.name === 'atk' ? { type: 'atk', c: f.combo } : null; P.comboT = f.comboT; P.combo = f.combo; P.hits = 0;
   if (!HERO || HERO.id !== f.hero) { HERO = HEROES[f.hero]; curHero = pcId(f.hero); applyLabels(); P.dead = true; P.hp = f.hp; P.maxhp = f.maxhp; }
 }
-function netLocalInp() { const m = manualMove(), b = []; for (const n of ['attack', 's1', 's2', 's3', 'dash']) if (want(n)) { use(n); b.push(n); } return { mx: m.mx, my: m.my, h: attackHeld(), b }; }
+function netLocalInp() { if (paused) return { mx: 0, my: 0, h: false, b: [] }; const m = manualMove(), b = []; for (const n of ['attack', 's1', 's2', 's3', 'dash']) if (want(n)) { use(n); b.push(n); } return { mx: m.mx, my: m.my, h: attackHeld(), b }; }
 const nq = v => Math.abs(v) < 10 ? Math.round(v * 100) / 100 : Math.round(v * 10) / 10, q4 = v => Math.round(v * 4) / 4;   // 숫자 반올림 / 0.25 단위 양자화 (바뀌는 횟수를 줄여 전송량 절약)
 function netEv(e) { const o = {}; for (const k in e) { const v = e[k]; if (typeof v === 'number') o[k] = nq(v); else if (typeof v === 'boolean' || typeof v === 'string') o[k] = v; } return o; }
 function netActOut(f) {   // 동작: 새 동작이면 정의(def·ev)를 한 번만 보내고, 그 뒤에는 id·진행 시간·완료한 이벤트 비트마스크만
@@ -5014,7 +5041,7 @@ function netActOut(f) {   // 동작: 새 동작이면 정의(def·ev)를 한 번
 }
 function netFighterFull(f) {   // 바뀌는 값은 거칠게 양자화해서 변화량(전송량)을 줄인다
   return { hero: f.hero, x: r1(f.x), y: r1(f.y), face: r2(f.face), hp: Math.round(f.hp), maxhp: f.maxhp, rage: Math.round(f.rage), cs1: q4(f.cd.s1), cs2: q4(f.cd.s2), dc: q4(f.dashCd), state: f.state, t: r1(f.t), dead: !!f.dead, flash: f.flash > 0 ? 1 : 0, hitT: r1(f.hitT), hitAng: r1(f.hitAng), hitMag: f.hitMag, walk: r1(f.walk), moving: !!f.moving, dashing: !!f.dashing, invT: f.invT > 0 ? 1 : 0, armor: !!f.armor, mounted: !!f.mounted,
-    guardT: q4(f.guardT), ultGuardT: q4(f.ultGuardT), runT: q4(f.runT), aspdT: q4(f.aspdT), postUltT: q4(f.postUltT), comboBuffT: q4(f.comboBuffT), blessT: q4(f.blessT), undyT: q4(f.undyT || 0), floorT: q4(f.floorT || 0), lungeT: f.lungeT > 0 ? 1 : 0, combo: f.combo, comboT: q4(f.comboT), hits: f.hits };
+    guardT: q4(f.guardT), ultGuardT: q4(f.ultGuardT), runT: q4(f.runT), aspdT: q4(f.aspdT), postUltT: q4(f.postUltT), comboBuffT: q4(f.comboBuffT), blessT: q4(f.blessT), undyT: q4(f.undyT || 0), floorT: q4(f.floorT || 0), slowT: q4(f.slowT || 0), drN: f.drN || 0, drT: q4(f.drT || 0), drBusy: q4(f.drBusy || 0), lungeT: f.lungeT > 0 ? 1 : 0, combo: f.combo, comboT: q4(f.comboT), hits: f.hits };
 }
 function netFighterDelta(f, i) {   // 이전에 보낸 값과 다른 항목만 (첫 전송은 전부) + 동작은 항상
   const full = netFighterFull(f), prev = NET.lastOut[i] || {}, d = {}; for (const k in full) if (full[k] !== prev[k]) d[k] = full[k];
@@ -5053,14 +5080,16 @@ function humanFighter(f, dt, tgt) {   // 사람이 조종하는 파이터: AI �
   if (ml > 0.2) { f.moving = true; f.x += mvx * sp * dt; f.y += mvy * sp * dt; f.walk += dt * 12 * Math.min(1, ml); }
 }
 function netMatchAbort(msg) {   // 상대가 나가거나 연결이 끊김: 남은 사람이 승리 처리
-  if (!NET.inMatch || NET.aborted) return; NET.aborted = true;
+  if (!NET.inMatch || NET.aborted) return;
+  if (NET.raid) { if (NET.role === 'host') { NET.status = '서버 연결이 끊어졌습니다 — 혼자 계속 진행합니다'; return; } NET.aborted = true; NET.abortMsg = msg; if (state === 'play') { RS.exited = true; state = 'lose'; winT = 0; } return; }   // 레이드: 방장 연결이 끊긴 게스트는 전투 종료 (방장은 혼자 계속)
+  NET.aborted = true;
   if (state === 'play' && duel) { state = 'win'; winT = 0; duel.title = 'VICTORY'; duel.sub = msg + ' — 부전승'; duel.col = '#ffd34d'; duel.netFix = true; }
 }
 function netBackToRoom() {   // 결과 화면 -> 대기실 (연결이 살아 있으면 팀을 다시 고르고 방장이 다시 시작)
   NET.on = false; NET.inMatch = false; NET.lv = null; netResetWorld(); P.dead = false; P.hp = P.maxhp; allies = []; enemies = []; duel = null; mode = 'duel'; pickFor = 'duel'; pickOnline = true; duelPick = NET.team; state = 'pick';
   if (NET.paired) netSendTeam(); else if (!NET.ws) NET.status = '연결이 끊어졌습니다 — 다시 방을 만들거나 참가하세요';
 }
-function netLeave() { netClose(); NET.on = false; NET.inMatch = false; NET.lv = null; NET.status = ''; netResetWorld(); P.dead = false; allies = []; enemies = []; duel = null; state = 'title'; }
+function netLeave() { netClose(); NET.on = false; NET.inMatch = false; NET.raid = false; NET.eqf = null; NET.lv = null; NET.status = ''; NET.abortMsg = ''; netResetWorld(); P.dead = false; allies = []; enemies = []; duel = null; paused = false; state = 'title'; }
 // ---- 게스트: 받은 스냅샷을 약 0.1초 늦춰 보간해서 반영 ----
 function netGuestStep(rdt) {
   const S = NET.snaps; if (!S.length) return;
@@ -5089,9 +5118,9 @@ function netGuestStep(rdt) {
   netSyncP(); updateFx(rdt); netGuestIn(rdt);
 }
 function netGuestIn(rdt) {   // 게스트 입력 전송 (버튼은 즉시, 이동은 30회/초)
-  const li = netLocalInp(); if (auto && Math.hypot(li.mx, li.my) > 0.3) { auto = false; netSend({ k: 'auto', on: false }); }
+  const li = netLocalInp(); if (auto && Math.hypot(li.mx, li.my) > 0.3) { auto = false; netSend({ k: NET.raid ? 'rauto' : 'auto', on: false }); }
   NET.inT -= rdt; if (!li.b.length && NET.inT > 0 && !li.h) return false; NET.inT = 0.033;
-  netSend({ k: 'in', mx: r2(li.mx), my: r2(li.my), h: li.h, b: li.b }); return true;
+  netSend({ k: NET.raid ? 'rin' : 'in', mx: r2(li.mx), my: r2(li.my), h: li.h, b: li.b }); return true;
 }
 // ---- 화면 ----
 function drawNetHUD() {
@@ -5114,6 +5143,194 @@ function drawNetHUD() {
   text(String(mm).padStart(2, '0') + ' : ' + String(ss).padStart(2, '0'), W / 2, 35, 22, urgent ? '#ff8a7a' : '#fff', 'center');
   text('온라인 ' + NET.mine.length + ' VS ' + NET.theirs.length + ' · ' + (NET.role === 'host' ? '방장' : '게스트'), W / 2, 60, 12, '#cfd3e6', 'center', false);
   if (duel.t0 < 2.4 && state === 'play') { const al = clamp(Math.min(duel.t0, 2.4 - duel.t0) * 3, 0, 1); ctx.globalAlpha = al; text('FIGHT!', W / 2, 300, 72, '#ffd34d', 'center'); ctx.globalAlpha = 1; }
+}
+
+// ===================================================================
+// 온라인 레이드 (협동 · 방장 1 + 참가자 최대 2, 각자 장수 1명만 조작)
+//  - 방장(host)이 레이드 전투 전체(보스·부하·모든 PC)를 계산한다. 모든 파티원은 '파이터' PC 이고, 각자 자기 영웅 1명을 입력으로 조작한다 (조작 영웅 변경·태그 없음).
+//  - 참가자(guest)는 입력만 보내고, 방장이 20회/초로 보내는 상태(PC·보스·부하·투사체·이펙트)를 약 0.1초 늦춰 보간해서 그린다.
+//  - 레벨·장비는 각자의 계정 값을 방장에게 보내 적용한다 (같은 영웅은 파티에서 중복 선택 불가). 경험치·장비는 각자 자기 계정에 저장된다.
+//  - 보스 체력은 파티 인원에 맞춰 조정한다 (1명 x0.5 · 2명 x0.75 · 3명 x1.0).
+// ===================================================================
+const ONL_HP = [0, 0.5, 0.75, 1];
+Object.assign(NET, { rr: false, slot: 0, rp: [null, null, null], me: null, fl: [], emap: new Map(), eFull: {}, eLast: {}, enid: 0, inps: [null, null, null], autoS: [false, false, false], eqf: null, raid: false, myHero: null, abortMsg: '', pl: [] });
+const netMyEq = id => { const o = equipRaw(id); return { hp: Math.round(o.hp), atk: +o.atk.toFixed(1), def: +o.def.toFixed(1) }; };
+function netRaidEntry0() { const h = duelPick[0] || null; return { hero: h, lv: h ? (netMyLv()[h] || 1) : 1, eq: h ? netMyEq(h) : null }; }   // 내 선택
+const netRaidView = () => { const v = NET.rp.slice(); if (NET.role === 'host' || !NET.ws) v[0] = netRaidEntry0(); else if (NET.slot > 0 && NET.paired) v[NET.slot] = netRaidEntry0(); return v; };   // 슬롯 0~2 의 파티원 (방장 · 참가자 1 · 참가자 2)
+const mySlot = () => NET.role === 'guest' ? NET.slot : 0;
+const netRaidTaken = id => netRaidView().some((e, s) => e && e.hero === id && s !== mySlot());
+const netRaidCount = () => netRaidView().filter(Boolean).length;
+const netRaidCanStart = () => NET.role === 'host' && !!NET.ws && NET.open && !!NET.code && netRaidView().every(e => !e || e.hero);
+function netRaidBroadcast() { if (NET.role === 'host' && NET.ws && NET.paired) netSend({ k: 'rparty', boss: raidBossId, list: netRaidView() }); }
+function netRaidSendMine() { const e = netRaidEntry0(); netSend({ k: 'rteam', hero: e.hero, lv: e.lv, eq: e.eq }); }
+function netRaidMine() { if (!NET.ws) return; if (NET.role === 'host') netRaidBroadcast(); else if (NET.paired) netRaidSendMine(); }   // 내 선택이 바뀜
+function netRaidPaired(m) {
+  if (NET.role === 'host') { NET.paired = true; NET.rp[m.slot] = { hero: null, lv: 1, eq: null }; NET.status = '참가자가 입장했습니다 — 파티 ' + m.n + '명'; netRaidBroadcast(); }
+  else { NET.paired = true; NET.slot = m.slot; NET.status = '방에 입장했습니다 (참가자 ' + m.slot + ') — 장수를 고르세요'; netRaidSendMine(); }
+}
+function netRaidLeft(m) {
+  if (NET.role === 'host') {
+    NET.rp[m.slot] = null; NET.paired = NET.rp.some(Boolean);
+    if (NET.inMatch) { const f = allies.find(a => a.slot === m.slot); if (f) { f.human = false; f.inp = null; dmgText(f.x, f.y - 100, '연결 끊김 (AI)', '#ff9a8a', 20); } }
+    else { NET.status = '참가자가 나갔습니다 — 파티 ' + netRaidCount() + '명'; netRaidBroadcast(); }
+  } else {   // 방장이 방을 닫음
+    if (NET.inMatch) { netMatchAbort('방장이 나갔습니다'); if (NET.ws) { try { NET.ws.onclose = null; NET.ws.close(); } catch (_) { } } NET.ws = null; NET.open = false; NET.paired = false; clearInterval(NET.hb); }
+    else { NET.status = '방장이 방을 닫았습니다'; netClose(); }
+  }
+}
+function netRaidData(d, from) {
+  if (d.k === 'rteam' && NET.role === 'host' && from) {
+    const h = HEROES[d.hero] && d.hero !== 'lubu2' ? d.hero : null, taken = h && netRaidView().some((e, s) => e && e.hero === h && s !== from), cl = (v, m) => Math.max(0, Math.min(m, +v || 0)), e = d.eq && typeof d.eq === 'object' ? { hp: cl(d.eq.hp, 400), atk: cl(d.eq.atk, 40), def: cl(d.eq.def, 30) } : null;
+    NET.rp[from] = { hero: taken ? null : h, lv: Math.max(1, Math.min(MAX_LV, d.lv | 0 || 1)), eq: e }; netRaidBroadcast();
+  }
+  else if (d.k === 'rparty' && NET.role === 'guest' && (!NET.inMatch || state === 'win' || state === 'lose')) {
+    NET.rp = Array.isArray(d.list) ? d.list.slice(0, 3).map(e => e && typeof e === 'object' ? e : null) : [null, null, null];
+    if (d.boss && RAID_CFG[d.boss]) raidBossId = d.boss;
+    const c = duelPick[0]; if (c && NET.rp.some((e, s) => e && s !== NET.slot && e.hero === c)) { duelPick.length = 0; NET.status = '같은 장수를 먼저 고른 파티원이 있습니다 — 다른 장수를 고르세요'; }
+  }
+  else if (d.k === 'rstart' && NET.role === 'guest' && (!NET.inMatch || state === 'win' || state === 'lose')) netBeginRaidGuest(d);
+  else if (d.k === 'rin' && NET.role === 'host' && NET.inMatch && from && NET.inps[from]) { const i = NET.inps[from]; i.mx = d.mx || 0; i.my = d.my || 0; i.h = !!d.h; for (const n of (d.b || [])) if (n in i.b) i.b[n] = T; }
+  else if (d.k === 'rauto' && NET.role === 'host' && from) NET.autoS[from] = !!d.on;
+  else if (d.k === 'rsnap' && NET.role === 'guest' && NET.inMatch) {
+    d.f = d.f.map((dl, i) => { const F = NET.full[i] || (NET.full[i] = {}), C = NET.acts[i] || (NET.acts[i] = {}); Object.assign(F, dl); if (dl.act && dl.act.def) { C[dl.act.id] = { def: dl.act.def, ev: dl.act.ev }; delete C[dl.act.id - 4]; } return Object.assign({}, F); });
+    d.e = d.e.map(dl => { const F = NET.eFull[dl.i] || (NET.eFull[dl.i] = {}); Object.assign(F, dl); return Object.assign({}, F); });
+    const live = new Set(d.e.map(q => q.i)); for (const k in NET.eFull) if (!live.has(+k)) delete NET.eFull[k];
+    NET.snaps.push({ rt: performance.now(), d }); while (NET.snaps.length > 12) NET.snaps.shift(); if (d.st && d.st !== 'play') NET.lastEnd = d;
+  }
+}
+// ---- 시작 ----
+function netRaidStartHost() {
+  if (NET.role !== 'host') return;
+  if (!netRaidCanStart()) { NET.status = NET.code ? '모든 파티원이 장수를 골라야 시작할 수 있습니다' : '먼저 방을 만드세요'; sfx('hit'); return; }
+  const pl = []; netRaidView().forEach((e, s) => { if (e && e.hero) pl.push({ s, hero: e.hero, lv: e.lv, eq: e.eq }); });
+  netRaw({ t: 'lock', on: true }); netSend({ k: 'rstart', boss: raidBossId, pl }); netBeginRaidHost(pl);
+}
+function netRaidSetup(pl) {
+  NET.raid = true; NET.on = true; NET.inMatch = true; NET.pl = pl; NET.myHero = (pl.find(p => p.s === NET.slot) || pl[0]).hero;
+  NET.lv = {}; NET.eqf = {}; for (const p of pl) { NET.lv[p.hero] = p.lv || 1; NET.eqf[p.hero] = p.eq || { hp: 0, atk: 0, def: 0 }; }
+  selHero = NET.myHero; netResetWorld(true); applyHero(); P.dead = true; P.hp = 0;
+  RAID_HEROES = pl.map(p => p.hero); TEAM = [RAID_HEROES[0]]; RD.order = RAID_HEROES.slice(); duel = null; TUT = null;
+  const pos = [[0, 100], [-130, 170], [130, 170]];
+  allies = pl.map((p, i) => { const f = makeFighter(p.hero, 'ally', WORLD.w / 2 + pos[i][0], WORLD.h / 2 + pos[i][1]); f.slot = p.s; f.face = -Math.PI / 2; f.human = true; return f; });
+  NET.fl = allies; NET.me = allies.find(f => f.slot === NET.slot) || allies[0]; NET.mine = [NET.me]; NET.theirs = []; enemies = [];
+  { const cfg = RAID_CFG[raidBossId] || RAID_CFG.raidBoss; TYPES[raidBossId].hpScale = cfg.hp * ONL_HP[Math.min(3, pl.length)]; RAID_WAVE.spawn = [[raidBossId, 1]]; RAID_WAVE.dmgMul = cfg.dmg; RAID_WAVE.name = 'RAID — ' + cfg.name; }
+  state = 'play'; cam.x = NET.me.x - W / 2; cam.y = NET.me.y - H / 2; netSyncP();
+}
+function netBeginRaidHost(pl) {
+  NET.role = 'host'; NET.slot = 0; netRaidSetup(pl);
+  NET.inpH = netNewInp(); NET.inps[0] = NET.inpH; for (const p of pl) if (p.s > 0) NET.inps[p.s] = netNewInp();
+  for (const f of allies) f.inp = NET.inps[f.slot];
+  beginWave(0);
+}
+function netBeginRaidGuest(d) {
+  if (!Array.isArray(d.pl) || !d.pl.length) return;
+  if (d.boss && RAID_CFG[d.boss]) raidBossId = d.boss;
+  NET.role = 'guest'; netRaidSetup(d.pl.filter(p => HEROES[p.hero]).slice(0, 3));
+}
+function netRaidBackToRoom() {   // 결과 화면 -> 대기실 (같은 방에서 다시 시작)
+  NET.on = false; NET.inMatch = false; NET.raid = false; NET.eqf = null; NET.lv = null; NET.abortMsg = ''; paused = false;
+  netResetWorld(); P.dead = false; P.hp = P.maxhp; allies = []; enemies = []; duel = null; mode = 'yeonui'; applyGrowth('yeonui'); RAID = false; pickFor = 'raid'; pickOnline = true; pickFocus = null; duelPick = NET.myHero ? [NET.myHero] : []; state = 'pick';
+  if (NET.ws && NET.open) { if (NET.role === 'host') { netRaw({ t: 'lock', on: false }); netRaidBroadcast(); } else netRaidSendMine(); }
+  else NET.status = '연결이 끊어졌습니다 — 다시 방을 만들거나 참가하세요';
+}
+// ---- 방장: 매 프레임 끝에서 상태 전송 ----
+const NET_CUR_KEYS = ['kind', 'windup', 'r', 'half', 'len', 'w', 'off', 'n', 'step', 'color', 'tx', 'ty', 'quakeR', 'ult', 'heavy', 'wave', 'rage', 'recover'];
+function netCurOut(c) { const o = {}; for (const k of NET_CUR_KEYS) { const v = c[k]; if (typeof v === 'number') o[k] = nq(v); else if (typeof v === 'boolean' || typeof v === 'string') o[k] = v; } if (Array.isArray(c.shifts)) o.shifts = c.shifts.map(nq); return o; }
+function netEnemyFull(e) {
+  const sw = e.swing, c = e.cur;
+  return { ty: e.type, x: r1(e.x), y: r1(e.y), fc: r2(e.face), hp: Math.round(e.hp), mh: Math.round(e.maxhp), st: e.state, t: r2(e.t), mt: e.mounted ? 1 : 0, lf: Math.round(e.lift || 0), fl: e.flash > 0 ? 1 : 0, ar: e.armor ? 1 : 0, sp: e.spawnT > 0 ? r1(e.spawnT) : 0, wk: r1(e.walk), r: e.r, p2: e.phase2 ? 1 : 0, rg: q4(e.rageT || 0), ft: q4(e.floorT || 0), sl: q4(e.slowT || 0), sg: e.stage || 0, ln: e.lean || 1, dn: e.drN || 0, dT: q4(e.drT || 0), dB: q4(e.drBusy || 0), ut: e.ultT != null ? r2(e.ultT) : -1, sw: sw ? [r2(sw.t), r2(sw.half), Math.round(sw.r)] : 0,
+    cu: c && (e.state === 'wind' || (e.boss && (e.state === 'pause' || e.state === 'recover' || e.state === 'dash'))) ? JSON.stringify(netCurOut(c)) : 0 };
+}
+function netEnemyDelta(e) { const full = netEnemyFull(e), prev = NET.eLast[e.nid] || {}, d = { i: e.nid }; for (const k in full) if (full[k] !== prev[k]) d[k] = full[k]; NET.eLast[e.nid] = full; return d; }
+function netRaidHostPost(rdt) {
+  netSyncP();
+  NET.sendT -= rdt; if (NET.sendT > 0 && state === NET.lastSt) return; NET.sendT = 0.05; NET.lastSt = state;
+  if (!NET.paired) { NET.sfxQ.length = 0; return; }   // 혼자일 때는 보낼 곳이 없다
+  const o = { k: 'rsnap', f: allies.map(netFighterDelta), e: [], pr: [], fx: [], dt: [], sx: [], it: [], sh: r1(shake), fl: r2(flashT), st: state, ck: r1(clock), kl: kills, bn: r2(bannerT), rt: r2(reinforceT), rm: reinforceT > 0 ? reinforceMsg : '', hm: allies.map(f => f.human ? 1 : 0) };
+  const alive = new Set(); for (const e of enemies) { if (e.dead) continue; if (!e.nid) e.nid = ++NET.enid; alive.add(e.nid); o.e.push(netEnemyDelta(e)); }
+  for (const k in NET.eLast) if (!alive.has(+k)) delete NET.eLast[k];
+  for (const p of projectiles) if (o.pr.length < 40) o.pr.push({ x: r1(p.x), y: r1(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, arrow: !!p.arrow, blade: !!p.blade, big: !!p.big, crystal: !!p.crystal, wave: !!p.wave, blue: !!p.blue, life: r2(p.life) });
+  let nsp = 0, nfx = 0; for (const e of fx) if (!NET.fxSeen.has(e)) { NET.fxSeen.add(e); if (e.k === 'spark') { if (nsp++ >= 6) continue; } else if (nfx++ >= 40) continue; o.fx.push(netEv(e)); }
+  for (const e of dts) if (!NET.dtSeen.has(e)) { NET.dtSeen.add(e); if (o.dt.length < 16) o.dt.push(netEv(e)); }
+  for (const it of items) if (o.it.length < 8) o.it.push([it.kind === 'bun' ? 0 : 1, Math.round(it.x), Math.round(it.y), r1(it.life)]);
+  if (state !== 'play') o.rs = { d: RS.dmg, b: RS.boss, k: RS.kills };
+  o.sx = NET.sfxQ.splice(0).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4);
+  netSend(o);
+}
+// ---- 참가자: 받은 스냅샷을 약 0.1초 늦춰 보간해서 반영 ----
+function netGuestEnemies(A, B, u, el) {
+  const d = A.d, list = [], seen = new Set();
+  for (const s of d.e) {
+    let o = NET.emap.get(s.i); if (!o) { o = makeEnemy(s.ty, s.x, s.y); o.nid = s.i; NET.emap.set(s.i, o); }
+    seen.add(s.i);
+    const s2 = B ? B.d.e.find(q => q.i === s.i) : null;
+    o.hp = s.hp; o.maxhp = s.mh; o.state = s.st; o.mounted = !!s.mt; o.lift = s.lf; o.flash = s.fl ? 0.1 : 0; o.armor = !!s.ar; o.spawnT = s.sp; o.walk = s.wk; o.r = s.r; o.phase2 = !!s.p2; o.rageT = s.rg; o.floorT = s.ft; o.slowT = s.sl; o.stage = s.sg; o.lean = s.ln; o.drN = s.dn; o.drT = s.dT; o.drBusy = s.dB; o.ultT = s.ut >= 0 ? s.ut + el : null; o.dead = false;
+    o.swing = s.sw ? { t: s.sw[0] + el, half: s.sw[1], r: s.sw[2] } : null;
+    o.t = s.st === 'stun' || s.st === 'hit' ? Math.max(0, s.t - el) : s.t + el;
+    if (o._cs !== s.cu) { o._cs = s.cu; o.cur = s.cu ? JSON.parse(s.cu) : null; }
+    if (s2) { o.x = s.x + (s2.x - s.x) * u; o.y = s.y + (s2.y - s.y) * u; o.face = s.fc + (((s2.fc - s.fc + Math.PI) % TAU + TAU) % TAU - Math.PI) * u; } else { o.x = s.x; o.y = s.y; o.face = s.fc; }
+    list.push(o);
+  }
+  enemies = list; for (const k of [...NET.emap.keys()]) if (!seen.has(k)) NET.emap.delete(k);
+}
+function netRaidGuestStep(rdt) {
+  const S = NET.snaps; if (!S.length) { netSyncP(); return; }
+  const rt = performance.now() - 120; let ai = 0; for (let i = S.length - 1; i >= 0; i--) if (S[i].rt <= rt) { ai = i; break; }
+  const A = S[ai], B = S[ai + 1] || null, u = B ? clamp((rt - A.rt) / Math.max(1, B.rt - A.rt), 0, 1) : 0, el = Math.max(0, Math.min(0.15, (rt - A.rt) / 1000)), d = A.d;
+  allies.forEach((o, i) => {
+    const s = d.f[i], s2 = B ? B.d.f[i] : null; if (!s) return;
+    const keep = { team: o.team, r: o.r, fighter: true, type: 'fighter', spawnT: 0, meta: o.meta, skills: o.skills, slot: o.slot };
+    Object.assign(o, s, keep); o.cd = { s1: s.cs1, s2: s.cs2 }; o.dashCd = s.dc;
+    if (s2 && s2.hero === s.hero) { o.x = s.x + (s2.x - s.x) * u; o.y = s.y + (s2.y - s.y) * u; o.face = s.face + (((s2.face - s.face + Math.PI) % TAU + TAU) % TAU - Math.PI) * u; }
+    else if (!s2 && ai > 0) { const pv = S[ai - 1].d.f[i], dtp = (A.rt - S[ai - 1].rt) / 1000, ex = Math.min(0.12, (rt - A.rt) / 1000); if (pv && pv.hero === s.hero && dtp > 0.005 && !s.dead) { o.x = s.x + (s.x - pv.x) / dtp * ex; o.y = s.y + (s.y - pv.y) / dtp * ex; } }
+    o.act = null; if (s.act) { const c = (NET.acts[i] || {})[s.act.id]; if (c) { for (let k = 0; k < c.ev.length && k < 30; k++) c.ev[k].done = !!(s.act.dn & (1 << k)); o.act = { def: c.def, t: s.act.t + el, ev: c.ev, rx: s.act.rx, ry: s.act.ry }; } }
+    o.flash = s.flash ? 0.1 : 0; o.invT = s.invT ? 0.1 : 0; o.lungeT = s.lungeT ? 0.1 : 0; o.hitT = Math.max(0, s.hitT - el); o.d = { name: DUEL_NAME[o.hero], hitRec: 0.32 };
+    o.human = !!(d.hm && d.hm[i]);
+  });
+  netGuestEnemies(A, B, u, el);
+  if (NET.lastNew !== A) {   // 새 스냅샷마다 한 번: 이펙트·소리·투사체·타이머·승패
+    NET.lastNew = A;
+    for (const e of d.fx) fx.push(e); for (const e of d.dt) dts.push(e); for (const n of d.sx) sfx(n);
+    shake = Math.max(shake, d.sh * 0.8); flashT = Math.max(flashT, d.fl);
+    projectiles = d.pr.map(p => ({ ...p })); clock = d.ck; kills = d.kl; bannerT = d.bn; reinforceT = d.rt; reinforceMsg = d.rm || reinforceMsg;
+    items = d.it.map(a => ({ kind: a[0] ? 'wine' : 'bun', x: a[1], y: a[2], life: a[3], t: T }));
+  }
+  const ed = NET.lastEnd;
+  if (ed && state === 'play' && S[S.length - 1].d.st !== 'play') { if (ed.rs) { RS.dmg = ed.rs.d || {}; RS.boss = ed.rs.b || 0; RS.kills = ed.rs.k || 0; } state = ed.st; winT = 0; }
+  for (const p of projectiles) { p.x += p.vx * rdt; p.y += p.vy * rdt; }
+  for (const it of items) it.t = T;
+  if (state === 'play') { bannerT = Math.max(0, bannerT - rdt); reinforceT = Math.max(0, reinforceT - rdt); } else winT += rdt;
+  netSyncP(); updateFx(rdt); netGuestIn(rdt);
+}
+// ---- 화면 ----
+function drawRaidNetHUD() {   // 왼쪽: 파티원 목록 (나 = 금색 테두리)
+  allies.forEach((f, i) => {
+    const x = DUEL_ROW.x, y = DUEL_ROW.y + i * DUEL_ROW.step; hudRow(f, f.hero, x, y, true, false);
+    if (f === NET.me) { ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2.5; ctx.strokeRect(x, y, 200, 38); }
+    text(f === NET.me ? '나' : !f.human ? 'AI' : f.slot === 0 ? '방장' : '참가자' + f.slot, x + 194, y + 12, 10, f === NET.me ? '#ffd34d' : '#9ad4ff', 'right');
+  });
+  text('온라인 레이드 · 파티 ' + allies.length + '명 · 각자 1명 조작', 10, 10 + allies.length * 42 + 8, 11, '#cfd3e6', 'left', false);
+}
+function drawRaidSlots() {   // 장수 선택 화면 아래: 파티 슬롯 (방장 · 참가자 1 · 참가자 2)
+  const view = netRaidView();
+  for (let i = 0; i < 3; i++) {
+    const r = PK.slot(i), e = view[i], mine = mySlot() === i, lab = i === 0 ? '방장' : '참가자 ' + i;
+    ctx.fillStyle = e ? 'rgba(30,24,44,.92)' : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = e ? (mine ? '#ffd34d' : '#4fb0ff') : 'rgba(255,255,255,.25)'; ctx.lineWidth = e ? 2.5 : 1.5; if (!e) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
+    text(lab + (mine ? ' (나)' : ''), r.x + 10, r.y + 20, 12, mine ? '#ffd34d' : '#9ad4ff', 'left');
+    if (e && e.hero) { ctx.save(); ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 54, 22, 0, TAU); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + 58); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[e.hero], 0, 0); ctx.restore(); text(PC_NAME[e.hero] + '  Lv ' + e.lv, r.x + r.w / 2, r.y + 92, 13, '#fff', 'center', false); }
+    else if (e) text('장수 선택 중...', r.x + r.w / 2, r.y + 62, 13, '#8a90a6', 'center', false);
+    else text(i === 0 ? '장수를 고르세요' : NET.code ? '대기 중' : '—', r.x + r.w / 2, r.y + 62, 13, 'rgba(255,255,255,.35)', 'center', false);
+  }
+}
+function drawPickRaidOnline() {   // 아래 가운데: 서버 · 방 만들기 · 방 참가 / 방 코드·상태 / 파티·보스
+  const L = PK.on, busy = !!NET.ws, none = duelPick.length < 1;
+  const bx = (r, label, col, dis, sz) => { ctx.globalAlpha = dis ? 0.45 : 1; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h); text(fitStr(label, r.w - 12, sz), r.x + r.w / 2, r.y + r.h / 2 + 5, sz, col, 'center'); ctx.globalAlpha = 1; };
+  bx(L.url, '서버: ' + NET.url.replace(/^wss?:\/\//, ''), '#9ad4ff', busy, 12); bx(L.create, '방 만들기', '#7dff9a', busy || none, 15); bx(L.join, '방 참가', '#4fb0ff', busy || none, 15);
+  if (NET.code) { text('방 코드  ' + NET.code, 530, 662, 21, '#ffd34d', 'left'); if (NET.status) text(fitStr(NET.status, 240, 12), 706, 662, 12, '#ffe9a0', 'left', false); }
+  else text(fitStr(NET.status || '방을 만들거나 친구의 방 코드로 참가하세요', 430, 13), 530, 660, 13, '#ffe9a0', 'left', false);
+  text('파티 ' + netRaidCount() + ' / 3  ·  보스 ' + RAID_CFG[raidBossId].name + (NET.role === 'guest' ? ' (방장이 정함)' : ''), 530, 694, 13, '#ff9a8a', 'left');
+  if (NET.role === 'guest' && NET.paired) text('방장이 레이드를 시작하기를 기다리는 중...', 530, 714, 12, '#ffe9a0', 'left', false);
+  else if (NET.role === 'host' && NET.code) text('모든 파티원이 장수를 고르면 시작할 수 있습니다 (혼자서도 가능)', 530, 714, 12, '#cfd3e6', 'left', false);
 }
 
 // ---------- 루프 ----------
