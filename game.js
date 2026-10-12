@@ -94,6 +94,7 @@ addEventListener('keydown', e => {
   if (paused) { if (e.code === 'KeyP' || e.code === 'Escape' || e.code === 'Enter') closePause(); return; }
   if (!TUT && mode === 'yeonui' && state === 'play' && (e.code === 'KeyP' || e.code === 'Escape')) { openPause('pause'); return; }
   if (TUT && state === 'play') { if (e.code === 'Escape') { tutEnd(true); return; } if (e.code === 'Enter') { tutEvent('ok'); return; } }
+  if (speedCtlOn() && (e.code === 'BracketLeft' || e.code === 'BracketRight')) { speedStep(e.code === 'BracketLeft' ? -1 : 1); return; }   // [ ] : 전투 속도
   if (e.code === 'KeyM' && mode === 'duel') { meterOn = !meterOn; return; }   // 비무장 미터기 접기/펴기
   if (e.code === 'KeyQ' && (mode === 'duel' || RAID) && state === 'play') { if (NET.on) netCycle(); else cycleControl(); return; }   // 비무장 모드: Q = 다음 아군으로 조작 변경
   if (CAM_FREE && (e.code === 'KeyG' || e.code === 'Home')) { centerCam(); return; }   // SC1 식 시점: 영웅 위치로 이동
@@ -155,6 +156,7 @@ cv.addEventListener('pointerdown', e => {
   tryFullscreen(); sfx('enemy');
   const { x, y } = pt(e);
   if (iconTip) { iconTip = null; return; }   // 아이콘 상세 팝업이 열려 있으면 어디를 눌러도 닫기만 한다
+  if (speedTap(x, y)) return;   // 전투 속도 버튼
   { const hit = (state === 'play' || state === 'upgrade') ? ICON_HITS.find(r => inRect(x, y, r)) : null; if (hit) { iconTip = { tip: hit.tip, x: hit.x, y: hit.y, t0: T }; sfx('hit'); return; } }
   if (state === 'account') { accountClick(x, y); return; }
   if (state === 'info') { infoClick(x, y); return; }
@@ -927,6 +929,7 @@ function resetPlayer() {
 }
 let lastStartWave = 0;
 function startGame(team, startWave = 0) {
+  speedIdx = 2;
   lastStartWave = startWave;
   BTN.find(b => b.id === 'auto').y = 375;   // 로그라이크: AUTO 는 HIT 표시와 회피 버튼의 중간 (오른쪽 위에는 정지·나가기 버튼)
   resetRun(); resetRS(); if (team && team.length) TEAM = team.slice(0, 3); selHero = TEAM[0]; LUBU_FORM = 'lubu';
@@ -936,7 +939,8 @@ function startGame(team, startWave = 0) {
   state = 'play';
   if (tutNeeded('yeonui')) tutBegin('yeonui'); else { if (startWave > 0) catchUpUpgrades(startWave); beginWave(startWave); }
 }
-function startRaid(team) {   // 레이드 모드 (오프라인): 1~3명이 태그하며 보스 여포와 싸운다
+function startRaid(team) {
+  speedIdx = 2;   // 레이드 모드 (오프라인): 1~3명이 태그하며 보스 여포와 싸운다
   lastStartWave = 0;
   BTN.find(b => b.id === 'auto').y = 375;
   resetRun(); RAID = true; resetRS(); RAID_HEROES = (team && team.length ? team : TEAM).slice(0, 3); TEAM = [RAID_HEROES[0]]; selHero = TEAM[0]; LUBU_FORM = 'lubu';   // 태그 없음: 조작 PC 1명 + AI PC 최대 2명
@@ -3206,6 +3210,7 @@ function swapControl(f) {
 }
 function cycleControl() { const D = duel || RD, n = allies.length; for (let k = 0; k < n; k++) { const f = allies[(D.cyc++) % n]; if (f && !f.dead) return swapControl(f); } return false; }
 function startDuel(picks) {
+  speedIdx = 2;
   resetRun(); resetRS(); BTN.find(b => b.id === 'auto').y = 375;   // 로그라이크와 같은 위치: HIT 표시와 회피 버튼의 중간
   const shuf = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(v => v[1]), POOL = HERO_IDS.slice();
   const ap = picks && picks.length >= 1 ? picks.slice(0, 3) : shuf(POOL).slice(0, 3), fp = (duelFoes.length === ap.length && duelFoes.every(h => HEROES[h])) ? duelFoes.slice() : shuf(POOL).slice(0, ap.length);   // 아군 = 영웅 선택 화면에서 고른 3명 (첫 번째 = 조작 영웅) / 적 = 같은 3명 (배치 랜덤)
@@ -3780,12 +3785,28 @@ function drawDuelHUD() {
   if (duel.t0 < 2.4 && state === 'play') { const al = clamp(Math.min(duel.t0, 2.4 - duel.t0) * 3, 0, 1); ctx.globalAlpha = al; text('FIGHT!', W / 2, 300, 72, '#ffd34d', 'center'); ctx.globalAlpha = 1; }
 }
 
+// ---------- 전투 속도 조절 ----------
+const SPEEDS = [0.25, 0.5, 1, 2, 3]; let speedIdx = 2;   // 1배속에서 시작 (전투를 시작할 때마다 1배속으로 되돌림)
+const gameSpeed = () => NET.on ? 1 : SPEEDS[speedIdx];
+const SPD = { l: { x: W / 2 - 92, y: H - 50, w: 52, h: 36 }, c: { x: W / 2 - 36, y: H - 50, w: 72, h: 36 }, r: { x: W / 2 + 40, y: H - 50, w: 52, h: 36 } };
+const speedCtlOn = () => state === 'play' && !NET.on && !TUT && !paused;
+function speedStep(d) { const n = clamp(speedIdx + d, 0, SPEEDS.length - 1); if (n !== speedIdx) { speedIdx = n; sfx('hit'); } }
+function speedTap(x, y) { if (!speedCtlOn()) return false; if (inRect(x, y, SPD.l)) { speedStep(-1); return true; } if (inRect(x, y, SPD.r)) { speedStep(1); return true; } if (inRect(x, y, SPD.c)) { if (speedIdx !== 2) { speedIdx = 2; sfx('hit'); } return true; } return false; }
+function drawSpeedCtl() {
+  if (!speedCtlOn()) return; const sp = SPEEDS[speedIdx], slow = sp < 1, fast = sp > 1;
+  const box = (r, col, on) => { ctx.fillStyle = on ? 'rgba(40,34,18,.85)' : 'rgba(10,8,20,.72)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = on ? 2.5 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); };
+  const arrow = (r, d, col, dis) => { ctx.save(); ctx.globalAlpha = dis ? 0.35 : 1; ctx.fillStyle = col; const cx = r.x + r.w / 2, cy = r.y + r.h / 2; for (const o of [-6, 6]) { ctx.beginPath(); ctx.moveTo(cx + o + d * 6, cy); ctx.lineTo(cx + o - d * 5, cy - 8); ctx.lineTo(cx + o - d * 5, cy + 8); ctx.closePath(); ctx.fill(); } ctx.restore(); };
+  box(SPD.l, '#7fb8ff', slow); box(SPD.c, sp === 1 ? 'rgba(255,255,255,.4)' : '#ffd34d', sp !== 1); box(SPD.r, '#ff9a4a', fast);
+  arrow(SPD.l, -1, '#7fb8ff', speedIdx === 0); arrow(SPD.r, 1, '#ff9a4a', speedIdx === SPEEDS.length - 1);
+  text(sp + '배속', SPD.c.x + SPD.c.w / 2, SPD.c.y + 25, 16, sp === 1 ? '#cfd3e6' : '#ffe9a0', 'center');
+}
 // ---------- 메인 업데이트 ----------
 function update(rdt) {
   T += rdt; if (TUT) tutUpdate(rdt);
   if (tagFx) { tagFx.t += rdt; if (tagFx.t >= tagFx.dur) tagFx = null; }
   let dt = rdt;
   if (slowT > 0) { slowT -= rdt; dt *= 0.3; }
+  dt *= gameSpeed();   // 전투 속도 (오프라인 전용)
   shake = Math.max(0, shake - rdt * 40); flashT = Math.max(0, flashT - rdt);
   if ((state === 'win' || state === 'lose') && !RS.done) settleRun(state);   // 한 판 경험치 정산
   if (state === 'upgrade') { updateUpgrade(rdt); return; }
@@ -3794,7 +3815,8 @@ function update(rdt) {
   if (NET.on && NET.role === 'guest') { netGuestStep(rdt); updateCamera(rdt); return; }   // 온라인 게스트: 전투 계산 없이 받은 상태만 그림
   if (hitstop > 0) { hitstop -= rdt; dt = 0; }
   if (NET.on) netHostPre();
-  if (dt > 0) {
+  const sub = Math.max(1, Math.ceil(dt / 0.034)); dt /= sub;   // 빠른 배속에서는 한 프레임을 여러 번 나눠 계산 (충돌·판정이 건너뛰지 않게)
+  for (let k = 0; k < sub; k++) if (dt > 0) {
     if (state === 'play') { clock += dt; updatePlayer(dt); if (mode === 'duel') updateDuel(dt); else { updateWaves(dt); if (RAID) updateRaidAllies(dt); } updateItems(dt); }
     else { winT += dt; }
     updateEnemies(dt); updateProjectiles(dt); updateFx(dt);
@@ -4711,7 +4733,7 @@ function render() {
   if (state === 'raidBoss') { drawRaidBoss(); return; }
   if (state === 'waves') { drawWaves(); return; }
   if (state === 'upgrade') { drawWorld(); drawHUD(); drawUpgrade(); return; }
-  drawWorld(); drawSpeedLines(); drawTagOverlay(); drawHUD(); drawIconTip(); if (state === 'play') { if (MINIMAP_ON) drawMinimap(); drawHeroPointer(); drawTutorial(); }
+  drawWorld(); drawSpeedLines(); drawTagOverlay(); drawHUD(); drawIconTip(); drawSpeedCtl(); if (state === 'play') { if (MINIMAP_ON) drawMinimap(); drawHeroPointer(); drawTutorial(); }
   if (flashT > 0) { ctx.fillStyle = `rgba(255,255,255,${Math.min(0.8, flashT * 2)})`; ctx.fillRect(0, 0, W, H); }
   if (paused && state === 'play') drawPauseOverlay();
   if (mode === 'duel' && duel) { if (state === 'win' && winT > 1.0 || state === 'lose' && winT > 0.6) drawOverlay(duel.title, duel.sub, duel.col); }
