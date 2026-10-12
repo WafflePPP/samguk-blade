@@ -1084,12 +1084,12 @@ function hurtPlayer(dmg, src, bossHit, stunT, rec, kb) {
   // 히트 리커버리: 맞으면 하던 행동이 끊기고 피격 경직 + 넉백. 예외: 회전참 시전 중에는 슈퍼아머(피해만 받음), 청룡의 힘 시전 중에는 무적(위에서 반환)
   const armor = a && (a.type === 's1' || a.type === 'rush' || a.type === 'switch' || a.type === 'bless' || a.type === 'slam' || a.type === 'rain' || a.type === 'crystal' || (a.type === 'atk' && HERO.s1Flurry && a.c === 2));   // 조운 공격 3단(3연속 찌르기)도 슈퍼아머
   const hurtFull = (mode === 'duel' ? 0.32 * (rec || 1) : (dmg >= 100 ? 0.5 : 0.32)) * ((src && src.boss) || bossHit ? BOSS_HIT_RECOVERY_MULT : 1), stunFull = stunT || 0;
-  const drp = (!armor && !(a && a.type === 'stun')) || stunFull ? drTake(P) : 1; stunT = stunFull * drp;   // 상태 이상 점감 (경직·스턴)
-  if (!armor && !(a && a.type === 'stun')) P.act = { type: 'hurt', t: 0, dur: Math.max(0.08, hurtFull * drp) };
+  const hurts = !armor && !(a && a.type === 'stun'), drp = hurts || stunFull ? drTake(P, Math.max(stunFull, hurts ? hurtFull : 0)) : 1; stunT = stunFull * drp;   // 상태 이상 점감 (경직·스턴)
+  if (!armor && !(a && a.type === 'stun') && drp > 0) P.act = { type: 'hurt', t: 0, dur: Math.max(0.08, hurtFull * drp) };
   P.inv = mode === 'duel' ? 0 : armor ? 0.12 : 0.25;   // 비무장 모드: 피격 직후 무적 보정 없음 (AI 와 동일)
   if (src) { const ang = angTo(src, P), k = kb != null ? kb * (armor ? 0.25 : 1) : armor ? 60 : 320; P.kx = Math.cos(ang) * k; P.ky = Math.sin(ang) * k; if (src.freeze !== undefined) src.freeze = Math.max(src.freeze, 0.12); }   // 공격자 역경직
   dmgText(P.x, P.y - 60, dmg, '#ff5a5a', 26); sparks(P.x, P.y - 20, 8, '#ff6a5a', 260);
-  if (stunFull) { P.act = { type: 'stun', t: 0, dur: Math.max(0.1, stunT) }; if (mode !== 'duel') P.inv = Math.max(P.inv, 0.25); dmgText(P.x, P.y - 100, '스턴!' + drTag(drp), '#ffe14a', 28); }
+  if (stunFull && drp > 0) { P.act = { type: 'stun', t: 0, dur: Math.max(0.1, stunT) }; if (mode !== 'duel') P.inv = Math.max(P.inv, 0.25); dmgText(P.x, P.y - 100, '스턴!' + drTag(drp), '#ffe14a', 28); }
   if (mode !== 'duel' && ((src && src.boss) || bossHit)) P.inv = Math.max(P.inv, P.act && (P.act.type === 'hurt' || P.act.type === 'stun') ? (stunFull || hurtFull) : 0.5);   // 보스에게 맞은 경직·스턴 시간 동안은 연계 공격이 겹쳐 맞지 않음 (피격 후 한 대씩만)   // 스턴: 슈퍼아머와 무관, 이동·공격·회피 불가
   if (P.hp <= 0) {
     P.hp = 0;
@@ -1150,11 +1150,18 @@ const comboTier = () => HERO.hitBonus ? (P.hits >= HERO.hitBonus.start ? Math.fl
 const comboPct = () => comboTier() * (HERO.hitBonus ? HERO.hitBonus.per : COMBO_BONUS);   // 공속·피해 증가율 (0.1 = +10%)
 const tierHits = t => HERO.hitBonus ? HERO.hitBonus.start + (t - 1) * HERO.hitBonus.step : t * COMBO_STEP;   // t 단계가 되는 HIT 수
 const comboMul = () => 1 + comboPct();
-// 상태 이상 점감: 경직(히트 리커버리)·스턴·둔화를 맞을 때마다 지속시간 효율이 1~5번째에 100/80/60/40/20% 로 줄고, 5번째부터는 60초 뒤에 초기화된다 (피격자마다 따로)
+// 상태 이상 점감: 횟수는 '타격 수'가 아니라 '상태 이상이 걸린 횟수'다. 경직·스턴·둔화가 걸려 있는 동안 또 맞아도(같은 상태 이상의 연장) 횟수는 오르지 않고,
+//  (걸려 있는 동안의 추가 타격은 상태 이상을 연장하지 않는다) 걸려 있던 상태 이상이 모두 끝난 뒤에 새로 걸릴 때 비로소 다음 횟수가 된다. 1~5번째 지속시간 효율 = 100/80/60/40/20%, 5번째가 시작되면 60초 뒤 횟수가 초기화된다 (피격자마다 따로)
 const DR_STEPS = [1, 0.8, 0.6, 0.4, 0.2], DR_RESET = 60;
-function drTake(u) { const n = u.drN || 0, m = DR_STEPS[Math.min(n, DR_STEPS.length - 1)]; u.drN = n + 1; if (u.drN >= DR_STEPS.length && !(u.drT > 0)) u.drT = DR_RESET; return m; }
-const drPeek = u => DR_STEPS[Math.min(u.drN || 0, DR_STEPS.length - 1)];
-function drTick(u, dt) { if (u.drT > 0) { u.drT -= dt; if (u.drT <= 0) { u.drT = 0; u.drN = 0; } } }
+function drTake(u, base) {   // base = 이번 타격이 거는 상태 이상 중 가장 긴 지속시간(점감 전). 반환 = 이번에 적용할 효율
+  let m;
+  if (u.drBusy > 0) return 0;   // 진행 중인 상태 이상이 있으면 새로 걸리지도, 연장되지도 않는다 (횟수도 오르지 않음)
+  else { const n = u.drN || 0; m = DR_STEPS[Math.min(n, DR_STEPS.length - 1)]; u.drN = n + 1; u.drCur = m; if (u.drN >= DR_STEPS.length && !(u.drT > 0)) u.drT = DR_RESET; }
+  u.drBusy = Math.max(u.drBusy || 0, base * m);
+  return m;
+}
+const drPeek = u => u.drBusy > 0 ? 0 : DR_STEPS[Math.min(u.drN || 0, DR_STEPS.length - 1)];
+function drTick(u, dt) { if (u.drBusy > 0) u.drBusy -= dt; if (u.drT > 0) { u.drT -= dt; if (u.drT <= 0) { u.drT = 0; u.drN = 0; } } }
 const drTag = m => m < 0.999 ? ' (' + Math.round(m * 100) + '%)' : '';
 function hitEnemy(e, dmg, o = {}) {
   if (e.dead || e.spawnT > 0 || e.invT > 0) return false;   // invT: 파이터(비무장 모드)의 무적 시간
@@ -1169,7 +1176,7 @@ function hitEnemy(e, dmg, o = {}) {
   // 기절(stun): 궁극기 전용. 별 표시, 길게 행동 불가. 슈퍼아머(보스)여도 스턴은 항상 적용됨 (슈퍼아머는 일반 타격의 피격 경직만 막음).
   // 피격 경직(hit): 일반 타격. d.hitRec(초) 동안 움찔하며 행동 불가, 슈퍼아머면 없음. 기절 중에는 기절이 우선.
   let stunT = o.stun || 0, recT = e.armor ? 0 : e.d.hitRec * (o.rec || 1) * PLAYER_HIT_RECOVERY_MULT, slowD = o.slow || 0, drm = 1;
-  if (stunT > 0 || recT > 0 || slowD > 0) { drm = drTake(e); stunT *= drm; recT *= drm; slowD *= drm; }   // 상태 이상 점감
+  if (stunT > 0 || recT > 0 || slowD > 0) { drm = drTake(e, Math.max(stunT, recT, slowD)); stunT *= drm; recT *= drm; slowD *= drm; }   // 상태 이상 점감
   if (slowD > 0.05) { e.slowT = Math.max(e.slowT || 0, e.boss ? slowD * 0.6 : slowD); sparks(e.x, e.y + 8, 2, '#9fe8ff', 120, 0.4); }
   e.lean = Math.cos(ang) >= 0 ? 1 : -1;
   if (stunT > 0.05) { if (e.state !== 'stun') dmgText(e.x, e.y - e.r * 3.4, '스턴!' + drTag(drm), '#ffe14a', 24); e.t = e.state === 'stun' ? Math.max(e.t, stunT) : stunT; e.state = 'stun'; e.cur = null; }
@@ -3095,8 +3102,8 @@ function fHit(f, o, amt) {
 function dmgUnit(f, u, dmg, o) {   // f 가 u 에게 dmg 피해 (u = 플레이어 / 아군 AI / 적 AI) — 플레이어 스킬과 같은 피해·밀치기·경직·스턴·분노 규칙
   let landed;
   if (u === P) { if (P.dead) return false; const crit = Math.random() < 0.2 + f.meta.crit, before = P.hp; hurtPlayer(Math.round(dmg * fAtkMul(f) * (crit ? 1.8 + f.meta.critDmg : 1) * rand(0.92, 1.08)), f, false, o.stun || 0, o.rec, o.kb || 0); landed = P.hp < before; }
-  else landed = hitEnemy(u, dmg, { from: f, kb: o.kb || 0, rec: o.rec, stun: o.stun, ai: true, by: f, rage: 0 });
-  if (landed && o.slow) u.slowT = Math.max(u.slowT || 0, o.slow * drPeek(u));
+  else landed = hitEnemy(u, dmg, { from: f, kb: o.kb || 0, rec: o.rec, stun: o.stun, slow: o.slow, ai: true, by: f, rage: 0 });
+  if (landed && o.slow && u === P) P.slowT = Math.max(P.slowT || 0, o.slow * drPeek(P));
   if (landed) fHit(f, o, dmg * fAtkMul(f));
   return landed;
 }
