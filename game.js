@@ -3570,22 +3570,22 @@ function debuffList(u) {
   if ((u.drN || 0) > 0) o.push({ k: 'resist', n: Math.min(u.drN, DR_STEPS.length), t: u.drN >= DR_STEPS.length ? Math.max(0, u.drT || 0) : 0, busy: u.drBusy > 0 });
   return o;
 }
-const DEBUFF_W = 24;
+const DEBUFF_W = 26;
 const BUFF_GLYPH = { wine: '술', hit: '연', guard: '방', ultGuard: '방', run: '질', atk: '공', postAtk: '공', spd: '속', aspd: '속', floor: '불', undy: '광', bless: '복' };   // 버프 아이콘 글자
 function drawIconItems(list, x, y, noLabel) {   // (x, y) 부터 오른쪽으로 21px 아이콘(버프·디버프) + 남은 시간(작은 글씨)
   if (!list.length) return 0;
   list.forEach((d, i) => {
     const ix = x + i * DEBUFF_W, cx = ix + 10, cy = y + 10;
-    const col = d.k === 'buff' ? 'rgb(' + d.rgb + ')' : d.k === 'stun' ? '#ffe14a' : d.k === 'hurt' ? '#ff9a4a' : d.k === 'slow' ? '#7fd0ff' : '#c9a0ff';
+    const col = (d.k === 'buff' || d.k === 'bchip') ? 'rgb(' + d.rgb + ')' : d.k === 'stun' ? '#ffe14a' : d.k === 'hurt' ? '#ff9a4a' : d.k === 'slow' ? '#7fd0ff' : '#c9a0ff';
     ctx.fillStyle = 'rgba(10,12,20,.82)'; ctx.fillRect(ix, y, 21, 21); ctx.strokeStyle = col; ctx.lineWidth = d.k === 'resist' && d.busy ? 2.2 : 1.4; ctx.strokeRect(ix + 0.5, y + 0.5, 20, 20);
     ctx.save(); ctx.translate(cx + 0.5, cy + 0.5); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-    if (d.k === 'buff') { ctx.globalAlpha = 0.3; ctx.fillRect(-8.5, -8.5, 17, 17); ctx.globalAlpha = 1; ctx.font = '800 12px ' + FONT; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(BUFF_GLYPH[d.id] || '+', 0, 4.2); }
+    if (d.k === 'buff' || d.k === 'bchip') { ctx.globalAlpha = 0.3; ctx.fillRect(-8.5, -8.5, 17, 17); ctx.globalAlpha = 1; ctx.font = '800 12px ' + FONT; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(d.g || BUFF_GLYPH[d.id] || '+', 0, 4.2); }
     else if (d.k === 'stun') { ctx.beginPath(); for (let k = 0; k < 10; k++) { const r = k % 2 ? 3.2 : 7.4, a = -Math.PI / 2 + k * Math.PI / 5; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); }   // ★
     else if (d.k === 'hurt') { ctx.fillRect(-1.6, -7, 3.2, 9); ctx.beginPath(); ctx.arc(0, 5.6, 1.9, 0, TAU); ctx.fill(); }   // !
     else if (d.k === 'slow') { for (let k = 0; k < 3; k++) { const a = k * Math.PI / 3; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 7.5, Math.sin(a) * 7.5); ctx.lineTo(-Math.cos(a) * 7.5, -Math.sin(a) * 7.5); ctx.stroke(); } }   // ❄
     else { ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(6, -6); ctx.lineTo(6, 1); ctx.quadraticCurveTo(6, 6, 0, 8); ctx.quadraticCurveTo(-6, 6, -6, 1); ctx.closePath(); ctx.globalAlpha = 0.28; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke(); ctx.font = '800 9px ' + FONT; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(String(d.n), 0, 3.6); }   // 방패 + 횟수
     ctx.restore();
-    const lab = noLabel ? '' : d.k === 'resist' ? (d.t > 0 ? Math.ceil(d.t) + 's' : '') : d.t.toFixed(1);
+    const lab = noLabel ? '' : d.k === 'bchip' ? (d.lab || '') : d.k === 'resist' ? (d.t > 0 ? Math.ceil(d.t) + 's' : '') : d.t.toFixed(1);
     if (lab) { ctx.font = '700 9px ' + FONT; ctx.textAlign = 'center'; ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.strokeText(lab, cx, y + 31); ctx.fillStyle = '#fff'; ctx.fillText(lab, cx, y + 31); ctx.textAlign = 'left'; }
   });
   return list.length * DEBUFF_W;
@@ -4027,11 +4027,11 @@ function drawTopInfo(boss) {
     x += sg.w + gap;
   }
   ctx.restore();
-  if (boss) {   // 2번째 줄: 보스 강화·버프 알약
-    const chips = bossBuffChips(boss).map(c => ({ t: short(c.t), c: c.c }));
-    ctx.save(); ctx.font = '600 11px ' + FONT; const pad = 7, g2 = 5, hh = 18, ws2 = chips.map(c => ctx.measureText(c.t).width + pad * 2), tot2 = ws2.reduce((a, v) => a + v, 0) + g2 * Math.max(0, chips.length - 1); let px = W / 2 - tot2 / 2; const py = 54;
-    chips.forEach((c, i) => { ctx.fillStyle = 'rgba(10,12,20,.78)'; ctx.fillRect(px, py, ws2[i], hh); ctx.strokeStyle = 'rgba(' + c.c + ',.85)'; ctx.lineWidth = 1.2; ctx.strokeRect(px + 0.5, py + 0.5, ws2[i] - 1, hh - 1); ctx.fillStyle = 'rgb(' + c.c + ')'; ctx.textAlign = 'center'; ctx.fillText(c.t, px + ws2[i] / 2, py + 13); px += ws2[i] + g2; });
-    ctx.restore();
+  if (boss) {   // 2번째 줄: 보스가 받은 디버프 + 보스 강화·버프 — 약식 아이콘 (아이콘 아래 = 수치 / 남은 시간)
+    const GL = [[/^강화 (\d+)\/(\d+)/, '강', m => m[1] + '/' + m[2]], [/^피해 (.+)$/, '피', m => m[1]], [/^시전속도 (.+)$/, '속', m => m[1]], [/^스킬 대기 (.+)$/, '쿨', m => m[1]], [/^연속 패턴 (.+)$/, '연', m => m[1]], [/^슈퍼아머/, '갑', () => ''], [/^난이도 (\d+)/, '난', m => m[1]], [/^(\d)페이즈/, '페', m => m[1]]];
+    const bi = bossBuffChips(boss).map(c => { for (const [re, g, f] of GL) { const m = re.exec(c.t); if (m) return { k: 'bchip', g, lab: f(m), rgb: c.c, t: 0 }; } return { k: 'bchip', g: '+', lab: '', rgb: c.c, t: 0 }; });
+    const items = [...debuffList(boss), ...bi], wI = items.length * DEBUFF_W - (DEBUFF_W - 21);
+    drawIconItems(items, W / 2 - wI / 2, 53);
   }
 }
 function drawBossBuffs(b, cx, y) {
