@@ -4005,6 +4005,30 @@ function bossBuffChips(b) {
   const w = curWave(); if (w && w.tier != null) o.push({ t: '난이도 ' + (w.tier + 1) + '단계 (체 x' + w.hpMul.toFixed(1) + ' · 피 x' + w.dmgMul.toFixed(1) + ')', c: '160,200,160' });
   return o;
 }
+// 위 가운데 한 줄 정보: [모드·웨이브] | [보스 이름] [보스 강화·버프 알약] | [처치 · (남은 적) · 시간]
+function drawTopInfo(boss) {
+  const short = t => t.replace('단계', '').replace('시전속도', '시전').replace('스킬 대기', '대기').replace('연속 패턴', '연속').replace(/^난이도 (\d+)단계.*$/, '난이도 $1').replace(/^강화 /, '강화 ');
+  const segs = [];
+  segs.push({ k: 'txt', t: RAID ? '레이드' : '로그라이크 W' + (waveIdx + 1) + '/' + WAVES.length, f: '700 14px ' + FONT, c: '#fff' });
+  if (boss) {
+    segs.push({ k: 'sep' }); segs.push({ k: 'txt', t: boss.d.name, f: '700 15px ' + FONT, c: '#ffe9a0' });
+    for (const c of bossBuffChips(boss)) segs.push({ k: 'pill', t: short(c.t), c: c.c });
+  }
+  segs.push({ k: 'sep' });
+  const w = curWave(), mm = Math.floor(clock / 60), ss = String(Math.floor(clock % 60)).padStart(2, '0');
+  segs.push({ k: 'txt', t: '처치 ' + kills + (w.bossWave ? '' : '  ·  남은 적 ' + (enemies.length + waveLeft())) + '  ·  ' + mm + ':' + ss, f: '600 12px ' + FONT, c: '#cfd3e6' });
+  ctx.save(); const gap = 8, h = 18, y = 13;
+  for (const sg of segs) { ctx.font = sg.k === 'pill' ? '600 11px ' + FONT : sg.f || '12px ' + FONT; sg.w = sg.k === 'sep' ? 1 : ctx.measureText(sg.t).width + (sg.k === 'pill' ? 12 : 0); }
+  const tot = segs.reduce((a, g) => a + g.w, 0) + gap * (segs.length - 1); let x = W / 2 - tot / 2;
+  ctx.textBaseline = 'alphabetic';
+  for (const sg of segs) {
+    if (sg.k === 'sep') { ctx.fillStyle = 'rgba(255,211,77,.55)'; ctx.fillRect(x, y + 1, 1, h - 2); }
+    else if (sg.k === 'pill') { ctx.fillStyle = 'rgba(10,12,20,.78)'; ctx.fillRect(x, y, sg.w, h); ctx.strokeStyle = 'rgba(' + sg.c + ',.85)'; ctx.lineWidth = 1.2; ctx.strokeRect(x + 0.5, y + 0.5, sg.w - 1, h - 1); ctx.font = '600 11px ' + FONT; ctx.fillStyle = 'rgb(' + sg.c + ')'; ctx.textAlign = 'center'; ctx.fillText(sg.t, x + sg.w / 2, y + 13); ctx.textAlign = 'left'; }
+    else { ctx.font = sg.f; ctx.textAlign = 'left'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(sg.t, x, y + 14); ctx.fillStyle = sg.c; ctx.fillText(sg.t, x, y + 14); }
+    x += sg.w + gap;
+  }
+  ctx.restore();
+}
 function drawBossBuffs(b, cx, y) {
   const chips = bossBuffChips(b); if (!chips.length) return;
   ctx.save(); ctx.font = '600 11px ' + FONT; const pad = 7, gap = 5, h = 18, ws = chips.map(c => ctx.measureText(c.t).width + pad * 2), tot = ws.reduce((a, v) => a + v, 0) + gap * (chips.length - 1);
@@ -4361,14 +4385,13 @@ function drawHUD() {
   if (mode !== 'duel') { const ks = Object.keys(UPG).filter(k => RUN[k] > 0); if (ks.length) { text('강화 효과 · 전 영웅 공통', 12, chipY + 9, 10, '#ffd9a0', 'left', true, false); chipY += 13; ks.forEach((k, i) => { const x = 10 + (i % 2) * 121, y = chipY + Math.floor(i / 2) * 19; ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(x, y, 119, 17); ctx.strokeStyle = '#d8a03a'; ctx.lineWidth = 1.2; ctx.strokeRect(x, y, 119, 17); text(UPG_SHORT[k] + ' ' + UPG[k].f(RUN[k]), x + 5, y + 13, 10, '#fff', 'left', false, false); }); chipY += Math.ceil(ks.length / 2) * 19 + 4; } }
 
   // ===== 웨이브 / 처치 / 웨이브·로비 버튼 =====
-  if (mode !== 'duel') text(RAID ? '레이드 모드  ·  여포 봉선' : `로그라이크 모드  ·  WAVE ${waveIdx + 1}/${WAVES.length}`, W / 2, 24, 16, '#fff', 'center');
   if (!(mode === 'yeonui' && state === 'play')) { const r = lobbyBtnRect(); ctx.fillStyle = 'rgba(10,12,20,.55)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(mode === 'yeonui' && state === 'play' ? '나가기' : '로비', r.x + r.w / 2, r.y + r.h / 2 + 5, 13, '#ffe9a0', 'center'); }   // 로비 버튼 (보스 버튼 옆) — 로그라이크 전투 중에는 '나가기'(경험치 정산)
   if (mode === 'yeonui' && state === 'play') drawPauseButton();
-  if (mode !== 'duel') text(`처치 ${kills}${curWave().bossWave ? '' : '   ·   남은 적 ' + (enemies.length + waveLeft())}   ·   ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`, W / 2, 42, 12, '#cfd3e6', 'center', false);
   // ===== 보스 체력바 (얇게) =====
   const boss = enemies.find(e => e.boss);
+  if (mode !== 'duel') drawTopInfo(boss);   // 위 가운데 한 줄: 모드·웨이브 / 보스 이름·강화 / 처치·시간
   if (boss) {
-    const bw = 420, bx = W / 2 - bw / 2, by = 52, bh = 12;
+    const bw = 420, bx = W / 2 - bw / 2, by = 36, bh = 12;
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
     ctx.fillStyle = '#4a1010'; ctx.fillRect(bx, by, bw, bh); ctx.fillStyle = '#d82a2a'; ctx.fillRect(bx, by, bw * boss.hp / boss.maxhp, bh);
     ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(bx, by, bw * boss.hp / boss.maxhp, 4);
@@ -4377,8 +4400,6 @@ function drawHUD() {
     if (boss.d.mb) { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const f of [1 / 3, 2 / 3]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 몬스터 보스: 3단계 경계
     if (boss.d.zhao) { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const f of [0.25, 0.75]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 보스 조운: 4단계 경계
     if (!boss.d.foot) { ctx.fillStyle = 'rgba(255,255,255,.4)'; for (const f of (boss.d.raid ? [1 / 8, 2 / 8, 3 / 8, 5 / 8, 6 / 8, 7 / 8] : [1 / 6, 2 / 6, 4 / 6, 5 / 6])) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 보스 여포: 6단계 경계
-    text(boss.d.name, W / 2, by + 30, 15, '#ffe9a0', 'center');
-    drawBossBuffs(boss, W / 2, by + 42);
   }
   // 콤보
   if (P.hits >= 2) {
