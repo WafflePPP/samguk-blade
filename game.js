@@ -355,8 +355,8 @@ const OVERLAY_BTN = { x: W / 2 + 10, y: 500, w: 240, h: 48 }, OVERLAY_RETRY = { 
 
 // ---------- 게임 상태 ----------
 const CD = { s1: 5, s2: 7, dash: 3 };
-const DASH_CD_PVE = 2.5, DASH_INV_PVE = 0.42, DASH_DIST_PVE = 1.3;   // 로그라이크 회피: 쿨타임 3 -> 2.5초, 무적 0.26 -> 0.42초, 이동 거리 x1.3 (비무장은 기존 값)
-const dashCdNow = () => mode === 'duel' ? CD.dash : DASH_CD_PVE, dashInvNow = () => mode === 'duel' ? 0.26 : DASH_INV_PVE, dashSpeedNow = () => mode === 'duel' ? 950 : 950 * DASH_DIST_PVE;   // 회피 쿨타임 3초 (모든 PC·AI 공통)
+const DASH_CD_PVE = 2.5, DASH_INV_PVE = 0.42, DASH_DIST_PVE = 1.3;   // 회피(모든 모드 공통, PC·AI 동일): 쿨타임 2.5초 · 무적 0.42초 · 이동 거리 x1.3 (약 272px)
+const dashCdNow = () => DASH_CD_PVE, dashInvNow = () => DASH_INV_PVE, dashSpeedNow = () => 950 * DASH_DIST_PVE;
 let P, enemies, projectiles, fx, dts, items;
 const CAM_FREE = false;   // 자유 시점(SC1 식 방향키·가장자리 스크롤): 사용 안 함 — 카메라는 항상 영웅을 따라간다 (true 로 바꾸면 다시 켜짐)
 let camLock = true, mmDrag = null;   // 시점 추적: PC 는 SC1 처럼 자유 시점(끔), 모바일은 영웅 추적(켬)
@@ -1698,7 +1698,7 @@ function drawInfo() {
       text('기본 ' + (k === 'hp' ? fmtI(bs[k]) : bs[k]) + ' ' + fmtFlat(k, m[k]) + (k === 'hp' ? '   (비무장은 체력 기준 6,000)' : k === 'def' ? '   (받는 피해 -' + (100 - 100 / (1 + m.def / 100)).toFixed(1) + '%)' : ''), 56, yy + 13, 10.5, '#8a90a6', 'left', false);
     });
     text('성장하지 않는 능력치 (두 모드 공통)', 56, 496, 13, '#cfd3e6', 'left');
-    [['치명타 확률 / 피해', Math.round(CRIT_BASE * 100) + '%  /  x' + CRIT_BASE_DMG], ['이동속도', String(HERO_STATS.speed)], ['회피율 / 적중', PC_EVA + '%  /  ' + PC_ACC], ['회피 쿨타임 · 무적 · 거리', DASH_CD_PVE + '초 · ' + DASH_INV_PVE + '초 · +' + Math.round((DASH_DIST_PVE - 1) * 100) + '%'], ['(비무장 회피)', CD.dash + '초 · 0.26초 · 기본']].forEach(([k, v], j) => { text(k, 56, 518 + j * 20, 13, '#aab3c8', 'left', false); text(v, 366, 518 + j * 20, 13, '#fff', 'right', false); });
+    [['치명타 확률 / 피해', Math.round(CRIT_BASE * 100) + '%  /  x' + CRIT_BASE_DMG], ['이동속도', String(HERO_STATS.speed)], ['회피율 / 적중', PC_EVA + '%  /  ' + PC_ACC], ['회피 쿨타임 · 무적 · 거리 (모든 모드)', DASH_CD_PVE + '초 · ' + DASH_INV_PVE + '초 · +' + Math.round((DASH_DIST_PVE - 1) * 100) + '%'], ].forEach(([k, v], j) => { text(k, 56, 518 + j * 20, 13, '#aab3c8', 'left', false); text(v, 366, 518 + j * 20, 13, '#fff', 'right', false); });
     const nt = g.tiers.find(t => t.lv > infoLv);
     text(fitStr(nt ? '다음 성장 단계  Lv ' + nt.lv + ' [' + nt.name + ']' : '고유 성장 단계를 모두 해금', L.w - 32, 12), 56, 628, 12, nt ? '#9dff9d' : '#ffd34d', 'left', false);
     text('경험치: 로그라이크·레이드에서 획득 (판 종료 시 정산)', 56, 646, 11, '#7a8196', 'left', false);
@@ -1803,7 +1803,7 @@ function startAct(type, dur, m) { aim(m); P.act = { type, t: 0, dur, hits: 0, se
 // 방향 입력 없이 회피만 눌렀을 때의 자동 방향: 가장 임박한 공격을 읽고, 회피 이동(DASH_DIST) 후 위험 범위에서 가장 멀리 벗어나는 방향을 고른다.
 //  (돌진은 진행 방향에 수직, 도약은 낙하 지점에서 멀어지는 쪽, 십자는 선이 없는 대각, 범위형은 반경/각도를 벗어나는 쪽. 투창은 공격자 반대쪽)
 //  임박한 공격이 없으면 가장 가까운 적의 반대쪽으로 물러남 (적이 없으면 바라보는 방향의 반대)
-const DASH_DIST = 209;   // 회피 이동 거리 (속도 950 x 0.22초)
+const DASH_DIST = Math.round(209 * DASH_DIST_PVE);   // 회피 이동 거리 (속도 950 x 0.22초)
 function dashMargin(e, c, x, y) {   // (x,y) 가 공격 범위에서 얼마나 벗어나 있는가 (양수 = 안전, 음수 = 범위 안)
   const dx = x - e.x, dy = y - e.y, d = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
   switch (c.kind) {
@@ -1830,7 +1830,7 @@ function smartDashAngle() {
   else if (c.kind === 'leap') base = Math.hypot(P.x - c.tx, P.y - c.ty) > 20 ? Math.atan2(P.y - c.ty, P.x - c.tx) : away;
   let bestA = base, bs = -1e9;
   for (let k = 0; k < 16; k++) {   // 기본 방향에서 ±22.5° 단위로 후보를 만들어 범위 이탈량이 가장 큰 방향 선택 (비슷하면 기본 방향에 가까운 쪽)
-    const dev = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 8, ang = base + dev, ex = P.x + Math.cos(ang) * DASH_DIST * dashSpeedNow() / 950, ey = P.y + Math.sin(ang) * DASH_DIST * dashSpeedNow() / 950;
+    const dev = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 8, ang = base + dev, ex = P.x + Math.cos(ang) * DASH_DIST, ey = P.y + Math.sin(ang) * DASH_DIST;
     const sc = Math.min(dashMargin(best, c, ex, ey), 120) - Math.abs(dev) * 6;
     if (sc > bs) { bs = sc; bestA = ang; }
   }
@@ -2175,7 +2175,7 @@ function dodgeDir(u) {   // u(플레이어 또는 AI 영웅)가 피해야 하면
     if (along > 0 && along < 200 && Math.abs(lat) < u.r + 26 && along / sp < bt) { bt = along / sp; best = Math.atan2(p.vy, p.vx) + (lat >= 0 ? 1 : -1) * Math.PI / 2; }
   }
   if (best == null) return null;
-  const room = a => { const px = u.x + Math.cos(a) * 209 - ARENA_C.x, py = u.y + Math.sin(a) * 209 - ARENA_C.y; return DUEL_R - 40 - Math.hypot(px, py); };
+  const room = a => { const px = u.x + Math.cos(a) * DASH_DIST - ARENA_C.x, py = u.y + Math.sin(a) * DASH_DIST - ARENA_C.y; return DUEL_R - 40 - Math.hypot(px, py); };
   if (room(best) < 0 && room(best + Math.PI) > room(best)) best += Math.PI;   // 벽 쪽이면 반대편으로
   return best;
 }
@@ -3409,7 +3409,7 @@ function updateFighter(f, dt) {
   if (f.freeze > 0) { f.freeze -= dt; arenaClamp(f); return; }
   if ((!f.human || netAuto(f)) && f.state !== 'stun' && f.dashCd <= 0 && !(f.act && (f.act.def.invul || f.act.def.name === 'ult' || f.act.def.name === 'dodge'))) {   // 자동 회피 (AUTO 플레이어와 동일 규칙)
     const dg = RAID ? raidDodgeDir(f) : dodgeDir(f);
-    if (dg != null) { f.dashCd = CD.dash; f.invT = 0.26; f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: 950, ang: dg }] }, null); runAct(f, dt); arenaClamp(f); return; }
+    if (dg != null) { f.dashCd = dashCdNow(); f.invT = dashInvNow(); f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: dashSpeedNow(), ang: dg }] }, null); runAct(f, dt); arenaClamp(f); return; }
   }
   if (f.state === 'hit' || f.state === 'stun') { if (f.act) { f.act = null; f.armor = false; } f.t -= dt; if (f.t <= 0) { f.state = 'move'; f.atkCd = Math.max(f.atkCd, 0.25); } arenaClamp(f); return; }
   const tgt = nearestOpp(f); if (!tgt) return;
@@ -4873,7 +4873,7 @@ function humanFighter(f, dt, tgt) {   // 사람이 조종하는 파이터: AI �
   if (tgt && dist(f, tgt) < 560) f.face = angTo(f, tgt); else if (ml > 0.2) f.face = Math.atan2(inp.my, inp.mx);
   if (has('dash') && f.dashCd <= 0) {
     eat('dash'); const dg = ml > 0.2 ? Math.atan2(inp.my, inp.mx) : tgt ? angTo(tgt, f) : f.face + Math.PI;
-    f.dashCd = CD.dash; f.invT = 0.26; f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: 950, ang: dg }] }, null); sfx('dash'); runAct(f, dt); return;
+    f.dashCd = dashCdNow(); f.invT = dashInvNow(); f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: dashSpeedNow(), ang: dg }] }, null); sfx('dash'); runAct(f, dt); return;
   }
   if (has('s3') && f.rage >= 100) { eat('s3'); f.rage = 0; beginAct(f, sk.ult, tgt); sfx('skill'); return; }
   if (has('s2') && f.cd.s2 <= 0) { eat('s2'); f.cd.s2 = CD.s2 * (Hf.s2cdMul || 1) * (1 - f.meta.cd); beginAct(f, sk.s2, tgt); return; }
