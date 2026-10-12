@@ -1660,17 +1660,16 @@ function infoBuffLines(id, lv) {   // 조건부 버프 (미리보기 레벨의 �
   const pc = (v, base = 1) => Math.round((v - base) * 100) + '%';
   if (id === 'guan') return ['3단 공격 성공: 방어력 +' + Math.round(HEROES.guan.guard.bonus * 100) + '% (' + HEROES.guan.guard.dur + '초)', '청룡의 힘 사용: 방어력 +' + Math.round(HEROES.guan.ultGuard * 100) + '% (' + HEROES.guan.ultGuardDur + '초)'];
   if (id === 'lubu') return ['(상마) 3단 공격 성공: 이동속도 +' + pc(HEROES.lubu.runBonus) + ' (' + HEROES.lubu.runDur + '초, 이동하면 유지)', '(상마) 적토 돌격 후: 공격력 +' + pc(HEROES.lubu.postUltAtk) + ' (' + HEROES.lubu.postUltDur + '초)', '(상마) 50 HIT부터 10 HIT마다 공속·피해 +1%', '(하마) 3단 콤보 완주: 공격력 +' + pc(HEROES.lubu2.comboBuff.atk) + ' (' + HEROES.lubu2.comboBuff.dur + '초)', '(하마) 천하무쌍 후: 공격력 +' + pc(HEROES.lubu2.postUltAtk) + ' (' + HEROES.lubu2.postUltDur + '초)'];
-  if (id === 'huang') return ['3단 공격 성공: 공속 +' + Math.round((HEROES.huang.aspdBuff.mult - 1) * 100) + '% (' + HEROES.huang.aspdBuff.dur + '초)', '마법의 수정화살: 날아간 거리에 비례해 기절 (1 ~ 3.5초)', '마법의 수정화살: 주변 폭발 · 보스 기절 최대 2초'];
-  if (id === 'dian') return ['3단 공격 성공: 공격력 +' + Math.round((HEROES.dian.comboBuff.atk - 1) * 100) + '% (' + HEROES.dian.comboBuff.dur + '초)', '불사의 광기: 전투당 1회 ' + HEROES.dian.undy.floor + '초간 죽지 않음 (생명력 1 보호)', '불사의 광기: 시전마다 ' + HEROES.dian.undy.dur.toFixed(1) + '초간 공격력 +' + Math.round((HEROES.dian.undy.atk - 1) * 100) + '% · 피해의 ' + Math.round(HEROES.dian.undy.ls * 100) + '% 생명력 흡수'];
+  if (id === 'huang') return ['3단 공격 성공: 공속 +' + Math.round((HEROES.huang.aspdBuff.mult - 1) * 100) + '% (' + HEROES.huang.aspdBuff.dur + '초)', '[고유] 저격: 멀수록 피해 증가 (공격 +' + Math.round(HUANG_FAR * 100) + '% · 백보천양 +40%)', '[고유] 이동 사격 (이동속도 50%) · 백보천양은 후퇴하며 시전', '화살비: 맞은 적 이동속도 -45% (1.5초)', '수정화살: 거리에 비례해 기절 1 ~ 3.5초 · 보스는 최대 2초'];
+  if (id === 'dian') return ['3단 공격 성공: 공격력 +' + Math.round((HEROES.dian.comboBuff.atk - 1) * 100) + '% (' + HEROES.dian.comboBuff.dur + '초)', '불사의 광기: 전투당 1회 ' + HEROES.dian.undy.floor + '초간 죽지 않음 (생명력 1 보호)', '불사의 광기: 시전마다 ' + HEROES.dian.undy.dur.toFixed(1) + '초간 공격력 +' + Math.round((HEROES.dian.undy.atk - 1) * 100) + '% · 피해의 ' + Math.round(HEROES.dian.undy.ls * 100) + '% 생명력 흡수', '[고유] 상태 이상 저항: 경직·스턴·둔화의 지속시간 100→80→60→40→20%', '[고유] 저항은 5회째부터 60초 뒤 초기화 (보스 여포도 같은 고유 능력)'];
   if (id === 'diao') return ['3단 공격 성공: 주변 아군 생명력 +' + +(DIAO_HEAL.combo * HEAL_POW * 100).toFixed(1) + '% 회복', '연꽃 치유: 범위 아군 생명력 +' + +(DIAO_HEAL.pulse * HEAL_POW * 100).toFixed(1) + '% x ' + DIAO_S1_TIMES.length + '회 (비무장: 자신 x' + DUEL_HEAL_MUL + ' / 다른 아군 x' + DUEL_HEAL_OTHER + ')', '월하 축복: 아군 전체 공격력 +' + Math.round(BLESS_ATK * 100) + '% · 방어력 +' + Math.round(BLESS_DEF * 100) + '% (' + BLESS_DUR + '초)', '경국지색: 범위 아군 생명력 +' + +(DIAO_HEAL.ult * ULT_HEAL_POW * 100).toFixed(1) + '% 회복 + 적 기절'];
   return ['3단 공격 성공: 공속 +' + pc(HEROES.zhao.aspdBuff.mult) + ' (' + HEROES.zhao.aspdBuff.dur + '초)', '백룡강림 후: 공속 +' + pc(HEROES.zhao.postUltAspd) + ' (' + HEROES.zhao.postUltDur + '초)'];
 }
 function infoRows(id, m) { const sv = mode; mode = m; applyGrowth(m); try { return heroSkillRows(id); } finally { mode = sv; } }   // 모드(로그라이크 / 비무장)별 스킬 수치
 function drawInfo() {
-  ctx.drawImage(bg, WORLD.w / 2 - W / 2, WORLD.h / 2 - H / 2, W, H, 0, 0, W, H);
-  ctx.fillStyle = 'rgba(0,0,0,.78)'; ctx.fillRect(0, 0, W, H);
+  drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.78)'; ctx.fillRect(0, 0, W, H);
   text('장수 정보', W / 2, 54, 36, '#ffd34d', 'center');
-  text('능력치 · 스킬 · 영웅 성장  —  ← → 장수 선택  ·  ↑ ↓ 레벨 미리보기 (PageUp / PageDown ±5)', W / 2, 76, 13, '#cfd3e6', 'center', false);
+  text('능력치 · 스킬 · 고유 능력 · 영웅 성장  —  ← → 장수 선택  ·  ↑ ↓ 레벨 미리보기 (PageUp / PageDown ±5)', W / 2, 76, 13, '#cfd3e6', 'center', false);
   const id = infoPc(), g = GROWTH[id], rec = ACC ? heroRec(ACC, id) : { lv: 1, xp: 0 }, curLv = rec.lv;
   HERO_IDS.forEach((pid, i) => {   // 장수 탭
     const r = infoTab(i), on = i === infoSel, lvp = ACC ? heroLv(pid) : 1;
@@ -1692,28 +1691,28 @@ function drawInfo() {
     const C = INFO_CTL; for (const [k, lab] of [['m5', '-5'], ['m1', '◀'], ['p1', '▶'], ['p5', '+5'], ['cur', '현재']]) { const b = C[k]; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#9ad4ff'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(lab, b.x + b.w / 2, b.y + 21, 14, '#9ad4ff', 'center'); }
     const bx = C.box; ctx.fillStyle = 'rgba(40,34,18,.95)'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2; ctx.strokeRect(bx.x, bx.y, bx.w, bx.h); text('Lv ' + infoLv, bx.x + bx.w / 2, bx.y + 22, 17, infoLv >= MAX_LV ? '#ffd34d' : '#fff', 'center');
     const m = flatOf(id, infoLv), bs = { hp: HERO_STATS.hp, atk: HERO_STATS.atk, def: 0 };
-    text('능력치', 56, 362, 14, '#ffd34d', 'left'); text('로그라이크', 262, 362, 12, '#ffb27a', 'right', false); text('비무장', 366, 362, 12, '#9ad4ff', 'right', false);
+    text('능력치', 56, 362, 14, '#ffd34d', 'left'); text('로그라이크·레이드', 262, 362, 12, '#ffb27a', 'right', false); text('비무장', 366, 362, 12, '#9ad4ff', 'right', false);
     FLAT_KEYS.forEach((k, j) => {
       const dv = k === 'hp' ? DUEL_HP + m.hp * DUEL_HP / HERO_STATS.hp : bs[k] + m[k], v = bs[k] + m[k], f = n => k === 'hp' ? fmtI(n) : +n.toFixed(1), yy = 388 + j * 26;
       text(FLAT_NAME[k], 56, yy, 15, '#fff', 'left', false); text(f(v), 262, yy, 16, m[k] > 0 ? '#9dff9d' : '#fff', 'right', false); text(f(dv), 366, yy, 16, m[k] > 0 ? '#9dff9d' : '#fff', 'right', false);
       text('기본 ' + (k === 'hp' ? fmtI(bs[k]) : bs[k]) + ' ' + fmtFlat(k, m[k]) + (k === 'hp' ? '   (비무장은 체력 기준 6,000)' : k === 'def' ? '   (받는 피해 -' + (100 - 100 / (1 + m.def / 100)).toFixed(1) + '%)' : ''), 56, yy + 13, 10.5, '#8a90a6', 'left', false);
     });
     text('성장하지 않는 능력치 (두 모드 공통)', 56, 496, 13, '#cfd3e6', 'left');
-    [['치명타 확률', Math.round(CRIT_BASE * 100) + '%'], ['치명타 피해', 'x' + CRIT_BASE_DMG], ['이동속도', String(HERO_STATS.speed)], ['회피율', PC_EVA + '%'], ['적중', String(PC_ACC)]].forEach(([k, v], j) => { text(k, 56, 518 + j * 20, 13, '#aab3c8', 'left', false); text(v, 366, 518 + j * 20, 13, '#fff', 'right', false); });
+    [['치명타 확률 / 피해', Math.round(CRIT_BASE * 100) + '%  /  x' + CRIT_BASE_DMG], ['이동속도', String(HERO_STATS.speed)], ['회피율 / 적중', PC_EVA + '%  /  ' + PC_ACC], ['회피 쿨타임 · 무적 · 거리', DASH_CD_PVE + '초 · ' + DASH_INV_PVE + '초 · +' + Math.round((DASH_DIST_PVE - 1) * 100) + '%'], ['(비무장 회피)', CD.dash + '초 · 0.26초 · 기본']].forEach(([k, v], j) => { text(k, 56, 518 + j * 20, 13, '#aab3c8', 'left', false); text(v, 366, 518 + j * 20, 13, '#fff', 'right', false); });
     const nt = g.tiers.find(t => t.lv > infoLv);
     text(fitStr(nt ? '다음 성장 단계  Lv ' + nt.lv + ' [' + nt.name + ']' : '고유 성장 단계를 모두 해금', L.w - 32, 12), 56, 628, 12, nt ? '#9dff9d' : '#ffd34d', 'left', false);
-    text('경험치는 로그라이크 모드에서만 획득 (판이 끝날 때 정산)', 56, 646, 11, '#7a8196', 'left', false);
+    text('경험치: 로그라이크·레이드에서 획득 (판 종료 시 정산)', 56, 646, 11, '#7a8196', 'left', false);
     // ---- 가운데: 스킬 (로그라이크 / 비무장) ----
     const M = { x: 400, y: 142, w: 450, h: 514 }; ctx.fillStyle = 'rgba(12,14,24,.92)'; ctx.fillRect(M.x, M.y, M.w, M.h); ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 2; ctx.strokeRect(M.x, M.y, M.w, M.h);
-    text('스킬  (Lv ' + infoLv + ' 성장 반영)', M.x + 16, M.y + 28, 16, '#ffd34d', 'left'); text('로그라이크 / 비무장 수치', M.x + M.w - 16, M.y + 28, 12, '#aab3c8', 'right', false);
+    text('스킬  (Lv ' + infoLv + ' 성장 반영)', M.x + 16, M.y + 28, 16, '#ffd34d', 'left'); text('로그라이크·레이드 / 비무장 수치', M.x + M.w - 16, M.y + 28, 12, '#aab3c8', 'right', false);
     rowsP.forEach((row, j) => {
       const yy = M.y + 54 + j * 64, rd = rowsD[j] || row;
       text(fitStr(row.n, M.w - 32, 14), M.x + 16, yy, 14, j === 3 ? '#ffd34d' : '#ffe9a0', 'left');
-      text(fitStr('로그라이크  ' + row.c1, M.w - 32, 12), M.x + 16, yy + 16, 12, '#fff', 'left', false);
+      text(fitStr('로그라이크·레이드  ' + row.c1, M.w - 32, 12), M.x + 16, yy + 16, 12, '#fff', 'left', false);
       text(fitStr('비무장  ' + rd.c1, M.w - 32, 12), M.x + 16, yy + 31, 12, '#9ad4ff', 'left', false);
       text(fitStr(row.c2, M.w - 32, 11.5), M.x + 16, yy + 46, 11.5, '#ffb27a', 'left', false);
     });
-    text('조건부 버프', M.x + 16, M.y + 322, 15, '#ffd34d', 'left');
+    text('조건부 버프 · 고유 능력', M.x + 16, M.y + 322, 15, '#ffd34d', 'left');
     infoBuffLines(id, infoLv).forEach((ln, j) => text(fitStr('•  ' + ln, M.w - 32, 12.5), M.x + 16, M.y + 344 + j * 20, 12.5, '#dfe3f5', 'left', false));
     const HH = id === 'lubu' ? [HEROES.lubu, HEROES.lubu2] : [HEROES[id]];
     text('스킬 설명', M.x + 16, M.y + 470, 14, '#ffd34d', 'left');
