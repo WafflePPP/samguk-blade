@@ -329,9 +329,9 @@ function drawDuelHUD() {
 
 // ---------- 전투 속도 조절 ----------
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3], SPEED_1X = 3; let speedIdx = SPEED_1X;   // 0.25배속 단위, 0.25 ~ 3배속   // 1배속에서 시작 (전투를 시작할 때마다 1배속으로 되돌림)
-const BASE_SPEED = 0.85;   // 모든 모드의 1배속 = 이전 속도의 85% (15% 감소). 배속 버튼·온라인 모두 이 기준에서 곱해짐
+const BASE_SPEED = 0.9;   // 모든 모드의 1배속 = 이전 속도의 90% (10% 감소). 배속 버튼·온라인 모두 이 기준에서 곱해짐
 const gameSpeed = () => BASE_SPEED * (NET.on ? 1 : SPEEDS[speedIdx]);
-const SPD = { l: { x: W / 2 - 92, y: H - 50, w: 52, h: 36 }, c: { x: W / 2 - 36, y: H - 50, w: 72, h: 36 }, r: { x: W / 2 + 40, y: H - 50, w: 52, h: 36 } };
+const SPD = { l: { x: W / 2 - 92, y: H - 96, w: 52, h: 36 }, c: { x: W / 2 - 36, y: H - 96, w: 72, h: 36 }, r: { x: W / 2 + 40, y: H - 96, w: 52, h: 36 } };   // 아래 안내 문구(AUTO 전투 중 등)를 가리지 않게 위쪽에
 const speedCtlOn = () => state === 'play' && !NET.on && !TUT && !paused;
 function speedStep(d) { const n = clamp(speedIdx + d, 0, SPEEDS.length - 1); if (n !== speedIdx) { speedIdx = n; sfx('hit'); } }
 function speedTap(x, y) { if (!speedCtlOn()) return false; if (inRect(x, y, SPD.l)) { speedStep(-1); return true; } if (inRect(x, y, SPD.r)) { speedStep(1); return true; } if (inRect(x, y, SPD.c)) { if (speedIdx !== SPEED_1X) { speedIdx = SPEED_1X; sfx('hit'); } return true; } return false; }
@@ -348,7 +348,7 @@ function update(rdt) {
   T += rdt; if (TUT) tutUpdate(rdt);
   if (tagFx) { tagFx.t += rdt; if (tagFx.t >= tagFx.dur) tagFx = null; }
   let dt = rdt;
-  if (slowT > 0) { slowT -= rdt; dt *= 0.3; }
+  if (slowT > 0) { slowT -= rdt; dt *= SLOWMO_MULT; }
   dt *= gameSpeed();   // 전투 속도 (오프라인 전용)
   shake = Math.max(0, shake - rdt * 40); flashT = Math.max(0, flashT - rdt);
   if ((state === 'win' || state === 'lose') && !RS.done) settleRun(state);   // 한 판 경험치 정산

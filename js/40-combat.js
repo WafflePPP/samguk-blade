@@ -384,7 +384,7 @@ function tryTag(id, forced) {
   if (TUT) tutEvent('tag');
   return true;
 }
-const FORM_SLOW = 0.35;   // 폼 전환 슬로 모션(실시간 초)
+const FORM_SLOW = ULT_SLOW;   // 폼 전환 슬로 모션(실시간 초)
 const FORM_SLASH_R = 185, FORM_SLASH_MULT = 1.2;   // 폼 전환 360° 베기: 반경(관우 3단과 같음) / 피해 배율(1단 찌르기와 같음)
 function formSlash(u, H, isP) {   // 상마 <-> 하마 전환 때 몸 주위를 한 바퀴 베는 1회 베기 (플레이어·AI 공통)
   arcFx(u.x, u.y, u.face, FORM_SLASH_R, 1.5, 0.25, H.fx.a, 1); arcFx(u.x, u.y, u.face + Math.PI, FORM_SLASH_R, 1.5, 0.25, H.fx.a, 1); ring(u.x, u.y, FORM_SLASH_R, 0.3, H.ult.a, 7); sparks(u.x, u.y - 10, 16, H.ult.a, 520, 0.4); sfx('swing'); if (isP || dist(u, P) < 700) doShake(6);
@@ -422,7 +422,7 @@ function lultStep(u, a, H, hitFn) {   // 한 프레임 진행. 끝나면 true. h
   if (t < LU_WIND) {
     if (Math.random() < 0.8) { const ang = rand(0, TAU), sx = u.x + Math.cos(ang) * 230, sy = u.y + Math.sin(ang) * 170, tx = u.x, ty = u.y - H.ult.tipH, l = Math.hypot(tx - sx, ty - sy); fx.push({ k: 'spark', x: sx, y: sy, vx: (tx - sx) / l * 520, vy: (ty - sy) / l * 520, t: 0, dur: 0.4, color: H.ult.a, sz: 5 }); }
   } else if (t < LU_WIND + LU_SWING) {
-    if (!a.s0) { a.s0 = 1; sfx('boom'); flashT = Math.max(flashT, 0.15); ring(u.x, u.y, 120, 0.3, H.ult.a, 8); if (u === P && mode !== 'duel') slowT = Math.max(slowT, 0.5); }
+    if (!a.s0) { a.s0 = 1; sfx('boom'); flashT = Math.max(flashT, 0.15); ring(u.x, u.y, 120, 0.3, H.ult.a, 8); if (u === P && mode !== 'duel') slowT = Math.max(slowT, ULT_SLOW); }
     if (a.tr == null || t - a.tr > 0.04) { a.tr = t; const an = lultAng(t, u.face).ang; arcFx(u.x, u.y, an, 300, 0.32, 0.22, '#ffd27a', 1); sparks(u.x + Math.cos(an) * 150, u.y + Math.sin(an) * 110, 3, '#ff9a4a', 380, 0.3); }
   }
   if (t >= LU_WIND + LU_SWING * 0.55 && !a.hit0) {   // 휘두르기 적중: 전방위 + 기절

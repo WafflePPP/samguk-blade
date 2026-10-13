@@ -271,7 +271,6 @@ function zultStep(u, a, z, hitFn) {   // 한 프레임 진행. 끝나면 true
       if (!tg) { z.i = z.n; break; }
       const ang = z.i * 2.4 + 1, tx = tg.x + Math.cos(ang) * ZU_STAND, ty = tg.y + Math.sin(ang) * ZU_STAND * 0.8;
       z.seg = { fx: u.x, fy: u.y, tx, ty, tg };
-      if (u === P && mode !== 'duel') slowT = Math.max(slowT, ZU_SLOW);   // 찌르기를 시작할 때마다 짧은 슬로 모션
       const l = Math.hypot(tx - u.x, ty - u.y), an = Math.atan2(ty - u.y, tx - u.x); if (l > 30) streak(u.x, u.y - 6, an + Math.PI, Math.min(l, 320), 5, 0.5, '#bfe8ff');
     }
     const s = z.seg, f = clamp((a.t - t0) / ZU_IV, 0, 1);
@@ -361,7 +360,7 @@ function updatePlayer(dt) {
   let a = p.act;
   if (want('dash') && p.cd.dash <= 0 && (!a || (a.type !== 'ult' && !a.invul && a.type !== 'dash' && a.type !== 'stun'))) { use('dash'); startDash(m); }
   else if (!a || canCancel(a)) {
-    if (want('s3') && p.rage >= 100) { use('s3'); p.rage = 0; if (mode !== 'duel' && !HERO.ultRush && !HERO.zUlt && !HERO.lUlt && !HERO.rageUlt && !HERO.crystalUlt) slowT = Math.max(slowT, ULT_SLOW);   // 궁극기: 일괄 슬로우 모션 (실시간 2.2초)
+    if (want('s3') && p.rage >= 100) { use('s3'); p.rage = 0; if (mode !== 'duel') slowT = Math.max(slowT, ULT_SLOW);   // 궁극기: 모든 PC 공통 슬로 모션 (시작할 때 한 번)
       if (HERO.ultRush) startRush(m, RUSH_SPECS.three); else if (HERO.zUlt) { aim(m); P.act = { type: 'zult', t: 0, dur: 99, invul: true, set: new Set(), done: false }; } else if (HERO.lUlt) { aim(m); P.act = { type: 'lult', t: 0, dur: 99, invul: true, set: new Set(), done: false }; } else if (HERO.crystalUlt) { aim(m); startAct('crystal', 1.0, m); } else if (HERO.rageUlt) { aim(m); startAct('rage', 0.7, m); P.act.invul = true; } else startAct('ult', 1.3, m); sfx('skill'); if (!HERO.ultRush) flashT = 0.15; if (HERO.ultGuard) { p.ultGuardT = HERO.ultGuardDur; dmgText(p.x, p.y - 100, '방어력 +' + Math.round(HERO.ultGuard * 100) + '%', '#7fffd0', 24); } }
     else if (want('s2') && s2Ready()) { use('s2'); castS2(); if (HERO.rush) startRush(m, RUSH_SPECS[HERO.rushSpec || 'one']); else if (HERO.rainS2) { startAct('rain', RAIN_DUR(), m); P.act.rn = 0; rainZone(P, P.act); ring(P.act.rx, P.act.ry, RAIN_R, 0.7, '#ffe08a', 5); } else if (HERO.slam) startAct('slam', 0.5, m); else if (HERO.bless) startAct('bless', 0.55, m); else if (HERO.shoot) startAct('shoot', 0.5 + 0.12 * (SHOOT_N - 3), m); else startAct('s2', S2_DASH_END + 0.26, m); sfx('swing'); }
     else if (want('s1') && p.cd.s1 <= 0 && HERO.s1Switch) { use('s1'); p.cd.s1 = CD.s1 * (1 - (RUN.cd + META.cd)); doFormSwitch(); p.act = { type: 'switch', t: 0, dur: 0.3, set: new Set(), done: false }; }   // 여포: 상마 <-> 하마 전환 (찌르기·방천 베기를 대체)
@@ -539,7 +538,7 @@ function updatePlayer(dt) {
             doArc(sp.blastR, Math.PI, p.atk * 1.0 * SKILL_DMG_MULT * sp.mult * (sp.invul ? HERO.bal.u : HERO.bal.s2), { kb: sp.blastKb, stun: sp.stun, rage: sp.invul ? 0 : undefined, breakArmor: !!sp.stun });
             if (sp.invul) { ring(p.x, p.y, sp.blastR, 0.25, HERO.ult.a, 5); doShake(5); if (HERO.postUltAtk) { p.postUltT = HERO.postUltDur; dmgText(p.x, p.y - 100, '공격력 +' + Math.round((HERO.postUltAtk - 1) * 100) + '%', '#ffb04d', 26); } } else doShake(8);   // 적토 돌격 후 공격력 증가
             p.act = null;
-          } else { a.ph = 'wind'; a.pt = 0; rushAim(m); if (sp.invul && mode !== 'duel') slowT = Math.max(slowT, RUSH_SLOW); }   // 다음 질주 시작: 다시 슬로 모션
+          } else { a.ph = 'wind'; a.pt = 0; rushAim(m); }   // 다음 질주: 슬로 모션은 궁극기 시작 때 한 번만
         }
       }
     } else if (a.type === 'ult') {
