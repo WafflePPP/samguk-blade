@@ -33,7 +33,7 @@ function buildWaves() {
 const wavePreview = i => { const w = WAVES[i]; return w.spawn.map(([t, c, ex]) => TYPES[t].name.replace('적 ', '') + (w.bossWave ? '' : ' ' + c)).join('  ·  '); };
 
 // ----- 웨이브 선택 화면: 로비 > 로그라이크 모드 > 영웅 선택 > 웨이브 선택 (인게임에서는 웨이브 이동 버튼이 없다) -----
-//  선택 가능: 이 계정이 도달한 최고 웨이브까지. 1층이 아닌 곳에서 시작하면 건너뛴 5웨이브 구간 수만큼(5·10·15…) 능력치 강화가 무작위로 자동 적용된다.
+//  선택 가능: 이 계정이 도달한 최고 웨이브까지. 1층이 아닌 곳에서 시작하면 건너뛴 웨이브 수만큼 능력치 강화가 무작위로 자동 적용된다 (강화는 매 웨이브 클리어마다 선택).
 const WV = { cols: 10, w: 104, h: 56, gap: 8, y0: 150 };
 let waveSel = 1, waveTeam = null;
 const accBest = () => ACC ? Math.max(1, ACC.best || 1) : 1;
@@ -56,7 +56,7 @@ function drawWaves() {
   ctx.drawImage(bg, WORLD.w / 2 - W / 2, WORLD.h / 2 - H / 2, W, H, 0, 0, W, H);
   ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(0, 0, W, H);
   text('웨이브 선택', W / 2, 62, 42, '#ffd34d', 'center');
-  text((ACC ? ACC.name : '') + '  ·  최고 도달 ' + accBest() + '웨이브까지 선택 가능  ·  1층이 아닌 곳에서 시작하면 건너뛴 5웨이브 구간마다(5·10·15…) 능력치 강화가 1개씩 무작위로 자동 적용', W / 2, 96, 14, '#cfd3e6', 'center', false);
+  text((ACC ? ACC.name : '') + '  ·  최고 도달 ' + accBest() + '웨이브까지 선택 가능  ·  1층이 아닌 곳에서 시작하면 건너뛴 웨이브마다 능력치 강화가 1개씩 무작위로 자동 적용', W / 2, 96, 14, '#cfd3e6', 'center', false);
   text('보스 : 5층마다 (10 관우 · 25 조운 · 50 여포는 PC 보스)  ·  몬스터 등장 : 방패병 7층 · 자객 12층 · 술사 17층', W / 2, 120, 13, '#ffb27a', 'center', false);
   for (let i = 0; i < MAX_WAVE; i++) {
     const r = wvRect(i), n = i + 1, boss = !!WAVES[i].bossWave, open = n <= accBest(), sel = n === waveSel;
@@ -69,12 +69,12 @@ function drawWaves() {
   ctx.fillStyle = 'rgba(12,14,24,.92)'; ctx.fillRect(W / 2 - 540, 560, 500, 100); ctx.strokeStyle = 'rgba(212,167,58,.7)'; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - 540, 560, 500, 100);
   text('W' + waveSel + '  ' + w.name, W / 2 - 524, 590, 20, w.bossWave ? '#ffb0a8' : '#ffe9a0', 'left');
   text(wavePreview(waveSel - 1), W / 2 - 524, 616, 14, '#cfd3e6', 'left', false);
-  text('난이도 ' + (w.tier + 1) + '단계  ·  몬스터 생명력 x' + w.hpMul.toFixed(2) + '  ·  피해 x' + w.dmgMul.toFixed(2) + (waveSel > UPGRADE_EVERY ? '  ·  자동 강화 ' + Math.floor((waveSel - 1) / UPGRADE_EVERY) + '개 (5웨이브마다)' : '  ·  자동 강화 없음'), W / 2 - 524, 642, 13, '#ffb27a', 'left', false);
+  text('난이도 ' + (w.tier + 1) + '단계  ·  몬스터 생명력 x' + w.hpMul.toFixed(2) + '  ·  피해 x' + w.dmgMul.toFixed(2) + (waveSel > UPGRADE_EVERY ? '  ·  자동 강화 ' + Math.floor((waveSel - 1) / UPGRADE_EVERY) + '개 (건너뛴 웨이브마다)' : '  ·  자동 강화 없음'), W / 2 - 524, 642, 13, '#ffb27a', 'left', false);
   const g = WV_GO; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(g.x, g.y, g.w, g.h); text('다음 : 장수 선택 (Enter)', g.x + g.w / 2, g.y + 36, 22, '#ffd34d', 'center');
   const b = WV_BACK; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text('뒤로', b.x + b.w / 2, b.y + 21, 15, '#cfd3e6', 'center');
 }
-const UPGRADE_EVERY = 5;   // 능력치 강화 선택 간격 (웨이브)
-function catchUpUpgrades(n) {   // 웨이브 n 층에서 시작: 건너뛴 5웨이브 구간 수만큼 능력치 강화를 무작위로 자동 적용
+const UPGRADE_EVERY = 1;   // 능력치 강화(버프) 선택 간격 (웨이브) — 매 웨이브 클리어마다 선택
+function catchUpUpgrades(n) {   // 웨이브 n 층에서 시작: 건너뛴 웨이브 수만큼 능력치 강화를 무작위로 자동 적용
   for (let i = 0, c = Math.floor(n / UPGRADE_EVERY); i < c; i++) { const offers = rollOffers(); if (!offers.length) break; const o = offers[Math.floor(Math.random() * offers.length)]; RUN[o.id] += o.val; RUN.picks.push({ id: o.id, rar: o.rar, val: o.val }); }
   P.maxhp = maxHpNow(); P.hp = P.maxhp; for (const id of HERO_IDS) P.hpStore[id] = heroMaxHp(id); P.speed = speedNow();
 }
@@ -136,17 +136,18 @@ function pickUpgrade(i, forced) {
   if (o.id === 'hp') { const om = id => Math.round(baseHp(id) * (1 + RUN.hp - o.val)); P.hp += heroMaxHp(HERO.pc) - om(HERO.pc); P.maxhp = maxHpNow(); for (const id of TEAM) if (id !== HERO.pc && P.hpStore[id] > 0) P.hpStore[id] += heroMaxHp(id) - om(id); }
   if (o.id === 'spd') P.speed = speedNow();
   const nx = upg.next; upg = null; state = 'play'; ring(P.x, P.y, 90, 0.5, RARITY[o.rar].col, 8); dmgText(P.x, P.y - 90, UPG[o.id].n + ' ' + UPG[o.id].f(o.val), RARITY[o.rar].col, 24); sfx('heal');
+  if (TUT) { tutEvent('buff'); return; }   // 튜토리얼: 다음 웨이브를 시작하지 않고 다음 단계로
   beginWave(nx);
 }
 const UPG_CARD = { w: 300, h: 290, gap: 24, y: 235 };
 const upgCardRect = i => ({ x: W / 2 - (3 * UPG_CARD.w + 2 * UPG_CARD.gap) / 2 + i * (UPG_CARD.w + UPG_CARD.gap), y: UPG_CARD.y, w: UPG_CARD.w, h: UPG_CARD.h });
 function upgradeClick(x, y) { if (!upg) return; for (let i = 0; i < upg.offers.length; i++) if (inRect(x, y, upgCardRect(i))) { pickUpgrade(i); return; } }
 const UPG_TIME = 10;   // 선택 제한 시간(초): 직접 고르면 바로 진행, 10초가 지나면 랜덤으로 하나가 자동 선택됨
-function updateUpgrade(rdt) { if (!upg) return; upg.t += rdt; if (upg.t >= UPG_TIME) pickUpgrade(Math.floor(Math.random() * upg.offers.length), true); }   // AUTO 와 무관하게 항상 10초 카운트 (직접 고르면 즉시 진행)
+function updateUpgrade(rdt) { if (!upg) return; upg.t += rdt; if (upg.tut) return; if (upg.t >= UPG_TIME) pickUpgrade(Math.floor(Math.random() * upg.offers.length), true); }   // AUTO 와 무관하게 항상 10초 카운트 (직접 고르면 즉시 진행)
 function drawUpgrade() {
   if (!upg) return;
   ctx.fillStyle = 'rgba(4,6,12,.74)'; ctx.fillRect(0, 0, W, H);
-  text('WAVE ' + (upg.next) + ' 클리어', W / 2, 96, 22, '#ffe9a0', 'center');
+  text(upg.tut ? '튜토리얼  ·  능력치 강화(버프) 선택' : 'WAVE ' + (upg.next) + ' 클리어', W / 2, 96, 22, '#ffe9a0', 'center');
   text('능력치 강화 선택', W / 2, 150, 46, '#ffd34d', 'center');
   text('3개 중 1개를 고르세요  ·  클릭 또는 1 / 2 / 3 키  ·  이번 판이 끝날 때까지 모든 영웅에게 누적 적용', W / 2, 190, 16, '#cfd3e6', 'center', false);
   upg.offers.forEach((o, i) => {
@@ -167,6 +168,7 @@ function drawUpgrade() {
   });
   const left = Math.max(0, UPG_TIME - upg.t), fr = left / UPG_TIME, urg = left <= 3;   // 남은 시간 카운트다운
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(W / 2 - 230, 566, 460, 12); ctx.fillStyle = urg ? '#ff6a5a' : '#ffd34d'; ctx.fillRect(W / 2 - 229, 567, 458 * fr, 10);
+  if (upg.tut) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(W / 2 - 230, 566, 460, 12); text('카드 하나를 눌러 보세요  (튜토리얼은 시간 제한이 없고, 고른 효과는 연습용입니다)', W / 2, 606, 20, '#ffe9a0', 'center'); text('실전에서는 웨이브를 클리어할 때마다 이 화면이 나오며, 10초 안에 고르지 않으면 하나가 자동 선택됩니다', W / 2, 640, 14, '#cfd3e6', 'center', false); return; }
   text(Math.ceil(left) + '초 후 자동으로 선택됩니다  (직접 고르면 바로 진행)', W / 2, 606, urg ? 24 : 20, urg ? '#ff9a8a' : '#ffe9a0', 'center');
 }
 function wrapText(str, cx, y, maxW, size, col) {   // 가운데 정렬 두 줄 줄바꿈

@@ -689,7 +689,7 @@ function updateFx(dt) {
 function advanceWave() {   // 웨이브 클리어: 전원 +25%(강화로 증가 가능) 회복 (전투 불능 영웅도 복귀) -> 능력치 강화 선택 -> 다음 웨이브
   RS.waves++; const hr = 0.25 + RUN.heal; P.hp = Math.min(P.maxhp, P.hp + P.maxhp * hr); for (const id of TEAM) if (id !== HERO.pc) P.hpStore[id] = Math.min(heroMaxHp(id), P.hpStore[id] + heroMaxHp(id) * hr);
   dmgText(P.x, P.y - 70, '+HP', '#7dff9a', 26);
-  const n = waveIdx + 1; if (n % UPGRADE_EVERY === 0) openUpgrade(n); else { projectiles = []; beginWave(n); }   // 능력치 강화 선택은 5웨이브마다 (그 사이에는 바로 다음 웨이브)
+  const n = waveIdx + 1; if (n % UPGRADE_EVERY === 0) openUpgrade(n); else { projectiles = []; beginWave(n); }   // 능력치 강화 선택은 매 웨이브 클리어마다 (UPGRADE_EVERY)
 }
 function updateWaves(dt) {
   reinforceT = Math.max(0, reinforceT - dt);
