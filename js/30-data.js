@@ -320,8 +320,8 @@ function refreshMeta() {
   if (typeof P !== 'undefined' && P && HERO) { P.atk = HERO_STATS.atk + FLAT.atk; P.maxhp = heroMaxHp(HERO.pc); if (P.hp > P.maxhp) P.hp = P.maxhp; P.speed = speedNow(); }
 }
 // 한 판 기록 / 정산
-let RS = { dmg: {}, kills: 0, boss: 0, waves: 0, done: false, summary: null };
-function resetRS() { RS = { dmg: {}, kills: 0, boss: 0, waves: 0, done: false, summary: null }; }
+let RS = { dmg: {}, kills: 0, boss: 0, waves: 0, done: false, summary: null, last: null, usedAuto: false, logged: false };
+function resetRS() { RS = { dmg: {}, kills: 0, boss: 0, waves: 0, done: false, summary: null, last: null, usedAuto: false, logged: false }; }
 function settleRun(res) {
   if (RS.done || !ACC) return; RS.done = true; if (mode !== 'yeonui') return;   // 경험치는 로그라이크 모드에서만 획득 (비무장은 기록·경험치 없음)
   const win = res === 'win', heroes = (RAID ? RAID_HEROES : TEAM).slice(), dmgOf = h => RS.dmg[h] || 0, pool = RS.waves * 50 + RS.boss * 250 + (win ? 1000 : 0) + Math.floor(heroes.reduce((t, h) => t + dmgOf(h), 0) / 30) + RS.kills;

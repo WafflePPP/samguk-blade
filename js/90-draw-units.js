@@ -351,7 +351,8 @@ function update(rdt) {
   if (slowT > 0) { slowT -= rdt; dt *= SLOWMO_MULT; }
   dt *= gameSpeed();   // 전투 속도 (오프라인 전용)
   shake = Math.max(0, shake - rdt * 40); flashT = Math.max(0, flashT - rdt);
-  if ((state === 'win' || state === 'lose') && !RS.done) settleRun(state);   // 한 판 경험치 정산
+  if (auto) RS.usedAuto = true;
+  if ((state === 'win' || state === 'lose') && !RS.done) { recordRun(state); settleRun(state); }   // 한 판 경험치 정산
   if (state === 'upgrade') { updateUpgrade(rdt); return; }
   if (state === 'title' || state === 'pick' || state === 'account' || state === 'info' || state === 'waves' || state === 'net' || state === 'duelMenu' || state === 'raidMenu' || state === 'raidBoss') return;
   if (paused && !NET.on) { if (state === 'play' && mode === 'yeonui') { updateCamera(rdt); return; } paused = false; }   // 일시정지: 전투 계산 중단

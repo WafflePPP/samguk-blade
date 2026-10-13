@@ -38,6 +38,7 @@ const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if
 // 온라인 대전 상태 (자세한 구현은 '온라인 대전' 블록)
 const NET = { on: false, role: null, ws: null, open: false, code: '', status: '', peerHero: null, hero: 'guan', inMatch: false, paired: false, url: 'ws://localhost:8787', snaps: [], sendT: 0, inT: 0, sfxQ: [], fxSeen: new WeakSet(), dtSeen: new WeakSet(), me: null, opp: null, lastEnd: null, lastNew: null, aborted: false, lastSt: '' };
 // 서버 주소: 직접 입력한 주소(sgb_net_url_manual)가 있으면 그것, 없으면 배포 페이지의 server.json 에 적힌 주소 (95-online.js 에서 불러옴). 개발용 localhost 에서는 로컬 중계 서버.
+const GAME_VER = '0.1.0+20261013';   // 게임 버전 (수동 관리, 판 기록·결과 복사에 표시). NET_VER 와 별개
 const NET_VER = 1;   // 온라인 규칙 버전: 파티원끼리 같아야 시작할 수 있다 (온라인 동기화 형식이 바뀌면 올림)
 const NET_DEV = /^(localhost|127\.0\.0\.1|192\.168\.|10\.)/.test(location.hostname);
 try { const m = localStorage.getItem('sgb_net_url_manual'); NET.urlManual = !!m; if (m) NET.url = m; else if (!NET_DEV) NET.url = ''; } catch (_) { if (!NET_DEV) NET.url = ''; }
@@ -173,6 +174,7 @@ cv.addEventListener('pointerdown', e => {
     if (helpOpen) { if (diagHelpClick(x, y)) return; for (let i = 0; i < 3; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[['yeonui', 'duel', 'raid'][i]] = false; helpOpen = false; lobbySel = i; enterMode(i); return; } helpOpen = false; return; }
     if (inRect(x, y, HELP_BTN)) { helpOpen = true; sfx('hit'); return; }
     if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; }
+    if (inRect(x, y, LOBBY_COPY)) { RL.pending = 'recent'; return; }
     if (inRect(x, y, INFO_BTN)) { openInfo(); return; }
     if (inRect(x, y, LOBBY_HERO_BOX)) { lobbyHero = HERO_IDS[(Math.max(0, HERO_IDS.indexOf(lobbyHero || selHero)) + 1) % HERO_IDS.length]; lobbyHeroT = 0; sfx('hit'); return; }
   }
@@ -191,6 +193,7 @@ cv.addEventListener('pointerdown', e => {
   if (state === 'title') { const ci = cardAt(x, y); if (ci >= 0) { lobbySel = ci; enterMode(ci); } return; }   // 카드를 누르면 그 영웅으로 바로 시작
   if (state === 'win' || state === 'lose') {   // 결과 화면이 보일 때만, 두 버튼만 동작
     const vis = mode === 'duel' ? (state === 'win' ? winT > 1.0 : winT > 0.6) : (state === 'win' ? winT > 1.2 : true); if (!vis) return;
+    if (inRect(x, y, OVERLAY_COPY)) { RL.pending = 'last'; return; }
     if (inRect(x, y, OVERLAY_BTN)) { if (NET.on) netLeave(); else state = 'title'; } else if (inRect(x, y, OVERLAY_RETRY)) restartMode();
     return;
   }

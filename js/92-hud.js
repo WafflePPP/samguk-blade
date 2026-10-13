@@ -181,6 +181,7 @@ function drawOverlay(title, sub, col) {
   if (!NET.on) text(`처치 ${kills}  ·  최대 콤보 ${P.bestHits}  ·  시간 ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`, W / 2, 410, 20, '#cfd3e6', 'center', false);
   if (!IS_TOUCH) text('R / Enter : ' + (NET.on ? '대기실로' : '다시 시작') + '    ·    C : 로비', W / 2, 470, 16, '#9aa3b8', 'center', false);
   for (const [b, label, col] of [[OVERLAY_RETRY, NET.on ? '대기실로' : '다시 시작', '#7dff9a'], [OVERLAY_BTN, '로비', '#ffd34d']]) { ctx.fillStyle = 'rgba(10,12,20,.85)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(label, b.x + b.w / 2, b.y + 31, 22, col, 'center'); }
+  drawCopyBtn(OVERLAY_COPY, '결과 복사', 'last');
 }
 // 시작 화면의 영웅 초상 (카드 안, 발 위치 기준 x, y)
 function drawCardFigure(h, x, y) {

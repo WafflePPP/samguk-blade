@@ -85,6 +85,7 @@ function drawTitle() {
   ctx.save(); ctx.shadowColor = 'rgba(255,170,60,.75)'; ctx.shadowBlur = 16; text('三國 猛將傳', W / 2, 54, 40, '#ffd34d', 'center'); ctx.restore();
   drawLobbyHero();
   drawLobbyNav();
+  if (!helpOpen) drawCopyBtn(LOBBY_COPY, '최근 기록 복사', 'recent');
   if (helpOpen) drawHelpPanel();
 }
 // 적토 돌격 질주 중 화면 가장자리에서 중심으로 흐르는 속도선

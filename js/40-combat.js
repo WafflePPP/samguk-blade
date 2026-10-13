@@ -96,7 +96,7 @@ function hurtPlayer(dmg, src, bossHit, stunT, rec, kb) {
   const a = P.act;
   if (P.inv > 0 || P.dead || (a && (a.type === 'ult' || a.invul)) || state !== 'play') return;
   if (!stunT && !rollHit(src, P)) { dmgText(P.x, P.y - 60, '회피!', '#7fd0ff', 24); sparks(P.x, P.y - 20, 6, '#7fd0ff', 220, 0.3); return; }   // 회피율: 공격이 빗나감
-  dmg = Math.max(1, Math.round(dmg / defMul())); if (mode === 'duel') recStat(src, P, Math.min(dmg, Math.max(0, P.hp))); P.hp -= dmg; if (P.floorT > 0 && P.hp < 1) P.hp = 1; P.flash = 0.18;   // 불사: 생명력 1 밑으로 내려가지 않음 (죽지 않음)
+  dmg = Math.max(1, Math.round(dmg / defMul())); if (mode === 'duel') recStat(src, P, Math.min(dmg, Math.max(0, P.hp))); P.hp -= dmg; RS.last = { type: src && src.type, hero: src && src.hero, boss: !!(src && src.boss) }; if (P.floorT > 0 && P.hp < 1) P.hp = 1; P.flash = 0.18;   // 불사: 생명력 1 밑으로 내려가지 않음 (죽지 않음)
    P.hitT = 0.42; P.hitMag = dmg >= 100 ? 1.35 : 1; P.hitAng = src ? angTo(src, P) : P.face + Math.PI;   // 피격 애니메이션 시작 doShake(8); sfx('hurt');
   // 히트 리커버리: 맞으면 하던 행동이 끊기고 피격 경직 + 넉백. 예외: 회전참 시전 중에는 슈퍼아머(피해만 받음), 청룡의 힘 시전 중에는 무적(위에서 반환)
   const armor = a && (a.type === 's1' || a.type === 'rush' || a.type === 'switch' || a.type === 'bless' || a.type === 'slam' || a.type === 'rain' || a.type === 'crystal' || (a.type === 'atk' && HERO.s1Flurry && a.c === 2));   // 조운 공격 3단(3연속 찌르기)도 슈퍼아머
