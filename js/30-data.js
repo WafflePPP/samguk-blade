@@ -38,7 +38,7 @@ const WV = { cols: 10, w: 104, h: 56, gap: 8, y0: 150 };
 let waveSel = 1, waveTeam = null;
 const accBest = () => ACC ? Math.max(1, ACC.best || 1) : 1;
 const wvRect = i => { const c = i % WV.cols, r = Math.floor(i / WV.cols), tw = WV.cols * WV.w + (WV.cols - 1) * WV.gap; return { x: W / 2 - tw / 2 + c * (WV.w + WV.gap), y: WV.y0 + r * (WV.h + WV.gap), w: WV.w, h: WV.h }; };
-const WV_GO = { x: W / 2 + 30, y: 580, w: 310, h: 56 }, WV_BACK = { x: 12, y: 664, w: 80, h: 30 };
+const WV_GO = { x: W / 2 + 30, y: 580, w: 310, h: 56 }, WV_BACK = BACK_HIT;
 function openWaves() { state = 'waves'; mode = 'yeonui'; applyGrowth('yeonui'); waveSel = Math.min(waveSel || 1, accBest()); }   // 로비 > 웨이브 선택 > 장수 선택 > 인게임
 function wavesStart() { openPick('yeonui'); sfx('skill'); }
 function wavesClick(x, y) {
@@ -71,7 +71,7 @@ function drawWaves() {
   text(wavePreview(waveSel - 1), W / 2 - 524, 616, 14, '#cfd3e6', 'left', false);
   text('난이도 ' + (w.tier + 1) + '단계  ·  몬스터 생명력 x' + w.hpMul.toFixed(2) + '  ·  피해 x' + w.dmgMul.toFixed(2) + (waveSel > UPGRADE_EVERY ? '  ·  자동 강화 ' + Math.floor((waveSel - 1) / UPGRADE_EVERY) + '개 (건너뛴 웨이브마다)' : '  ·  자동 강화 없음'), W / 2 - 524, 642, 13, '#ffb27a', 'left', false);
   const g = WV_GO; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(g.x, g.y, g.w, g.h); text('다음 : 장수 선택 (Enter)', g.x + g.w / 2, g.y + 36, 22, '#ffd34d', 'center');
-  const b = WV_BACK; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text('뒤로', b.x + b.w / 2, b.y + 21, 15, '#cfd3e6', 'center');
+  backBtn(BACK_BTN);
 }
 const UPGRADE_EVERY = 1;   // 능력치 강화(버프) 선택 간격 (웨이브) — 매 웨이브 클리어마다 선택
 function catchUpUpgrades(n) {   // 웨이브 n 층에서 시작: 건너뛴 웨이브 수만큼 능력치 강화를 무작위로 자동 적용

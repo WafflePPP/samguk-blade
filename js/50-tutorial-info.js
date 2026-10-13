@@ -79,7 +79,7 @@ function drawTutorial() {
   ctx.restore();
 }
 // ===== 장수 정보 페이지 (로비 > 장수 정보): PC 별 능력치 · 스킬 · 고유 성장 단계를 한눈에 보고, 레벨을 바꿔 가며 성장 결과를 미리 본다 =====
-const INFO_BTN = { x: W / 2 - 491 + 3 * 250, y: 616, w: 232, h: 84 }, INFO_BACK = { x: 12, y: 664, w: 80, h: 30 };
+const INFO_BTN = { x: W / 2 - 491 + 3 * 250, y: 616, w: 232, h: 84 }, INFO_BACK = BACK_HIT;
 let infoSel = 0, infoLv = 1;
 const infoPc = () => HERO_IDS[infoSel];
 const infoTab = i => ({ x: 40 + i * 201, y: 82, w: 195, h: 46 });
@@ -224,7 +224,7 @@ function drawInfo() {
     });
     if (infoTabR === 1) drawEquipTab(R, id);
   } finally { rec.lv = old; applyGrowth('yeonui'); mode = 'yeonui'; }
-  const b = INFO_BACK; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#cfd3e6'; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text('뒤로', b.x + b.w / 2, b.y + 21, 15, '#cfd3e6', 'center');
+  backBtn(BACK_BTN);
   drawEqPicker();
 }
 function applyGrowth(m) {

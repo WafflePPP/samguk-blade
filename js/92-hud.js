@@ -98,7 +98,7 @@ function drawHUD() {
   }
   // ===== 버프 칸 (위에서부터 쌓임) =====
   // 표기 규칙: 칸 = '효과명 +N% (출처)' + 남은 시간(초) / 발동 글자 = '효과명 +N%'. 효과명은 방어력 · 공격력 · 이동속도 · 공속·피해 로 통일, 출처는 괄호 안에 스킬 이름.
-  let chipY = (mode === 'duel' || RAID) ? 160 : 66;
+  let chipY = mode === 'duel' ? 182 : RAID ? 160 : 66;   // 비무장은 HUD 목록이 22px 아래로 내려가 있음
   const chip = (col, label, t, dur, showTime = true, icon) => {   // icon = 버프 id(문자열) 또는 디버프 { k: 'stun' | 'hurt' | 'slow' | 'resist', n }
     const cw = 262, rgb = col.replace('#', '').match(/../g).map(h => parseInt(h, 16)).join(',');
     ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(10, chipY, cw, 21); ctx.fillStyle = col + '4d'; ctx.fillRect(10, chipY, cw * clamp(t / dur, 0, 1), 21);

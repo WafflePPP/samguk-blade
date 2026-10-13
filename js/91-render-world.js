@@ -156,6 +156,12 @@ function drawBody(x, y, r, face, o) {
   if (o.anim) { const an = o.anim; ctx.translate(x + an.offx, y + an.offy); ctx.rotate(an.tilt); ctx.scale(an.sqx, an.sqy); ctx.translate(-x, -y); }   // 발끝을 축으로 기울이고 눌림
   const by = y - r * 0.9 - (o.bob || 0), hy = by - r * 1.15;
   const wp = o.weapon;
+  if (o.flag) {   // 비무장 팀 깃발: 몸 뒤(왼쪽)에 꽂은 깃대와 제비꼬리 깃 — 같은 영웅끼리 맞붙어도 팀이 읽힘
+    const px = x - r * 0.95, py0 = by + r * 0.8, py1 = hy - r * 1.2, fw = r * 0.9, fh = r * 1.1, wv = Math.sin(T * 3 + x * 0.01) * r * 0.08;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0c0814'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, py0); ctx.lineTo(px, py1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px, py1); ctx.lineTo(px + fw, py1 + wv); ctx.lineTo(px + fw * 0.76, py1 + fh * 0.5 + wv); ctx.lineTo(px + fw, py1 + fh + wv); ctx.lineTo(px, py1 + fh); ctx.closePath(); ctx.fillStyle = o.flag; ctx.fill();
+    ctx.fillStyle = '#d4a73a'; ctx.fillRect(px, py1, fw * 0.96, fh * 0.25); ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  }
   if (wp && sy < 0) drawWeapon(wp.kind, x + cx * r * 0.3 + (wp.dx || 0), by + r * 0.2 + (wp.dy || 0), wp.ang, wp.len, r);
   if (o.longHair) { ctx.fillStyle = f ? '#fff' : '#1e1624'; ctx.beginPath(); ctx.ellipse(x - cx * r * 0.1, hy + r * 1.0, r * 0.72, r * 1.45, 0, 0, TAU); ctx.fill(); }   // 길게 늘어뜨린 머리 (몸 뒤)
   // 몸통
@@ -393,9 +399,9 @@ function drawBossBuffs(b, cx, y) {
   chips.forEach((c, i) => { ctx.fillStyle = 'rgba(10,12,20,.78)'; ctx.fillRect(x, y, ws[i], h); ctx.strokeStyle = 'rgba(' + c.c + ',.85)'; ctx.lineWidth = 1.2; ctx.strokeRect(x + 0.5, y + 0.5, ws[i] - 1, h - 1); ctx.fillStyle = 'rgb(' + c.c + ')'; ctx.textAlign = 'center'; ctx.fillText(c.t, x + ws[i] / 2, y + 13); x += ws[i] + gap; });
   ctx.restore();
 }
-function drawHpBar(x, y, w, hp, max, col) {   // SC1 식 생명력 막대: 칸으로 나뉜 초록 -> 노랑 -> 빨강
-  const fr = clamp(hp / max, 0, 1), n = Math.max(5, Math.round(w / 4)), bw = w / n, on = Math.ceil(fr * n - 1e-6), c = fr > 0.66 ? '#3cff3c' : fr > 0.33 ? '#ffd23c' : '#ff3c3c';
-  ctx.fillStyle = 'rgba(0,0,0,.8)'; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 8);
+function drawHpBar(x, y, w, hp, max, col, byTeam) {   // SC1 식 생명력 막대: 칸으로 나뉜 초록 -> 노랑 -> 빨강 (byTeam: 비무장 영웅 — col = 팀색, 33% 미만이면 금색 깜빡임)
+  const fr = clamp(hp / max, 0, 1), n = Math.max(5, Math.round(w / 4)), bw = w / n, on = Math.ceil(fr * n - 1e-6), c = byTeam ? (fr >= 0.33 ? col : (Math.floor(T / 0.25) % 2 ? '#ffd23c' : '#9a7416')) : fr > 0.66 ? '#3cff3c' : fr > 0.33 ? '#ffd23c' : '#ff3c3c';
+  ctx.fillStyle = 'rgba(0,0,0,.8)'; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 8); if (byTeam) { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(x - w / 2 - 2, y - 2, w + 4, 10); }
   for (let i = 0; i < n; i++) { ctx.fillStyle = i < on ? c : 'rgba(45,45,45,.95)'; ctx.fillRect(x - w / 2 + i * bw + 0.5, y, Math.max(1, bw - 1), 6); }
 }
 function drawFx(layer) {
@@ -501,7 +507,7 @@ function drawPlayerMiniBars() {
   ctx.save(); if (state === 'lose') ctx.globalAlpha = 0.6;
   ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x - 1, y - 1, w + 2, 9);
   ctx.fillStyle = '#3a1010'; ctx.fillRect(x, y, w, 7);
-  ctx.fillStyle = hp > 0.5 ? '#4fd36a' : hp > 0.25 ? '#f0b030' : '#ff3a3a'; ctx.fillRect(x, y, w * hp, 7);
+  ctx.fillStyle = mode === 'duel' ? (hp >= 0.33 ? '#4fb0ff' : (Math.floor(T / 0.25) % 2 ? '#ffd23c' : '#9a7416')) : hp > 0.5 ? '#4fd36a' : hp > 0.25 ? '#f0b030' : '#ff3a3a'; ctx.fillRect(x, y, w * hp, 7);
   ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fillRect(x, y, w * hp, 2);
   ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x - 1, y + 9, w + 2, 7);
   ctx.fillStyle = HERO.ult.barBg; ctx.fillRect(x, y + 10, w, 5);
@@ -557,8 +563,10 @@ function drawWorld() {
       const bl = buffListOf(P, HERO), bR = HERO.mounted ? MOUNT_R + 4 : P.r; drawBuffAura(P.x, P.y, bR, bl, 0);
       if (defMul() > 1) { ctx.strokeStyle = `rgba(143,180,255,${0.35 + 0.15 * Math.sin(T * 6)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(P.x, P.y + 4, P.r * 2.1, P.r * 1.0, 0, 0, TAU); ctx.stroke(); ctx.fillStyle = 'rgba(143,180,255,.12)'; ctx.fill(); }   // 방어력 증가 중: 발밑 방어막
       if (P.act && (P.act.type === 'ult' || P.act.invul)) { ctx.fillStyle = `rgba(${HERO.ult.rgb},.25)`; circle(P.x, P.y - 20, 60 + Math.sin(T * 30) * 6); if (P.act.invul && P.act.type !== 'zult') for (let k = 0; k < 10; k++) { const an = T * 7 + k * TAU / 10; ctx.fillStyle = `rgba(255,${120 + (k % 3) * 45},50,.55)`; circle(P.x + Math.cos(an) * 46, P.y - 14 + Math.sin(an) * 30 - 8 * Math.abs(Math.sin(T * 12 + k)), 9 - (k % 3) * 2); } }
-      ctx.strokeStyle = '#3cff3c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(P.x, P.y + 6, P.r * 1.9, P.r * 0.9, 0, 0, TAU); ctx.stroke();   // SC1 식 선택 원 (조작 중인 영웅)
-      drawPlayerUnit(P.x, P.y, P.face, playerStyle(null, P.face), 0, pcDashing(P.act)); ctx.globalAlpha = 1; drawBuffAura(P.x, P.y, bR, bl, 1);
+      const pdm = mode === 'duel', pr = HERO.mounted ? MOUNT_R : P.r; if (pdm) drawTeamRing(P.x, P.y, pr, true);   // 비무장: 아군 팀 링 + 바깥에 초록 선택원
+      ctx.strokeStyle = '#3cff3c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(P.x, P.y + 6, pdm ? pr * 2.4 : P.r * 1.9, pdm ? pr * 1.15 : P.r * 0.9, 0, 0, TAU); ctx.stroke();   // SC1 식 선택 원 (조작 중인 영웅)
+      const pst = playerStyle(null, P.face); if (pdm) pst.flag = '#4fb0ff';
+      drawPlayerUnit(P.x, P.y, P.face, pst, 0, pcDashing(P.act)); ctx.globalAlpha = 1; drawBuffAura(P.x, P.y, bR, bl, 1); if (pdm) drawPcMark();
       if (P.act && P.act.type === 'stun') { ctx.fillStyle = '#ffe14a'; for (let i = 0; i < 3; i++) { const a = T * 6 + i * 2.1; circle(P.x + Math.cos(a) * P.r * 0.9, P.y - P.r * 3.4 - (HERO.mounted ? 22 : 0) + Math.sin(a) * 4, 3.5); } }
     } else {
       const e = it.e, lift = e.lift || 0;

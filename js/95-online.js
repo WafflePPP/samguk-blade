@@ -220,22 +220,22 @@ function netGuestIn(rdt) {   // 게스트 입력 전송 (버튼은 즉시, 이�
 function drawNetHUD() {
   if (!NET.mine.length) return;
   const cur = netCur(), row = (u, x, y, mine) => {
-    const col = mine ? '#4fb0ff' : '#ff6a5a', fr = clamp(u.hp / u.maxhp, 0, 1), isCur = u === cur;
-    ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(x, y, 200, 38); ctx.strokeStyle = isCur ? '#ffd34d' : col; ctx.lineWidth = isCur ? 2.5 : 1.5; ctx.strokeRect(x, y, 200, 38);
+    const col = mine ? '#4fb0ff' : '#ff5a4a', fr = clamp(u.hp / u.maxhp, 0, 1), isCur = u === cur;
+    ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(x, y, 200, 38); ctx.strokeStyle = isCur ? '#ffd34d' : col; ctx.lineWidth = isCur ? 2.5 : 2; ctx.strokeRect(x, y, 200, 38); ctx.fillStyle = col; ctx.fillRect(x, y, 6, 38);   // 왼쪽 팀색 띠
     ctx.save(); ctx.beginPath(); ctx.arc(x + 20, y + 19, 16, 0, TAU); ctx.clip(); ctx.translate(x + 20, y + 22); ctx.scale(0.52, 0.52); drawPortraitIcon(HEROES[u.hero], 0, 0); ctx.restore();
     ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 20, y + 19, 16, 0, TAU); ctx.stroke();
-    text(DUEL_NAME[u.hero] + (isCur ? '  (나)' : ''), x + 42, y + 14, 11, '#fff');
+    text(fitStr(DUEL_NAME[u.hero] + (isCur ? '  (나)' : ''), 150, 14), x + 42, y + 15, 14, '#fff');
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x + 42, y + 18, 150, 9); ctx.fillStyle = fr > 0.5 ? '#4fd36a' : fr > 0.25 ? '#f0b030' : '#ff3a3a'; ctx.fillRect(x + 43, y + 19, 148 * fr, 7);
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x + 42, y + 29, 150, 5); ctx.fillStyle = u.rage >= 100 ? '#ffd34d' : '#e0902a'; ctx.fillRect(x + 43, y + 30, 148 * clamp(u.rage / 100, 0, 1), 3);
     if (!u.dead) drawRowBuffs(u, HEROES[u.hero], mine, x, y);
     else { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x, y, 200, 38); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x + 6, y + 4); ctx.lineTo(x + 36, y + 34); ctx.moveTo(x + 36, y + 4); ctx.lineTo(x + 6, y + 34); ctx.stroke(); }
   };
-  NET.mine.forEach((u, i) => row(u, 10, 10 + i * 42, true)); NET.theirs.forEach((u, i) => row(u, W - 210, 10 + i * 42, false));
-  if (NET.mine.length > 1) text('초상화 클릭 · Q : 조작 영웅 변경', 10, 10 + NET.mine.length * 42 + 8, 11, '#cfd3e6', 'left', false);
+  drawTeamHead(); NET.mine.forEach((u, i) => row(u, 10, DUEL_ROW.y + i * 42, true)); NET.theirs.forEach((u, i) => row(u, W - 210, DUEL_ROW.y + i * 42, false));
+  if (NET.mine.length > 1) text('초상화 클릭 · Q : 조작 영웅 변경', 10, DUEL_ROW.y + NET.mine.length * 42 + 8, 11, '#cfd3e6', 'left', false);
   const tl = Math.max(0, duel.t), mm = Math.floor(tl / 60), ss = Math.floor(tl % 60), urgent = tl < 30;
   ctx.fillStyle = 'rgba(10,12,20,.6)'; ctx.fillRect(W / 2 - 74, 8, 148, 36); ctx.strokeStyle = urgent ? '#ff6a5a' : '#d4a73a'; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - 74, 8, 148, 36);
   text(String(mm).padStart(2, '0') + ' : ' + String(ss).padStart(2, '0'), W / 2, 35, 22, urgent ? '#ff8a7a' : '#fff', 'center');
-  text('온라인 ' + NET.mine.length + ' VS ' + NET.theirs.length + ' · ' + (NET.role === 'host' ? '방장' : '게스트'), W / 2, 60, 12, '#cfd3e6', 'center', false);
+  drawVsTag('온라인 ', NET.mine.length, NET.theirs.length, ' · ' + (NET.role === 'host' ? '방장' : '게스트'));
   if (duel.t0 < 2.4 && state === 'play') { const al = clamp(Math.min(duel.t0, 2.4 - duel.t0) * 3, 0, 1); ctx.globalAlpha = al; text('FIGHT!', W / 2, 300, 72, '#ffd34d', 'center'); ctx.globalAlpha = 1; }
 }
 

@@ -76,7 +76,7 @@ function makeFighter(hero, team, x, y) {
     rage: 0, cd: { s1: rand(0, 2), s2: rand(0, 3) }, s2Store: { lubu: 0, lubu2: 0 }, dashCd: 0, invT: 0, hitT: 0, hitAng: 0, hitMag: 1, guardT: 0, ultGuardT: 0, runT: 0, aspdT: 0, postUltT: 0, comboBuffT: 0, blessT: 0, undyT: 0, floorT: 0, floorUsed: false, hits: 0, hitsT: 0, hitTier: 0, ghostT: 0, moving: false, act: null, combo: 0, comboT: 0, lean: 1, skills: skillDefs(hero), seed: rand(0, 6) };
 }
 // 조작 영웅 변경: 눌린 아군 AI(f)와 지금 조작 중인 영웅(P)이 서로 역할을 맞바꿈 (위치·생명력·분노·스킬 쿨타임을 그대로 주고받음). 쓰러져 관전 중이면 살아있는 아군으로 옮겨 다시 조작 가능
-const DUEL_ROW = { x: 10, y: 10, w: 200, h: 38, step: 42 };   // HUD 왼쪽 목록 (0 = 현재 조작 영웅, 1~2 = 아군 AI)
+const DUEL_ROW = { x: 10, get y() { return mode === 'duel' ? 32 : 10; }, w: 200, h: 38, step: 42 };   // HUD 왼쪽 목록 (0 = 현재 조작 영웅, 1~2 = 아군 AI)
 // 목록 순서는 영웅 선택 순서로 고정 (조작 영웅을 바꿔도 칸이 바뀌지 않고, 현재 조작 영웅 칸만 금색으로 강조)
 function duelRowAt(x, y) { if ((mode !== 'duel' && !RAID) || state !== 'play') return -1; for (let i = 0; i < (duel || RD).order.length; i++) { const ry = DUEL_ROW.y + i * DUEL_ROW.step; if (x >= DUEL_ROW.x && x <= DUEL_ROW.x + DUEL_ROW.w && y >= ry && y <= ry + DUEL_ROW.h) return i; } return -1; }
 function swapControl(f) {
