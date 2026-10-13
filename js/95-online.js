@@ -27,14 +27,14 @@ function netConnect(then, again) {
 const netRaw = o => { if (NET.ws && NET.open) NET.ws.send(JSON.stringify(o)); };
 const netSend = d => netRaw({ t: 'r', d });
 const netSendTo = (slot, d) => netRaw({ t: 'r', d, to: slot });
-function netCreate() { const raid = rOn(); NET.role = 'host'; netConnect(() => netRaw(raid ? { t: 'host', max: 2 } : { t: 'host' })); NET.role = 'host'; NET.rr = raid; NET.slot = 0; }
-function netJoin(code) { if (!code) return; const raid = rOn(); NET.role = 'guest'; netConnect(() => netRaw({ t: 'join', code })); NET.role = 'guest'; NET.rr = raid; }
+function netCreate() { const raid = rOn(); NET.role = 'host'; netConnect(() => netRaw(raid ? { t: 'host', max: 2, kind: 'raid' } : { t: 'host', kind: 'duel' })); NET.role = 'host'; NET.rr = raid; NET.slot = 0; }
+function netJoin(code) { if (!code) return; const raid = rOn(); NET.role = 'guest'; netConnect(() => netRaw({ t: 'join', code, kind: raid ? 'raid' : 'duel' })); NET.role = 'guest'; NET.rr = raid; }
 function netPromptJoin() { let c = null; try { c = window.prompt('친구에게 받은 방 코드(4글자)를 입력하세요', ''); } catch (_) { } if (c) netJoin(c.trim().toUpperCase()); }
 function netPromptUrl() { let u = null; try { u = window.prompt('중계 서버 주소 (예: wss://내서버.onrender.com 또는 ws://192.168.0.5:8787)', NET.url); } catch (_) { } if (u) { NET.url = u.trim(); NET.urlManual = true; try { localStorage.setItem('sgb_net_url_manual', NET.url); } catch (_) { } } }
 function netOnMsg(m) {
   if (m.t === 'room') { NET.code = m.code; NET.status = '방 코드 ' + m.code + (NET.rr ? ' — 참가자를 기다리는 중 (최대 3명)' : ' — 상대를 기다리는 중'); }
   else if (m.t === 'err') { NET.status = m.msg; netClose(); }
-  else if (m.t === 'paired') { NET.peerReady = false; if (NET.rr) netRaidPaired(m); else { NET.paired = true; NET.status = '상대와 연결되었습니다'; netSendTeam(); } }
+  else if (m.t === 'paired') { if (m.kind && m.kind !== (NET.rr ? 'raid' : 'duel')) { NET.status = m.kind === 'raid' ? '레이드 모드 방입니다 — 레이드 > 온라인에서 참가하세요' : '비무장 모드 방입니다 — 비무장 > 온라인에서 참가하세요'; netClose(); return; } NET.peerReady = false; if (NET.rr) netRaidPaired(m); else { NET.paired = true; NET.status = '상대와 연결되었습니다'; netSendTeam(); } }
   else if (m.t === 'party') { if (NET.rr) NET.status = '파티 ' + m.n + '명 입장'; }
   else if (m.t === 'left') {
     if (NET.rr) { netRaidLeft(m); return; }
