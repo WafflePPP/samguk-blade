@@ -3953,7 +3953,8 @@ function drawDuelHUD() {
 
 // ---------- 전투 속도 조절 ----------
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3], SPEED_1X = 3; let speedIdx = SPEED_1X;   // 0.25배속 단위, 0.25 ~ 3배속   // 1배속에서 시작 (전투를 시작할 때마다 1배속으로 되돌림)
-const gameSpeed = () => NET.on ? 1 : SPEEDS[speedIdx];
+const BASE_SPEED = 0.85;   // 모든 모드의 1배속 = 이전 속도의 85% (15% 감소). 배속 버튼·온라인 모두 이 기준에서 곱해짐
+const gameSpeed = () => BASE_SPEED * (NET.on ? 1 : SPEEDS[speedIdx]);
 const SPD = { l: { x: W / 2 - 92, y: H - 50, w: 52, h: 36 }, c: { x: W / 2 - 36, y: H - 50, w: 72, h: 36 }, r: { x: W / 2 + 40, y: H - 50, w: 52, h: 36 } };
 const speedCtlOn = () => state === 'play' && !NET.on && !TUT && !paused;
 function speedStep(d) { const n = clamp(speedIdx + d, 0, SPEEDS.length - 1); if (n !== speedIdx) { speedIdx = n; sfx('hit'); } }
