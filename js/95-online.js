@@ -9,7 +9,11 @@ Object.assign(NET, { team: ['guan'], peerTeam: [], hostTeam: [], guestTeam: [], 
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
 const netNewInp = () => ({ mx: 0, my: 0, h: false, b: { attack: -9, s1: -9, s2: -9, s3: -9, dash: -9 } });
 function netClose() { if (NET.ws) { try { NET.ws.onclose = null; NET.ws.close(); } catch (_) { } } NET.ws = null; NET.open = false; NET.paired = false; NET.code = ''; NET.peerTeam = []; NET.role = null; NET.rr = false; NET.rp = [null, null, null]; NET.slot = 0; NET.myReady = false; NET.peerReady = false; }
+// 배포 페이지의 server.json({ url: 'wss://...' })에서 서버 주소를 받아 온다 — 서버가 바뀌어도 앱을 다시 설치할 필요 없음
+const NET_CFG_URL = 'https://waffleppp.github.io/samguk-blade/server.json';
+if (!NET_DEV && typeof fetch === 'function') fetch(NET_CFG_URL + '?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()).then(j => { if (j && /^wss?:\/\//.test(j.url || '') && !NET.urlManual) NET.url = j.url; NET.cfgMsg = (j && j.msg) || ''; }).catch(() => { });
 function netConnect(then, again) {
+  if (!NET.url && !(again && NET.ws)) { NET.status = '서버 주소가 아직 설정되지 않았습니다 — 아래 "서버" 버튼을 눌러 주소를 입력하세요'; return; }
   const keep = NET.retry, role = NET.role, rr = NET.rr; netClose(); NET.role = role; NET.rr = rr; NET.retry = again ? keep : (/^wss:/i.test(NET.url) ? 8 : 0); NET.url = NET.url.trim(); if (!new RegExp('^wss?://', 'i').test(NET.url)) NET.url = 'ws://' + NET.url;   // 앞의 ws:// 를 빼먹어도 보정
   if (location.protocol === 'https:' && new RegExp('^ws://', 'i').test(NET.url)) { NET.status = '이 앱은 보안(https) 방식이라 ws:// 서버에 접속할 수 없습니다 — wss:// 주소를 쓰거나 LAN 테스트용 앱을 설치하세요'; return; }
   NET.status = '서버 연결 중...';
@@ -26,7 +30,7 @@ const netSendTo = (slot, d) => netRaw({ t: 'r', d, to: slot });
 function netCreate() { const raid = rOn(); NET.role = 'host'; netConnect(() => netRaw(raid ? { t: 'host', max: 2 } : { t: 'host' })); NET.role = 'host'; NET.rr = raid; NET.slot = 0; }
 function netJoin(code) { if (!code) return; const raid = rOn(); NET.role = 'guest'; netConnect(() => netRaw({ t: 'join', code })); NET.role = 'guest'; NET.rr = raid; }
 function netPromptJoin() { let c = null; try { c = window.prompt('친구에게 받은 방 코드(4글자)를 입력하세요', ''); } catch (_) { } if (c) netJoin(c.trim().toUpperCase()); }
-function netPromptUrl() { let u = null; try { u = window.prompt('중계 서버 주소 (예: wss://내서버.onrender.com 또는 ws://192.168.0.5:8787)', NET.url); } catch (_) { } if (u) { NET.url = u.trim(); try { localStorage.setItem('sgb_net_url', NET.url); } catch (_) { } } }
+function netPromptUrl() { let u = null; try { u = window.prompt('중계 서버 주소 (예: wss://내서버.onrender.com 또는 ws://192.168.0.5:8787)', NET.url); } catch (_) { } if (u) { NET.url = u.trim(); NET.urlManual = true; try { localStorage.setItem('sgb_net_url_manual', NET.url); } catch (_) { } } }
 function netOnMsg(m) {
   if (m.t === 'room') { NET.code = m.code; NET.status = '방 코드 ' + m.code + (NET.rr ? ' — 참가자를 기다리는 중 (최대 3명)' : ' — 상대를 기다리는 중'); }
   else if (m.t === 'err') { NET.status = m.msg; netClose(); }
@@ -43,7 +47,7 @@ function netOnMsg(m) {
 function netOnData(d, from) {
   if (!d) return;
   if (typeof d.k === 'string' && d.k[0] === 'r') { netRaidData(d, from); return; }   // 온라인 레이드 메시지
-  if (d.k === 'team') { NET.peerLv = d.lv || {}; NET.peerReady = !!d.rd; }
+  if (d.k === 'team') { NET.peerLv = d.lv || {}; NET.peerReady = !!d.rd; NET.peerVer = d.v; if (d.v !== NET_VER) NET.status = '상대의 게임 버전이 다릅니다 — 페이지를 새로고침하거나 앱을 최신으로 업데이트하세요'; }
   if (d.k === 'team') NET.peerTeam = Array.isArray(d.team) ? d.team.filter(id => HEROES[id] && id !== 'lubu2').slice(0, 3) : [];
   else if (d.k === 'start' && NET.role === 'guest' && !NET.inMatch) netBeginGuest(d.ht, d.gt, d.lv);
   else if (d.k === 'in' && NET.role === 'host' && NET.inpG) { const i = NET.inpG; i.mx = d.mx || 0; i.my = d.my || 0; i.h = !!d.h; for (const n of (d.b || [])) if (n in i.b) i.b[n] = T; }
@@ -59,9 +63,9 @@ function netLvTable(ht, gt) {   // 같은 영웅이 양 팀에 있으면 낮은 
   for (const id of HERO_IDS) { const inH = ht.includes(id), inG = gt.includes(id); o[id] = inH && inG ? Math.min(me[id] || 1, th[id] || 1) : inH ? (me[id] || 1) : inG ? (th[id] || 1) : 1; }
   return o;
 }
-function netSendTeam() { if (NET.paired) netSend({ k: 'team', team: NET.team, lv: netMyLv(), rd: NET.myReady }); }
+function netSendTeam() { if (NET.paired) netSend({ k: 'team', team: NET.team, lv: netMyLv(), rd: NET.myReady, v: NET_VER }); }
 function netPickToggle(id) { const k = NET.team.indexOf(id); if (k >= 0) NET.team.splice(k, 1); else if (NET.team.length < 3) NET.team.push(id); netSendTeam(); sfx('hit'); }
-function netReady() { return NET.team.length >= 1 && NET.peerTeam.length >= 1 && (NET.role !== 'host' || NET.peerReady); }   // 방장은 참가자가 '준비'를 눌러야 시작할 수 있다
+function netReady() { return NET.team.length >= 1 && NET.peerTeam.length >= 1 && (NET.role !== 'host' || (NET.peerReady && NET.peerVer === NET_VER)); }   // 방장은 참가자가 '준비'를 눌러야 시작할 수 있다
 function netToggleReady() {   // 참가자: 준비 / 준비 취소
   if (NET.role !== 'guest' || !NET.paired || !NET.ws) return;
   if (duelPick.length < 1) { NET.status = '먼저 장수를 고르세요'; sfx('hit'); return; }

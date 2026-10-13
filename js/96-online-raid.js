@@ -15,9 +15,9 @@ const mySlot = () => NET.role === 'guest' ? NET.slot : 0;
 const netRaidTaken = id => netRaidView().some((e, s) => e && e.hero === id && s !== mySlot());
 const netRaidCount = () => netRaidView().filter(Boolean).length;
 const netRaidReadyN = () => netRaidView().filter((e, s) => e && s > 0 && e.rd).length, netRaidGuestN = () => netRaidView().filter((e, s) => e && s > 0).length;
-const netRaidCanStart = () => NET.role === 'host' && !!NET.ws && NET.open && !!NET.code && netRaidView().every((e, s) => !e || (e.hero && (s === 0 || e.rd)));   // 방장은 장수를 골랐고 모든 참가자가 준비해야 시작
-function netRaidBroadcast() { if (NET.role === 'host' && NET.ws && NET.paired) netSend({ k: 'rparty', boss: raidBossId, list: netRaidView() }); }
-function netRaidSendMine() { const e = netRaidEntry0(); netSend({ k: 'rteam', hero: e.hero, lv: e.lv, eq: e.eq, rd: e.rd }); }
+const netRaidCanStart = () => NET.role === 'host' && !!NET.ws && NET.open && !!NET.code && netRaidView().every((e, s) => !e || (e.hero && (s === 0 || (e.rd && e.v === NET_VER))));   // 방장은 장수를 골랐고 모든 참가자가 준비해야 시작
+function netRaidBroadcast() { if (NET.role === 'host' && NET.ws && NET.paired) netSend({ k: 'rparty', boss: raidBossId, list: netRaidView(), hv: NET_VER }); }
+function netRaidSendMine() { const e = netRaidEntry0(); netSend({ k: 'rteam', hero: e.hero, lv: e.lv, eq: e.eq, rd: e.rd, v: NET_VER }); }
 function netRaidMine() { if (!NET.ws) return; if (NET.role === 'host') netRaidBroadcast(); else if (NET.paired) netRaidSendMine(); }   // 내 선택이 바뀜
 function netRaidPaired(m) {
   if (NET.role === 'host') { NET.paired = true; NET.rp[m.slot] = { hero: null, lv: 1, eq: null }; NET.status = '참가자가 입장했습니다 — 파티 ' + m.n + '명'; netRaidBroadcast(); }
@@ -36,11 +36,13 @@ function netRaidLeft(m) {
 function netRaidData(d, from) {
   if (d.k === 'rteam' && NET.role === 'host' && from) {
     const h = HEROES[d.hero] && d.hero !== 'lubu2' ? d.hero : null, taken = h && netRaidView().some((e, s) => e && e.hero === h && s !== from), cl = (v, m) => Math.max(0, Math.min(m, +v || 0)), e = d.eq && typeof d.eq === 'object' ? { hp: cl(d.eq.hp, 400), atk: cl(d.eq.atk, 40), def: cl(d.eq.def, 30) } : null;
-    NET.rp[from] = { hero: taken ? null : h, rd: !!d.rd && !!h && !taken, lv: Math.max(1, Math.min(MAX_LV, d.lv | 0 || 1)), eq: e }; netRaidBroadcast();
+    if (d.v !== NET_VER) NET.status = '참가자의 게임 버전이 다릅니다 — 그 참가자가 페이지를 새로고침하거나 앱을 업데이트해야 합니다';
+    NET.rp[from] = { v: d.v, hero: taken ? null : h, rd: !!d.rd && !!h && !taken, lv: Math.max(1, Math.min(MAX_LV, d.lv | 0 || 1)), eq: e }; netRaidBroadcast();
   }
   else if (d.k === 'rparty' && NET.role === 'guest' && (!NET.inMatch || state === 'win' || state === 'lose')) {
     NET.rp = Array.isArray(d.list) ? d.list.slice(0, 3).map(e => e && typeof e === 'object' ? e : null) : [null, null, null];
     if (d.boss && RAID_CFG[d.boss]) raidBossId = d.boss;
+    if (d.hv !== NET_VER) NET.status = '방장의 게임 버전이 다릅니다 — 페이지를 새로고침하거나 앱을 최신으로 업데이트하세요';
     const c = duelPick[0]; if (c && NET.rp.some((e, s) => e && s !== NET.slot && e.hero === c)) { duelPick.length = 0; NET.myReady = false; NET.status = '같은 장수를 먼저 고른 파티원이 있습니다 — 다른 장수를 고르세요'; }
   }
   else if (d.k === 'rstart' && NET.role === 'guest' && (!NET.inMatch || state === 'win' || state === 'lose')) netBeginRaidGuest(d);
@@ -172,7 +174,8 @@ function drawRaidSlots() {   // 장수 선택 화면 아래: 파티 슬롯 (방�
     const r = PK.slot(i), e = view[i], mine = mySlot() === i, lab = i === 0 ? '방장' : '참가자 ' + i;
     ctx.fillStyle = e ? 'rgba(30,24,44,.92)' : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = e ? (mine ? '#ffd34d' : '#4fb0ff') : 'rgba(255,255,255,.25)'; ctx.lineWidth = e ? 2.5 : 1.5; if (!e) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
     text(lab + (mine ? ' (나)' : ''), r.x + 10, r.y + 20, 12, mine ? '#ffd34d' : '#9ad4ff', 'left');
-    if (e && i > 0) text(e.rd ? '준비 완료' : '대기 중', r.x + r.w - 10, r.y + 20, 12, e.rd ? '#7dff9a' : '#8a90a6', 'right');
+    if (e && i > 0 && e.v !== undefined && e.v !== NET_VER) text('버전 다름', r.x + r.w - 10, r.y + 20, 12, '#ff7a7a', 'right');
+    else if (e && i > 0) text(e.rd ? '준비 완료' : '대기 중', r.x + r.w - 10, r.y + 20, 12, e.rd ? '#7dff9a' : '#8a90a6', 'right');
     if (e && e.hero) { ctx.save(); ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 54, 22, 0, TAU); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + 58); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[e.hero], 0, 0); ctx.restore(); text(PC_NAME[e.hero] + '  Lv ' + e.lv, r.x + r.w / 2, r.y + 92, 13, '#fff', 'center', false); }
     else if (e) text(mine ? '장수를 선택하세요' : '장수 선택 중...', r.x + r.w / 2, r.y + 62, 13, mine ? '#ffe9a0' : '#8a90a6', 'center', false);
     else text(i === 0 ? '장수를 고르세요' : NET.code ? '대기 중' : '—', r.x + r.w / 2, r.y + 62, 13, 'rgba(255,255,255,.35)', 'center', false);
@@ -181,7 +184,7 @@ function drawRaidSlots() {   // 장수 선택 화면 아래: 파티 슬롯 (방�
 function drawPickRaidOnline() {   // 아래 가운데: 서버 · 방 만들기 · 방 참가 / 방 코드·상태 / 파티·보스
   const L = PK.on, busy = !!NET.ws, none = false;
   const bx = (r, label, col, dis, sz) => { ctx.globalAlpha = dis ? 0.45 : 1; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h); text(fitStr(label, r.w - 12, sz), r.x + r.w / 2, r.y + r.h / 2 + 5, sz, col, 'center'); ctx.globalAlpha = 1; };
-  bx(L.url, '서버: ' + NET.url.replace(/^wss?:\/\//, ''), '#9ad4ff', busy, 12); bx(L.create, '방 만들기', '#7dff9a', busy || none, 15); bx(L.join, '방 참가', '#4fb0ff', busy || none, 15);
+  bx(L.url, '서버: ' + (NET.url ? NET.url.replace(/^wss?:\/\//, '') : '미설정 (눌러서 입력)'), '#9ad4ff', busy, 12); bx(L.create, '방 만들기', '#7dff9a', busy || none, 15); bx(L.join, '방 참가', '#4fb0ff', busy || none, 15);
   if (NET.code) { text('방 코드  ' + NET.code, 530, 662, 21, '#ffd34d', 'left'); if (NET.status) text(fitStr(NET.status, 240, 12), 706, 662, 12, '#ffe9a0', 'left', false); }
   else text(fitStr(NET.status || '방을 만들거나 친구의 방 코드로 참가하세요', 430, 13), 530, 660, 13, '#ffe9a0', 'left', false);
   text('파티 ' + netRaidCount() + ' / 3  ·  보스 ' + RAID_CFG[raidBossId].name + (NET.role === 'guest' ? ' (방장이 정함)' : ''), 530, 694, 13, '#ff9a8a', 'left');
