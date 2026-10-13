@@ -3025,7 +3025,7 @@ function drawFoeRow(R, label, sub, ids, lvOf, rawOf, emptyMsg) {
   });
 }
 const f1n = n => +n.toFixed(1);
-function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); pickTab = 0; pickFocus = null; duelFoes = []; duelPick = (m === 'duel' ? (duelLast ? duelLast.slice() : []) : m === 'raid' && pickOnline ? TEAM.slice(0, 1) : TEAM.slice()); }
+function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); pickTab = 0; pickFocus = null; duelFoes = []; duelPick = []; }   // 모든 모드: 장수 선택 화면은 비어 있는 상태로 시작 (미리 골라진 장수 없음)
 const rOn = () => pickFor === 'raid' && pickOnline;   // 온라인 레이드 방 화면인가
 function togglePick(id) {
   if (rOn()) { if (netRaidTaken(id)) { NET.status = '다른 파티원이 이미 고른 장수입니다'; sfx('hit'); return; } if (duelPick[0] === id) duelPick.length = 0; else { duelPick.length = 0; duelPick.push(id); } NET.myReady = false; netRaidMine(); return; }
