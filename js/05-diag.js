@@ -34,7 +34,7 @@ window.addEventListener('unhandledrejection', ev => { const r = ev.reason; errLo
 function errReport() {
   let v = '?'; try { const s = document.querySelector('script[src*="js/"]'); const m = s && /[?&]v=([^&"]+)/.exec(s.getAttribute('src')); if (m) v = m[1]; } catch (_) { }
   const iso = t => new Date(t).toISOString().replace('T', ' ').slice(0, 19) + 'Z';
-  const head = ['[삼국 맹장전 오류 기록]', '생성 ' + iso(Date.now()) + ' · 빌드 v=' + v + ' · NET_VER ' + (typeof NET_VER !== 'undefined' ? NET_VER : '?') + ' · 화면 ' + innerWidth + 'x' + innerHeight + ' · 터치 ' + (typeof IS_TOUCH !== 'undefined' && IS_TOUCH ? 'O' : 'X'), 'UA ' + (navigator.userAgent || '').slice(0, 140), '기록 ' + ERRS.length + '건 (최대 ' + ERR_MAX + ', 이전 실행분은 [이전] 표시)'];
+  const head = ['[삼국 맹장전 오류 기록]', '생성 ' + iso(Date.now()) + ' · 게임 ' + (typeof GAME_VER !== 'undefined' ? GAME_VER : '?') + ' · 빌드 v=' + v + ' · NET_VER ' + (typeof NET_VER !== 'undefined' ? NET_VER : '?') + ' · 화면 ' + innerWidth + 'x' + innerHeight + ' · 터치 ' + (typeof IS_TOUCH !== 'undefined' && IS_TOUCH ? 'O' : 'X'), 'UA ' + (navigator.userAgent || '').slice(0, 140), '기록 ' + ERRS.length + '건 (최대 ' + ERR_MAX + ', 이전 실행분은 [이전] 표시)'];
   const body = ERRS.map((e, i) => { const c = e.ctx || {}; return '#' + (i + 1) + (e.prev ? ' [이전]' : '') + ' ' + iso(e.t) + ' [' + e.src + (e.n > 1 ? ' x' + e.n : '') + '] mode=' + c.mode + ' state=' + c.state + ' raid=' + c.raid + ' online=' + c.online + '\n   ' + e.msg + '\n   ' + (e.file || '-') + ':' + e.line + ':' + e.col + (e.stack ? '\n   ' + e.stack : ''); });
   return head.concat(body.length ? body : ['(기록된 오류 없음)']).join('\n');
 }

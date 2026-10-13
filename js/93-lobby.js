@@ -99,11 +99,14 @@ function drawSpeedLines() {
   }
   ctx.restore();
 }
+function drawVersion() {   // 로그인·로비 화면 오른쪽 아래 버전 표시 (GAME_VER = '의미버전+빌드날짜')
+  const p = GAME_VER.split('+'); text('v' + p[0] + (p[1] ? '  ·  ' + p[1] : ''), W - 12, H - 10, 13, 'rgba(255,255,255,.62)', 'right', false);
+}
 function render() {
   ctx.clearRect(0, 0, W, H); ICON_HITS = []; if (iconTip && !(state === 'play' || state === 'upgrade')) iconTip = null;
-  if (state === 'account') { drawAccount(); return; }
+  if (state === 'account') { drawAccount(); drawVersion(); return; }
   if (state === 'info') { drawInfo(); return; }
-  if (state === 'title') { drawTitle(); if (!helpOpen) drawLobbyAccount(); return; }
+  if (state === 'title') { drawTitle(); if (!helpOpen) drawLobbyAccount(); drawVersion(); return; }
   if (state === 'pick') { drawPick(); return; }
   if (state === 'duelMenu') { drawDuelMenu(); return; }
   if (state === 'raidMenu') { raidMsgT = Math.max(0, raidMsgT - 1 / 60); drawRaidMenu(); return; }
