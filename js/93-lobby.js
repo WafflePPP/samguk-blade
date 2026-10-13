@@ -77,6 +77,7 @@ function drawHelpPanel() {
   G.forEach((t, i) => text(t, W / 2, p.y + 92 + i * 28, 15, '#dfe3f5', 'center', false));
   text('튜토리얼 다시 보기', W / 2, p.y + 292, 17, '#ffd34d', 'center');
   [['로그라이크 모드', 'yeonui'], ['비무장 모드', 'duel'], ['레이드 모드', 'raid']].forEach(([nm, key], i) => { const r = tutBtnRect(i), done = ACC && ACC.tut && ACC.tut[key]; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = done ? '#7a8aa0' : '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text('▶ ' + nm + (done ? '' : '  (처음 입장 시 진행)'), r.x + r.w / 2, r.y + 24, 15, done ? '#cfd3e6' : '#ffe9a0', 'center', false); });
+  drawDiagButtons();
   text('아무 곳이나 누르거나 Esc / H 로 닫기', W / 2, p.y + p.h - 22, 12.5, 'rgba(255,255,255,.55)', 'center', false);
 }
 function drawTitle() {

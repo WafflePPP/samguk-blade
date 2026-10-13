@@ -40,7 +40,10 @@ function drawHeroPointer() {   // 영웅이 화면 밖이면 가장자리에 방
 }
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  try { update(dt); render(); } catch (e) { console.error(e); }   // 한 프레임에서 오류가 나도 화면이 멈추지 않게 다음 프레임을 이어서 그린다
+  try {
+    if (DBG.on) { const t0 = performance.now(); update(dt); const t1 = performance.now(); render(); drawDebug(); dbgFrame(now, t1 - t0, performance.now() - t1); }   // 디버그 표시가 켜졌을 때만 시간을 잰다
+    else { update(dt); render(); }
+  } catch (e) { errLog('frame', e && e.message, '', 0, 0, e && e.stack); console.error(e); }   // 한 프레임에서 오류가 나도 화면이 멈추지 않게 다음 프레임을 이어서 그린다
   requestAnimationFrame(frame);
 }
 loadSave(); ACC = SAVE.accounts.find(a => a.id === SAVE.last) || null;

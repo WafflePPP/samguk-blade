@@ -170,7 +170,7 @@ cv.addEventListener('pointerdown', e => {
   if (state === 'account') { accountClick(x, y); return; }
   if (state === 'info') { infoClick(x, y); return; }
   if (state === 'title') {
-    if (helpOpen) { for (let i = 0; i < 3; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[['yeonui', 'duel', 'raid'][i]] = false; helpOpen = false; lobbySel = i; enterMode(i); return; } helpOpen = false; return; }
+    if (helpOpen) { if (diagHelpClick(x, y)) return; for (let i = 0; i < 3; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[['yeonui', 'duel', 'raid'][i]] = false; helpOpen = false; lobbySel = i; enterMode(i); return; } helpOpen = false; return; }
     if (inRect(x, y, HELP_BTN)) { helpOpen = true; sfx('hit'); return; }
     if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; }
     if (inRect(x, y, INFO_BTN)) { openInfo(); return; }
