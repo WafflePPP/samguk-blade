@@ -110,7 +110,7 @@ function drawFoeRow(R, label, sub, ids, lvOf, rawOf, emptyMsg) {
   });
 }
 const f1n = n => +n.toFixed(1);
-function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); pickTab = 0; pickFocus = null; duelFoes = []; duelPick = []; }   // 모든 모드: 장수 선택 화면은 비어 있는 상태로 시작 (미리 골라진 장수 없음)
+function openPick(m) { const gm = m === 'raid' ? 'yeonui' : m; pickFor = m; state = 'pick'; mode = gm; applyGrowth(gm); pickTab = 0; pickFocus = null; pickPrevFoc = undefined; pickPrevSel = {}; duelFoes = []; duelPick = []; }   // 모든 모드: 장수 선택 화면은 비어 있는 상태로 시작 (미리 골라진 장수 없음)
 const rOn = () => pickFor === 'raid' && pickOnline;   // 온라인 레이드 방 화면인가
 function togglePick(id) {
   if (rOn()) { if (netRaidTaken(id)) { NET.status = '다른 파티원이 이미 고른 장수입니다'; sfx('hit'); return; } if (duelPick[0] === id) duelPick.length = 0; else { duelPick.length = 0; duelPick.push(id); } NET.myReady = false; netRaidMine(); return; }
@@ -220,13 +220,15 @@ const PICK_NOTE = id => id === 'lubu' ? '상마: ' + HEROES.lubu.sub + ' · ' + 
 // ===== 새 장수 선택 화면 (왼쪽 영웅 목록 · 가운데 영웅 · 오른쪽 정보 패널 · 아래 파티 슬롯 + 시작) — 온라인 대전만 아래 기존 화면을 쓴다 =====
 const newPickUI = () => true;   // 모든 모드(온라인 대전 포함)가 같은 장수 선택 화면을 쓴다
 let pickFocus = null, pickTab = 0;
+let pickFocT = -9, pickPopT = {}, pickPrevFoc, pickPrevSel = {};   // 장수 선택 화면의 부드러운 전환: 가운데 장수 바뀐 시각 / 장수별 선택·해제 시각
+const easeOut = k => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
 const PK = { back: { x: 14, y: 14, w: 56, h: 56 }, list: i => ({ x: 22, y: 92 + i * 80, w: 184, h: 72 }), arrL: { x: 224, y: 270, w: 42, h: 84 }, arrR: { x: 598, y: 270, w: 42, h: 84 }, toggle: { x: 262, y: 520, w: 340, h: 46 }, tab: i => ({ x: 700 + i * 172, y: 184, w: 160, h: 38 }), slot: i => ({ x: 24 + i * 162, y: 604, w: 152, h: 100 }), go: { x: W - 304, y: 610, w: 280, h: 86 }, on: { url: { x: 530, y: 600, w: 200, h: 34 }, create: { x: 738, y: 600, w: 100, h: 34 }, join: { x: 846, y: 600, w: 100, h: 34 } }, panel: { x: 680, y: 92, w: 576, h: 484 } };
 function backBtn(b) { ctx.fillStyle = 'rgba(10,8,20,.8)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2.5; ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(b.x + b.w / 2 + 7, b.y + 14); ctx.lineTo(b.x + b.w / 2 - 7, b.y + b.h / 2); ctx.lineTo(b.x + b.w / 2 + 7, b.y + b.h - 14); ctx.stroke(); }
 const pickSlotLabels = () => (pickFor === 'duel' || pickFor === 'raid') ? ['조작', '아군 AI', '아군 AI'] : ['시작', '태그 Z', '태그 X'];
 function pickCycleFocus(d) { if (!pickFocus) { pickFocus = d > 0 ? HERO_IDS[0] : HERO_IDS[HERO_IDS.length - 1]; sfx('hit'); return; } const i = Math.max(0, HERO_IDS.indexOf(pickFocus)); pickFocus = HERO_IDS[(i + d + HERO_IDS.length) % HERO_IDS.length]; sfx('hit'); }
 function pickClickNew(x, y) {
   if (inRect(x, y, PK.back)) { pickBack(); sfx('hit'); return; }
-  for (let i = 0; i < HERO_IDS.length; i++) if (inRect(x, y, PK.list(i))) { pickFocus = HERO_IDS[i]; togglePick(HERO_IDS[i]); sfx('hit'); return; }
+  for (let i = 0; i < HERO_IDS.length; i++) if (inRect(x, y, PK.list(i))) { pickFocus = HERO_IDS[i]; togglePick(HERO_IDS[i]); sfx('hit'); try { if (navigator.vibrate) navigator.vibrate(12); } catch (_) { } return; }
   if (inRect(x, y, PK.arrL)) { pickCycleFocus(-1); return; } if (inRect(x, y, PK.arrR)) { pickCycleFocus(1); return; }
   if (inRect(x, y, PK.toggle)) { if (pickFocus) { togglePick(pickFocus); sfx('hit'); } return; }
   for (let i = 0; i < 2; i++) if (inRect(x, y, PK.tab(i))) { pickTab = i; sfx('hit'); return; }
@@ -273,6 +275,8 @@ function drawPickEmpty() {   // 아직 아무 장수도 고르지 않았을 때:
 function drawPickNew() {
   if (!pickFocus && duelPick.length) pickFocus = duelPick[0];   // 고른 장수가 있으면 그 장수를 보여 준다 / 없으면 비어 있는 상태
   const empty = !pickFocus;
+  if (pickFocus !== pickPrevFoc) { pickPrevFoc = pickFocus; pickFocT = T; }
+  for (const q of HERO_IDS) { const on = duelPick.includes(q); if (on !== !!pickPrevSel[q]) { pickPopT[q] = T; pickPrevSel[q] = on; } }
   drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.62)'; ctx.fillRect(0, 0, W, H);
   const duelP = pickFor === 'duel', id = pickFocus || HERO_IDS[0], h = HEROES[id], inT = duelPick.indexOf(id), rec = ACC ? heroRec(ACC, id) : { lv: 1, xp: 0 }, lv = rec.lv;
   backBtn(PK.back);
@@ -280,16 +284,20 @@ function drawPickNew() {
   text(ttl, 90, 40, 24, '#ffd34d', 'left'); text(rOn() ? '장수 선택  —  파티원마다 1명씩 · 같은 영웅은 중복 선택 불가 · 각자 자기 영웅을 직접 조작' : '장수 선택  —  최대 3명 · ' + (pickFor === 'yeonui' ? '선택한 순서대로 시작 영웅과 태그(Z/X/C)' : '첫 번째 영웅을 직접 조작, 나머지는 AI 동료') + (pickFor === 'duel' && pickOnline ? '  ·  같은 영웅이 양 팀에 있으면 낮은 쪽 레벨로 맞춰 적용' : ''), 90, 62, 13, '#cfd3e6', 'left', false);
   // 왼쪽 영웅 목록
   HERO_IDS.forEach((hid, i) => {
+    const pr0 = PK.list(i), pk = clamp((T - (pickPopT[hid] || -9)) / 0.3, 0, 1), pop = 1 + 0.06 * Math.sin(Math.PI * pk), pcx = pr0.x + pr0.w / 2, pcy = pr0.y + pr0.h / 2;
+    ctx.save(); ctx.translate(pcx, pcy); ctx.scale(pop, pop); ctx.translate(-pcx, -pcy);
     const r = PK.list(i), hh = HEROES[hid], foc = !empty && hid === id, k = duelPick.indexOf(hid), rc = ACC ? heroRec(ACC, hid) : { lv: 1 };
     ctx.fillStyle = foc ? 'rgba(62,46,16,.92)' : 'rgba(14,10,26,.82)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = foc ? '#ffd34d' : k >= 0 ? '#4fb0ff' : 'rgba(255,255,255,.22)'; ctx.lineWidth = foc ? 3 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.save(); ctx.beginPath(); ctx.arc(r.x + 40, r.y + 36, 26, 0, TAU); ctx.clip(); ctx.translate(r.x + 40, r.y + 40); ctx.scale(0.9, 0.9); drawPortraitIcon(hh, 0, 0); ctx.restore(); ctx.strokeStyle = '#d4a73a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(r.x + 40, r.y + 36, 26, 0, TAU); ctx.stroke();
     text(PC_NAME[hid], r.x + 76, r.y + 32, 18, foc ? '#ffe9a0' : '#fff', 'left'); text('Lv ' + rc.lv, r.x + 76, r.y + 54, 13, rc.lv >= MAX_LV ? '#ffd34d' : '#9dff9d', 'left', false);
     if (k >= 0) { ctx.fillStyle = k === 0 ? '#ffd34d' : '#4fb0ff'; circle(r.x + r.w - 20, r.y + 20, 14); text(String(k + 1), r.x + r.w - 20, r.y + 26, 17, '#111', 'center'); }
     if (rOn() && netRaidTaken(hid)) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(r.x, r.y, r.w, r.h); text('선택됨', r.x + r.w - 10, r.y + r.h - 10, 12, '#ff9a8a', 'right'); }
+    if (k >= 0 && pk < 1) { ctx.strokeStyle = 'rgba(255,211,77,' + (0.7 * (1 - pk)) + ')'; ctx.lineWidth = 6; ctx.strokeRect(r.x - 4 - 6 * pk, r.y - 4 - 6 * pk, r.w + 8 + 12 * pk, r.h + 8 + 12 * pk); }   // 선택 순간 금빛 파문
+    ctx.restore();
   });
   // 가운데 영웅
   if (empty) drawPickEmpty(); else { const fx0 = 432, fy0 = 500, sp = ctx.createRadialGradient(fx0, fy0 + 8, 10, fx0, fy0 + 8, 200); sp.addColorStop(0, 'rgba(255,214,140,.4)'); sp.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = sp; ctx.save(); ctx.translate(fx0, fy0 + 8); ctx.scale(1, 0.26); ctx.translate(-fx0, -(fy0 + 8)); ctx.fillRect(fx0 - 220, fy0 - 220, 440, 440); ctx.restore();
-    ctx.save(); ctx.translate(fx0, fy0); const sc = h.mounted ? 1.8 : 2.2; ctx.scale(sc, sc); drawCardFigure(h, 0, 0); ctx.restore();
+    { const ea = easeOut((T - pickFocT) / 0.26); ctx.save(); ctx.globalAlpha = ea; ctx.translate(fx0 - 40 * (1 - ea), fy0); const sc = (h.mounted ? 1.8 : 2.2) * (0.93 + 0.07 * ea); ctx.scale(sc, sc); drawCardFigure(h, 0, 0); ctx.restore(); }
     for (const [b, d] of [[PK.arrL, -1], [PK.arrR, 1]]) { ctx.fillStyle = 'rgba(10,8,20,.55)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(b.x + b.w / 2 - d * 6, b.y + 26); ctx.lineTo(b.x + b.w / 2 + d * 6, b.y + b.h / 2); ctx.lineTo(b.x + b.w / 2 - d * 6, b.y + b.h - 26); ctx.stroke(); }
     if (inT >= 0) { ctx.fillStyle = inT === 0 ? '#ffd34d' : '#4fb0ff'; ctx.fillRect(fx0 - 56, 112, 112, 30); text((inT + 1) + '번  ' + pickSlotLabels()[inT], fx0, 133, 15, '#111', 'center'); } else { ctx.fillStyle = 'rgba(70,72,86,.92)'; ctx.fillRect(fx0 - 84, 112, 168, 30); text('선택 안 함', fx0, 133, 14, '#cfd3e6', 'center'); }
     const t = PK.toggle; ctx.fillStyle = inT >= 0 ? 'rgba(60,18,18,.9)' : 'rgba(18,40,24,.9)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeStyle = inT >= 0 ? '#ff9a8a' : '#7dff9a'; ctx.lineWidth = 2.5; ctx.strokeRect(t.x, t.y, t.w, t.h); const tk = rOn() && inT < 0 && netRaidTaken(id); text(rOn() ? (inT >= 0 ? '선택 해제' : tk ? '다른 파티원이 고른 장수입니다' : '이 장수로 선택') : inT >= 0 ? '선택 해제 (파티에서 제외)' : duelPick.length >= 3 ? '파티가 가득 찼습니다 (3/3)' : '이 장수를 선택 (파티에 추가)', t.x + t.w / 2, t.y + 30, 19, inT >= 0 ? '#ff9a8a' : tk || (!rOn() && duelPick.length >= 3) ? '#8a90a6' : '#7dff9a', 'center'); }
@@ -315,7 +323,7 @@ function drawPickNew() {
   if (rOn()) drawRaidSlots(); else for (let i = 0; i < 3; i++) {
     const r = PK.slot(i), hid = duelPick[i], lab = pickSlotLabels()[i]; ctx.fillStyle = hid ? 'rgba(30,24,44,.92)' : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = hid ? (i === 0 ? '#ffd34d' : '#4fb0ff') : 'rgba(255,255,255,.25)'; ctx.lineWidth = hid ? 2.5 : 1.5; if (!hid) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
     text(String(i + 1) + '  ' + lab, r.x + 10, r.y + 20, 12, i === 0 ? '#ffd34d' : '#9ad4ff', 'left');
-    if (hid) { ctx.save(); ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 54, 22, 0, TAU); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + 58); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[hid], 0, 0); ctx.restore(); text(PC_NAME[hid] + '  Lv ' + (ACC ? heroRec(ACC, hid).lv : 1), r.x + r.w / 2, r.y + 92, 13, '#fff', 'center', false); }
+    if (hid) { ctx.save(); ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 54, 22, 0, TAU); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + 58); const sp0 = 0.75 * (0.6 + 0.4 * easeOut((T - (pickPopT[hid] || -9)) / 0.25)); ctx.scale(sp0, sp0); drawPortraitIcon(HEROES[hid], 0, 0); ctx.restore(); text(PC_NAME[hid] + '  Lv ' + (ACC ? heroRec(ACC, hid).lv : 1), r.x + r.w / 2, r.y + 92, 13, '#fff', 'center', false); }
     else text('+', r.x + r.w / 2, r.y + 66, 38, 'rgba(255,255,255,.3)', 'center');
   }
   if (rOn()) drawPickRaidOnline();
