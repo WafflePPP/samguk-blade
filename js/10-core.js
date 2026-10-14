@@ -39,24 +39,33 @@ const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if
 // 온라인 대전 상태 (자세한 구현은 '온라인 대전' 블록)
 const NET = { on: false, role: null, ws: null, open: false, code: '', status: '', peerHero: null, hero: 'guan', inMatch: false, paired: false, url: 'ws://localhost:8787', snaps: [], sendT: 0, inT: 0, sfxQ: [], fxSeen: new WeakSet(), dtSeen: new WeakSet(), me: null, opp: null, lastEnd: null, lastNew: null, aborted: false, lastSt: '' };
 // 서버 주소: 직접 입력한 주소(sgb_net_url_manual)가 있으면 그것, 없으면 배포 페이지의 server.json 에 적힌 주소 (95-online.js 에서 불러옴). 개발용 localhost 에서는 로컬 중계 서버.
-const GAME_VER = '0.1.1+20261014';   // 게임 버전 '의미버전+빌드날짜' — 의미버전은 수동(기능 추가=가운데, 수정=마지막), 날짜는 tools/release.sh 가 자동 갱신. 로그인·로비·판 기록·오류 보고에 표시. NET_VER 와 별개
+const GAME_VER = '0.2.0+20261014';   // 게임 버전 '의미버전+빌드날짜' — 의미버전은 수동(기능 추가=가운데, 수정=마지막), 날짜는 tools/release.sh 가 자동 갱신. 로그인·로비·판 기록·오류 보고에 표시. NET_VER 와 별개
 const NET_VER = 1;   // 온라인 규칙 버전: 파티원끼리 같아야 시작할 수 있다 (온라인 동기화 형식이 바뀌면 올림)
 const NET_DEV = /^(localhost|127\.0\.0\.1|192\.168\.|10\.)/.test(location.hostname);
 try { const m = localStorage.getItem('sgb_net_url_manual'); NET.urlManual = !!m; if (m) NET.url = m; else if (!NET_DEV) NET.url = ''; } catch (_) { if (!NET_DEV) NET.url = ''; }
 
 // ---------- 사운드 (WebAudio 합성) ----------
-let AC = null;
+let AC = null, MG = null;   // MG = 마스터 볼륨(모든 효과음이 지나는 게인)
+const SND = { vol: 1, mute: false }, SND_STEPS = [1, .6, .3], SND_BTN = { x: W - 116, y: 16, w: 46, h: 46 }, SND_ROW = { x: W / 2 - 320, y: 408, w: 170, h: 36 };   // 로비 아이콘 · 도움말 창 안 소리 단계 버튼
+try { const s = JSON.parse(localStorage.getItem('sgb_snd') || 'null'); if (s) { SND.vol = Math.min(1, Math.max(0, +s.vol || 0)); SND.mute = !!s.mute; } } catch (_) { }
+const sndGain = () => SND.mute ? 0 : SND.vol, sndLabel = () => SND.mute ? '소리 꺼짐' : '소리 ' + Math.round(SND.vol * 100) + '%';
+function sndApply() { if (MG) MG.gain.value = sndGain(); try { localStorage.setItem('sgb_snd', JSON.stringify(SND)); } catch (_) { } }
+function sndToggle() { SND.mute = !SND.mute; if (!SND.mute && SND.vol <= 0) SND.vol = 1; sndApply(); sfx('hit'); }   // 켜기/끄기 (N 키 · 로비 아이콘)
+function sndCycle() { if (SND.mute) { SND.mute = false; SND.vol = 1; } else { const i = SND_STEPS.indexOf(SND.vol); if (i < 0 || i === SND_STEPS.length - 1) SND.mute = true; else SND.vol = SND_STEPS[i + 1]; } sndApply(); sfx('hit'); }   // 100% → 60% → 30% → 꺼짐 (도움말 창)
+const sndHelpClick = (x, y) => { if (!inRect(x, y, SND_ROW)) return false; sndCycle(); return true; };
 const SFX = { hit: ['square', 180, 60, .08, .1], swing: ['sawtooth', 520, 160, .07, .05], boom: ['sawtooth', 100, 28, .7, .3],
   hurt: ['square', 130, 50, .16, .14], heal: ['triangle', 420, 880, .2, .1], dash: ['triangle', 300, 760, .1, .07], skill: ['sawtooth', 320, 90, .28, .1], enemy: ['square', 90, 60, .1, .05] };
 function sfx(k) {
   if (NET.on && NET.role === 'host') NET.sfxQ.push(k);   // 온라인 대전: 방장이 낸 소리를 게스트에게도 전달
+  if (sndGain() <= 0) return;   // 꺼짐이면 소리를 만들지 않는다 (CPU 절약)
   try {
     if (!AC) AC = new AudioContext();
+    if (!MG) { MG = AC.createGain(); MG.gain.value = sndGain(); MG.connect(AC.destination); }
     if (AC.state === 'suspended') AC.resume();
     const c = SFX[k], t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     o.type = c[0]; o.frequency.setValueAtTime(c[1], t); o.frequency.exponentialRampToValueAtTime(c[2], t + c[3]);
     g.gain.setValueAtTime(c[4], t); g.gain.exponentialRampToValueAtTime(0.001, t + c[3]);
-    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + c[3] + .02);
+    o.connect(g); g.connect(MG); o.start(t); o.stop(t + c[3] + .02);
   } catch (e) { }
 }
 
@@ -75,6 +84,7 @@ addEventListener('keydown', e => {
   if (e.repeat) return;
   keys[e.code] = true;
   if (state === 'account') { accountKey(e.code); return; }
+  if (e.code === 'KeyN') { sndToggle(); return; }   // N : 소리 켜기/끄기 (로그인 화면 제외 모든 화면)
   if (state === 'info') { infoKey(e.code); return; }
   if (state === 'title' && e.code === 'KeyI') { openInfo(); return; }
   if (state === 'title' && e.code === 'Escape') { if (helpOpen) helpOpen = false; else { state = 'account'; accPopup = false; } return; }
@@ -139,20 +149,20 @@ function xpGains() {   // 지금 나가면 받게 될 경험치 (settleRun 의 �
   return heroes.map(h => ({ hero: h, gain: Math.round(pool * (0.3 / n + 0.7 * (sumD ? dmgOf(h) / sumD : 1 / n))) }));
 }
 function pauseClick(x, y) { if (inRect(x, y, PAUSE_UI.go)) closePause(); else if (inRect(x, y, PAUSE_UI.exit)) pauseExit(); }
-function drawPauseButton() { for (const [r, label, col, tc] of [[PAUSE_BTN, NET.on ? '나가기' : '정지', '#9ad4ff', '#cfe8ff']]) { ctx.fillStyle = 'rgba(10,12,20,.6)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + r.h / 2 + 7, 20, tc, 'center'); } }   // 오른쪽 위: 정지 / 나가기 (AUTO 가 있던 자리)
+function drawPauseButton() { for (const [r, label, col, tc] of [[PAUSE_BTN, NET.on ? '나가기' : '정지', '#9ad4ff', '#cfe8ff']]) { ctx.fillStyle = COLORS.panel60; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + r.h / 2 + 7, 20, tc, 'center'); } }   // 오른쪽 위: 정지 / 나가기 (AUTO 가 있던 자리)
 function drawPauseOverlay() {
   ctx.fillStyle = 'rgba(4,6,12,.78)'; ctx.fillRect(0, 0, W, H);
   if (NET.on) {   // 온라인: 전투는 멈추지 않는다
-    text('나가시겠습니까?', W / 2, 190, 54, '#ff9a8a', 'center'); text('온라인 전투는 멈추지 않습니다 — 나가면 이 전투에서 빠지고 경험치·장비를 받지 못합니다', W / 2, 240, 17, '#cfd3e6', 'center', false); text('(방장이 나가면 파티의 전투가 끝납니다)', W / 2, 270, 15, '#9aa3b8', 'center', false);
-    for (const [r, label, col] of [[PAUSE_UI.go, '계속하기' + (IS_TOUCH ? '' : '  (P)'), '#7dff9a'], [PAUSE_UI.exit, '나가기', '#ff9a8a']]) { ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + 37, 24, col, 'center'); }
+    text('나가시겠습니까?', W / 2, 190, 54, '#ff9a8a', 'center'); text('온라인 전투는 멈추지 않습니다 — 나가면 이 전투에서 빠지고 경험치·장비를 받지 못합니다', W / 2, 240, 17, COLORS.silver, 'center', false); text('(방장이 나가면 파티의 전투가 끝납니다)', W / 2, 270, 15, '#9aa3b8', 'center', false);
+    for (const [r, label, col] of [[PAUSE_UI.go, '계속하기' + (IS_TOUCH ? '' : '  (P)'), COLORS.good], [PAUSE_UI.exit, '나가기', '#ff9a8a']]) { ctx.fillStyle = COLORS.panel92; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + 37, 24, col, 'center'); }
     return;
   }
-  text(pauseKind === 'exit' ? '나가시겠습니까?' : '일시정지', W / 2, 150, 54, pauseKind === 'exit' ? '#ff9a8a' : '#ffd34d', 'center');
-  text('나가면 지금까지 획득한 경험치가 영웅 레벨에 한꺼번에 반영됩니다  (현재 WAVE ' + (waveIdx + 1) + ' · 처치 ' + kills + ')', W / 2, 196, 17, '#cfd3e6', 'center', false);
-  const g = xpGains(); text('지금 나가면 받는 경험치', W / 2, 250, 20, '#ffe9a0', 'center');
-  g.forEach((r, i) => { const y = 292 + i * 44, rec = ACC ? heroRec(ACC, r.hero) : { lv: 1, xp: 0 }; ctx.fillStyle = 'rgba(12,14,24,.9)'; ctx.fillRect(W / 2 - 260, y - 26, 520, 38); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1; ctx.strokeRect(W / 2 - 260, y - 26, 520, 38); text(PC_NAME[r.hero], W / 2 - 240, y, 18, '#fff', 'left'); text('Lv ' + rec.lv, W / 2 - 120, y, 16, '#9ad4ff', 'left'); text('+' + r.gain + ' XP', W / 2 + 240, y, 18, '#9dff9d', 'right'); });
-  const bt = (r, label, col) => { ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + 37, 24, col, 'center'); };
-  bt(PAUSE_UI.go, '계속하기' + (IS_TOUCH ? '' : '  (P)'), '#7dff9a'); bt(PAUSE_UI.exit, '나가기 · 경험치 정산', '#ff9a8a');
+  text(pauseKind === 'exit' ? '나가시겠습니까?' : '일시정지', W / 2, 150, 54, pauseKind === 'exit' ? '#ff9a8a' : COLORS.gold, 'center');
+  text('나가면 지금까지 획득한 경험치가 영웅 레벨에 한꺼번에 반영됩니다  (현재 WAVE ' + (waveIdx + 1) + ' · 처치 ' + kills + ')', W / 2, 196, 17, COLORS.silver, 'center', false);
+  const g = xpGains(); text('지금 나가면 받는 경험치', W / 2, 250, 20, COLORS.goldText, 'center');
+  g.forEach((r, i) => { const y = 292 + i * 44, rec = ACC ? heroRec(ACC, r.hero) : { lv: 1, xp: 0 }; ctx.fillStyle = 'rgba(12,14,24,.9)'; ctx.fillRect(W / 2 - 260, y - 26, 520, 38); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1; ctx.strokeRect(W / 2 - 260, y - 26, 520, 38); text(PC_NAME[r.hero], W / 2 - 240, y, 18, '#fff', 'left'); text('Lv ' + rec.lv, W / 2 - 120, y, 16, '#9ad4ff', 'left'); text('+' + r.gain + ' XP', W / 2 + 240, y, 18, COLORS.goodAlt, 'right'); });
+  const bt = (r, label, col) => { ctx.fillStyle = COLORS.panel92; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.strokeRect(r.x, r.y, r.w, r.h); text(label, r.x + r.w / 2, r.y + 37, 24, col, 'center'); };
+  bt(PAUSE_UI.go, '계속하기' + (IS_TOUCH ? '' : '  (P)'), COLORS.good); bt(PAUSE_UI.exit, '나가기 · 경험치 정산', '#ff9a8a');
 }
 function toggleAuto() { auto = !auto; if (TUT && auto) tutEvent('auto'); if (NET.on && NET.role === 'guest') netSend({ k: NET.raid ? 'rauto' : 'auto', on: auto }); }   // 온라인 게스트는 방장에게 자동 전투 여부를 알림
 function goLobby() { if (NET.on) { netLeave(); return; } state = 'title'; auto = false; joy = null; for (const k in holdSrc) delete holdSrc[k]; for (const k in buf) buf[k] = -9; }   // 로비(영웅 선택) 화면으로 이동
@@ -172,7 +182,8 @@ cv.addEventListener('pointerdown', e => {
   if (state === 'account') { accountClick(x, y); return; }
   if (state === 'info') { infoClick(x, y); return; }
   if (state === 'title') {
-    if (helpOpen) { if (diagHelpClick(x, y)) return; for (let i = 0; i < 3; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[['yeonui', 'duel', 'raid'][i]] = false; helpOpen = false; lobbySel = i; enterMode(i); return; } helpOpen = false; return; }
+    if (helpOpen) { if (sndHelpClick(x, y) || diagHelpClick(x, y)) return; for (let i = 0; i < 3; i++) if (ACC && inRect(x, y, tutBtnRect(i))) { ACC.tut = ACC.tut || {}; ACC.tut[['yeonui', 'duel', 'raid'][i]] = false; helpOpen = false; lobbySel = i; enterMode(i); return; } helpOpen = false; return; }
+    if (inRect(x, y, SND_BTN)) { sndToggle(); return; }
     if (inRect(x, y, HELP_BTN)) { helpOpen = true; sfx('hit'); return; }
     if (inRect(x, y, ACC_BTN)) { state = 'account'; accPopup = true; return; }
     if (inRect(x, y, LOBBY_COPY)) { RL.pending = 'recent'; return; }

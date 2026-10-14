@@ -2,7 +2,7 @@
 // ---------- 진단: 오류 기록(복사) + 디버그 오버레이 ----------
 // 맨 앞에 로드되어 이후 파일의 로드 오류도 잡는다. 최상위에서는 window/localStorage/performance 만 쓰고,
 // 게임 전역(mode, state, NET, ctx, text ...)은 함수 안(실행 중)에서만 부른다.
-const ERR_MAX = 20, ERR_KEY = 'samguk_errlog', DBG_KEY = 'samguk_dbg';
+const ERR_MAX = 20, ERR_KEY = 'tkc_errlog', DBG_KEY = 'tkc_dbg';
 const ERRS = [];   // { t(ms), src, msg, file, line, col, stack, ctx, n, prev }
 const DBG = { on: false, fps: 0, upd: 0, updMax: 0, rnd: 0, ping: -1, gapAvg: -1, gapMax: -1, sinceSnap: -1, copyMsg: '', copyT: 0, copyPending: false };
 const DBG_BTN = () => ({ x: W / 2 - 320, y: 452, w: 170, h: 36 }), ERR_BTN = () => ({ x: W / 2 + 150, y: 452, w: 170, h: 36 });   // 도움말 창 안 버튼 (튜토리얼 버튼 좌우)
@@ -84,3 +84,25 @@ function drawDebug() {
   ctx.restore();
 }
 errLoad();
+
+// ----- 캡처·프로모 모드 (개발·스토어 그래픽용) — 주소에 ?capture 가 있을 때만 켜진다 (일반 사용자에게는 없음) -----
+// F6 : 확대(1 → 1.6 → 2.4 → 3.2배, 영웅이 화면 가운데)   F7 : 화면 정지   F8 : HUD 숨기기   F9 : 지금 화면을 1280x720 PNG 로 저장
+const CAP = { on: false, hideHud: false, freeze: false, zi: 0 }, CAP_ZOOM = [1, 1.6, 2.4, 3.2];
+try { CAP.on = /[?&]capture(=|&|$)/.test(location.search); } catch (_) { }
+function capSave() {
+  const d = new Date(), p = n => String(n).padStart(2, '0'), v = typeof GAME_VER !== 'undefined' ? GAME_VER.split('+')[0] : 'x';
+  const name = 'tkc-v' + v + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png';
+  cv.toBlob(b => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, 'image/png');
+  return name;
+}
+if (CAP.on) {
+  console.info('[capture] F6 확대 · F7 정지 · F8 HUD 숨김 · F9 PNG 저장');
+  window.addEventListener('keydown', e => {
+    if (e.code === 'F6') CAP.zi = (CAP.zi + 1) % CAP_ZOOM.length;
+    else if (e.code === 'F7') CAP.freeze = !CAP.freeze;
+    else if (e.code === 'F8') CAP.hideHud = !CAP.hideHud;
+    else if (e.code === 'F9') capSave();
+    else return;
+    e.preventDefault();
+  });
+}

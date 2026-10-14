@@ -3,7 +3,7 @@
 const bg = document.createElement('canvas'); bg.width = WORLD.w; bg.height = WORLD.h;
 (function buildBG() {
   const g = bg.getContext('2d'); let s = 12345; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  g.fillStyle = '#7a6a47'; g.fillRect(0, 0, WORLD.w, WORLD.h);
+  g.fillStyle = COLORS.field; g.fillRect(0, 0, WORLD.w, WORLD.h);
   for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${90 + r() * 60 | 0},${70 + r() * 50 | 0},${40 + r() * 30 | 0},${0.12 + r() * 0.18})`; g.beginPath(); g.ellipse(r() * WORLD.w, r() * WORLD.h, 4 + r() * 16, 2 + r() * 8, 0, 0, TAU); g.fill(); }
   // 외곽 풀밭
   const eg = g.createRadialGradient(WORLD.w / 2, WORLD.h / 2, 430, WORLD.w / 2, WORLD.h / 2, 1100);

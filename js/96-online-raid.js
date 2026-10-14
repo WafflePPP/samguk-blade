@@ -163,32 +163,32 @@ function netRaidGuestStep(rdt) {
 function drawRaidNetHUD() {   // 왼쪽: 파티원 목록 (나 = 금색 테두리)
   allies.forEach((f, i) => {
     const x = DUEL_ROW.x, y = DUEL_ROW.y + i * DUEL_ROW.step; hudRow(f, f.hero, x, y, true, false);
-    if (f === NET.me) { ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2.5; ctx.strokeRect(x, y, 200, 38); }
-    text(f === NET.me ? '나' : !f.human ? 'AI' : f.slot === 0 ? '방장' : '참가자' + f.slot, x + 194, y + 12, 10, f === NET.me ? '#ffd34d' : '#9ad4ff', 'right');
+    if (f === NET.me) { ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 2.5; ctx.strokeRect(x, y, 200, 38); }
+    text(f === NET.me ? '나' : !f.human ? 'AI' : f.slot === 0 ? '방장' : '참가자' + f.slot, x + 194, y + 12, 10, f === NET.me ? COLORS.gold : '#9ad4ff', 'right');
   });
-  text('온라인 레이드 · 파티 ' + allies.length + '명 · 각자 1명 조작', 10, 10 + allies.length * 42 + 8, 11, '#cfd3e6', 'left', false);
+  text('온라인 레이드 · 파티 ' + allies.length + '명 · 각자 1명 조작', 10, 10 + allies.length * 42 + 8, 11, COLORS.silver, 'left', false);
 }
 function drawRaidSlots() {   // 장수 선택 화면 아래: 파티 슬롯 (방장 · 참가자 1 · 참가자 2)
   const view = netRaidView();
   for (let i = 0; i < 3; i++) {
     const r = PK.slot(i), e = view[i], mine = mySlot() === i, lab = i === 0 ? '방장' : '참가자 ' + i;
-    ctx.fillStyle = e ? 'rgba(30,24,44,.92)' : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = e ? (mine ? '#ffd34d' : '#4fb0ff') : 'rgba(255,255,255,.25)'; ctx.lineWidth = e ? 2.5 : 1.5; if (!e) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
-    text(lab + (mine ? ' (나)' : ''), r.x + 10, r.y + 20, 12, mine ? '#ffd34d' : '#9ad4ff', 'left');
+    ctx.fillStyle = e ? COLORS.panelHi92 : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = e ? (mine ? COLORS.gold : COLORS.ally) : 'rgba(255,255,255,.25)'; ctx.lineWidth = e ? 2.5 : 1.5; if (!e) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
+    text(lab + (mine ? ' (나)' : ''), r.x + 10, r.y + 20, 12, mine ? COLORS.gold : '#9ad4ff', 'left');
     if (e && i > 0 && e.v !== undefined && e.v !== NET_VER) text('버전 다름', r.x + r.w - 10, r.y + 20, 12, '#ff7a7a', 'right');
-    else if (e && i > 0) text(e.rd ? '준비 완료' : '대기 중', r.x + r.w - 10, r.y + 20, 12, e.rd ? '#7dff9a' : '#8a90a6', 'right');
+    else if (e && i > 0) text(e.rd ? '준비 완료' : '대기 중', r.x + r.w - 10, r.y + 20, 12, e.rd ? COLORS.good : COLORS.silverOff, 'right');
     if (e && e.hero) { ctx.save(); ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 54, 22, 0, TAU); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + 58); ctx.scale(0.75, 0.75); drawPortraitIcon(HEROES[e.hero], 0, 0); ctx.restore(); text(PC_NAME[e.hero] + '  Lv ' + e.lv, r.x + r.w / 2, r.y + 92, 13, '#fff', 'center', false); }
-    else if (e) text(mine ? '장수를 선택하세요' : '장수 선택 중...', r.x + r.w / 2, r.y + 62, 13, mine ? '#ffe9a0' : '#8a90a6', 'center', false);
+    else if (e) text(mine ? '장수를 선택하세요' : '장수 선택 중...', r.x + r.w / 2, r.y + 62, 13, mine ? COLORS.goldText : COLORS.silverOff, 'center', false);
     else text(i === 0 ? '장수를 고르세요' : NET.code ? '대기 중' : '—', r.x + r.w / 2, r.y + 62, 13, 'rgba(255,255,255,.35)', 'center', false);
   }
 }
 function drawPickRaidOnline() {   // 아래 가운데: 서버 · 방 만들기 · 방 참가 / 방 코드·상태 / 파티·보스
   const L = PK.on, busy = !!NET.ws, none = false;
-  const bx = (r, label, col, dis, sz) => { ctx.globalAlpha = dis ? 0.45 : 1; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h); text(fitStr(label, r.w - 12, sz), r.x + r.w / 2, r.y + r.h / 2 + 5, sz, col, 'center'); ctx.globalAlpha = 1; };
-  bx(L.url, '서버: ' + (NET.url ? NET.url.replace(/^wss?:\/\//, '') : '미설정 (눌러서 입력)'), '#9ad4ff', busy, 12); bx(L.create, '방 만들기', '#7dff9a', busy || none, 15); bx(L.join, '방 참가', '#4fb0ff', busy || none, 15);
-  if (NET.code) { text('방 코드  ' + NET.code, 530, 662, 21, '#ffd34d', 'left'); if (NET.status) text(fitStr(NET.status, 240, 12), 706, 662, 12, '#ffe9a0', 'left', false); }
-  else text(fitStr(NET.status || '방을 만들거나 친구의 방 코드로 참가하세요', 430, 13), 530, 660, 13, '#ffe9a0', 'left', false);
+  const bx = (r, label, col, dis, sz) => { ctx.globalAlpha = dis ? 0.45 : 1; ctx.fillStyle = COLORS.panel92; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, r.w, r.h); text(fitStr(label, r.w - 12, sz), r.x + r.w / 2, r.y + r.h / 2 + 5, sz, col, 'center'); ctx.globalAlpha = 1; };
+  bx(L.url, '서버: ' + (NET.url ? NET.url.replace(/^wss?:\/\//, '') : '미설정 (눌러서 입력)'), '#9ad4ff', busy, 12); bx(L.create, '방 만들기', COLORS.good, busy || none, 15); bx(L.join, '방 참가', COLORS.ally, busy || none, 15);
+  if (NET.code) { text('방 코드  ' + NET.code, 530, 662, 21, COLORS.gold, 'left'); if (NET.status) text(fitStr(NET.status, 240, 12), 706, 662, 12, COLORS.goldText, 'left', false); }
+  else text(fitStr(NET.status || '방을 만들거나 친구의 방 코드로 참가하세요', 430, 13), 530, 660, 13, COLORS.goldText, 'left', false);
   text('파티 ' + netRaidCount() + ' / 3  ·  보스 ' + RAID_CFG[raidBossId].name + (NET.role === 'guest' ? ' (방장이 정함)' : ''), 530, 694, 13, '#ff9a8a', 'left');
-  if (NET.role === 'guest' && NET.paired) text(NET.myReady ? '준비 완료 — 방장이 시작하기를 기다리는 중...' : '장수를 고른 뒤 오른쪽 아래 "준비"를 누르세요', 530, 714, 12, NET.myReady ? '#7dff9a' : '#ffe9a0', 'left', false);
-  else if (NET.role === 'host' && NET.code) text(netRaidCanStart() ? '모든 참가자가 준비했습니다 — 레이드를 시작할 수 있습니다' : netRaidGuestN() ? '참가자 준비 ' + netRaidReadyN() + ' / ' + netRaidGuestN() + ' — 모두 준비하면 시작할 수 있습니다' : '장수를 고르면 혼자서도 시작할 수 있습니다 (참가자를 기다리는 중)', 530, 714, 12, netRaidCanStart() ? '#7dff9a' : '#cfd3e6', 'left', false);
+  if (NET.role === 'guest' && NET.paired) text(NET.myReady ? '준비 완료 — 방장이 시작하기를 기다리는 중...' : '장수를 고른 뒤 오른쪽 아래 "준비"를 누르세요', 530, 714, 12, NET.myReady ? COLORS.good : COLORS.goldText, 'left', false);
+  else if (NET.role === 'host' && NET.code) text(netRaidCanStart() ? '모든 참가자가 준비했습니다 — 레이드를 시작할 수 있습니다' : netRaidGuestN() ? '참가자 준비 ' + netRaidReadyN() + ' / ' + netRaidGuestN() + ' — 모두 준비하면 시작할 수 있습니다' : '장수를 고르면 혼자서도 시작할 수 있습니다 (참가자를 기다리는 중)', 530, 714, 12, netRaidCanStart() ? COLORS.good : COLORS.silver, 'left', false);
 }
 

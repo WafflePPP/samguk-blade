@@ -55,22 +55,22 @@ function wavesKey(code) {
 function drawWaves() {
   ctx.drawImage(bg, WORLD.w / 2 - W / 2, WORLD.h / 2 - H / 2, W, H, 0, 0, W, H);
   ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(0, 0, W, H);
-  text('웨이브 선택', W / 2, 62, 42, '#ffd34d', 'center');
-  text((ACC ? ACC.name : '') + '  ·  최고 도달 ' + accBest() + '웨이브까지 선택 가능  ·  1층이 아닌 곳에서 시작하면 건너뛴 웨이브마다 능력치 강화가 1개씩 무작위로 자동 적용', W / 2, 96, 14, '#cfd3e6', 'center', false);
+  text('웨이브 선택', W / 2, 62, 42, COLORS.gold, 'center');
+  text((ACC ? ACC.name : '') + '  ·  최고 도달 ' + accBest() + '웨이브까지 선택 가능  ·  1층이 아닌 곳에서 시작하면 건너뛴 웨이브마다 능력치 강화가 1개씩 무작위로 자동 적용', W / 2, 96, 14, COLORS.silver, 'center', false);
   text('보스 : 5층마다 (10 관우 · 25 조운 · 50 여포는 PC 보스)  ·  몬스터 등장 : 방패병 7층 · 자객 12층 · 술사 17층', W / 2, 120, 13, '#ffb27a', 'center', false);
   for (let i = 0; i < MAX_WAVE; i++) {
     const r = wvRect(i), n = i + 1, boss = !!WAVES[i].bossWave, open = n <= accBest(), sel = n === waveSel;
     ctx.fillStyle = sel ? 'rgba(212,167,58,.4)' : open ? (boss ? 'rgba(120,30,30,.55)' : 'rgba(20,24,36,.85)') : 'rgba(10,12,18,.6)'; ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = sel ? '#ffd34d' : boss ? (open ? '#ff6a5a' : '#5a3434') : open ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.12)'; ctx.lineWidth = sel ? 3.5 : boss ? 2.5 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = sel ? COLORS.gold : boss ? (open ? COLORS.dangerText : '#5a3434') : open ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.12)'; ctx.lineWidth = sel ? 3.5 : boss ? 2.5 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h);
     text('W' + n, r.x + r.w / 2, r.y + 26, 22, open ? (boss ? '#ffb0a8' : '#fff') : '#555a6a', 'center');
     text(open ? (boss ? '보스 · ' + TYPES[WAVES[i].spawn[0][0]].short : '') : '잠김', r.x + r.w / 2, r.y + 46, 11, open ? '#ffb0a8' : '#555a6a', 'center', false);
   }
   const w = WAVES[waveSel - 1];
   ctx.fillStyle = 'rgba(12,14,24,.92)'; ctx.fillRect(W / 2 - 540, 560, 500, 100); ctx.strokeStyle = 'rgba(212,167,58,.7)'; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - 540, 560, 500, 100);
-  text('W' + waveSel + '  ' + w.name, W / 2 - 524, 590, 20, w.bossWave ? '#ffb0a8' : '#ffe9a0', 'left');
-  text(wavePreview(waveSel - 1), W / 2 - 524, 616, 14, '#cfd3e6', 'left', false);
+  text('W' + waveSel + '  ' + w.name, W / 2 - 524, 590, 20, w.bossWave ? '#ffb0a8' : COLORS.goldText, 'left');
+  text(wavePreview(waveSel - 1), W / 2 - 524, 616, 14, COLORS.silver, 'left', false);
   text('난이도 ' + (w.tier + 1) + '단계  ·  몬스터 생명력 x' + w.hpMul.toFixed(2) + '  ·  피해 x' + w.dmgMul.toFixed(2) + (waveSel > UPGRADE_EVERY ? '  ·  자동 강화 ' + Math.floor((waveSel - 1) / UPGRADE_EVERY) + '개 (건너뛴 웨이브마다)' : '  ·  자동 강화 없음'), W / 2 - 524, 642, 13, '#ffb27a', 'left', false);
-  const g = WV_GO; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(g.x, g.y, g.w, g.h); text('다음 : 장수 선택 (Enter)', g.x + g.w / 2, g.y + 36, 22, '#ffd34d', 'center');
+  const g = WV_GO; ctx.fillStyle = COLORS.panel92; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 3; ctx.strokeRect(g.x, g.y, g.w, g.h); text('다음 : 장수 선택 (Enter)', g.x + g.w / 2, g.y + 36, 22, COLORS.gold, 'center');
   backBtn(BACK_BTN);
 }
 const UPGRADE_EVERY = 1;   // 능력치 강화(버프) 선택 간격 (웨이브) — 매 웨이브 클리어마다 선택
@@ -121,7 +121,7 @@ const UPG = {
   eva: { n: '회피율', ic: '회', base: 0.025, cap: 0.3, d: '적의 공격이 빗나갈 확률 증가 (기본 10%, 층이 오를수록 적 적중이 높아짐)', f: v => '+' + Math.round(v * 100) + '%p' },
   acc: { n: '적중률', ic: '적', base: 0.08, cap: 0.6, d: '내 공격이 빗나가지 않을 확률 증가 (적의 회피율만큼 깎임)', f: v => '+' + Math.round(v * 100) },
 };
-const RARITY = [{ n: '일반', m: 1, col: '#cfd3e6', w: 70 }, { n: '희귀', m: 1.6, col: '#4fb0ff', w: 25 }, { n: '영웅', m: 2.4, col: '#c77dff', w: 5 }];
+const RARITY = [{ n: '일반', m: 1, col: COLORS.silver, w: 70 }, { n: '희귀', m: 1.6, col: COLORS.ally, w: 25 }, { n: '영웅', m: 2.4, col: COLORS.epic, w: 5 }];
 let upg = null;   // { offers: [{ id, rar, val }], next: 다음 웨이브 번호, t: 경과 시간 }
 function rollRarity() { let r = Math.random() * 100; for (let i = 0; i < RARITY.length; i++) { r -= RARITY[i].w; if (r < 0) return i; } return 0; }
 function rollOffers() {
@@ -147,9 +147,9 @@ function updateUpgrade(rdt) { if (!upg) return; upg.t += rdt; if (upg.tut) retur
 function drawUpgrade() {
   if (!upg) return;
   ctx.fillStyle = 'rgba(4,6,12,.74)'; ctx.fillRect(0, 0, W, H);
-  text(upg.tut ? '튜토리얼  ·  능력치 강화(버프) 선택' : 'WAVE ' + (upg.next) + ' 클리어', W / 2, 96, 22, '#ffe9a0', 'center');
-  text('능력치 강화 선택', W / 2, 150, 46, '#ffd34d', 'center');
-  text('3개 중 1개를 고르세요  ·  클릭 또는 1 / 2 / 3 키  ·  이번 판이 끝날 때까지 모든 영웅에게 누적 적용', W / 2, 190, 16, '#cfd3e6', 'center', false);
+  text(upg.tut ? '튜토리얼  ·  능력치 강화(버프) 선택' : 'WAVE ' + (upg.next) + ' 클리어', W / 2, 96, 22, COLORS.goldText, 'center');
+  text('능력치 강화 선택', W / 2, 150, 46, COLORS.gold, 'center');
+  text('3개 중 1개를 고르세요  ·  클릭 또는 1 / 2 / 3 키  ·  이번 판이 끝날 때까지 모든 영웅에게 누적 적용', W / 2, 190, 16, COLORS.silver, 'center', false);
   upg.offers.forEach((o, i) => {
     const r = upgCardRect(i), u = UPG[o.id], ra = RARITY[o.rar], cx = r.x + r.w / 2, pop = clamp((upg.t - i * 0.08) * 5, 0, 1), cur = RUN[o.id];
     ctx.save(); ctx.globalAlpha = pop; ctx.translate(0, (1 - pop) * 30);
@@ -160,16 +160,16 @@ function drawUpgrade() {
     ctx.fillStyle = 'rgba(255,255,255,.07)'; circle(cx, r.y + 88, 38); ctx.strokeStyle = ra.col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, r.y + 88, 38, 0, TAU); ctx.stroke();
     text(u.ic, cx, r.y + 104, 40, ra.col, 'center');
     text(u.n, cx, r.y + 154, 26, '#fff', 'center');
-    text(u.f(o.val), cx, r.y + 194, 34, '#7dff9a', 'center');
-    wrapText(u.d, cx, r.y + 224, r.w - 36, 14, '#cfd3e6');
+    text(u.f(o.val), cx, r.y + 194, 34, COLORS.good, 'center');
+    wrapText(u.d, cx, r.y + 224, r.w - 36, 14, COLORS.silver);
     text(cur > 0 ? '현재 ' + u.f(cur) + ' → ' + u.f(cur + o.val) : '처음 선택', cx, r.y + 272, 13, '#ffb27a', 'center', false);
-    text(String(i + 1), r.x + 20, r.y + 30, 18, '#ffd34d', 'left');
+    text(String(i + 1), r.x + 20, r.y + 30, 18, COLORS.gold, 'left');
     ctx.restore();
   });
   const left = Math.max(0, UPG_TIME - upg.t), fr = left / UPG_TIME, urg = left <= 3;   // 남은 시간 카운트다운
-  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(W / 2 - 230, 566, 460, 12); ctx.fillStyle = urg ? '#ff6a5a' : '#ffd34d'; ctx.fillRect(W / 2 - 229, 567, 458 * fr, 10);
-  if (upg.tut) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(W / 2 - 230, 566, 460, 12); text('카드 하나를 눌러 보세요  (튜토리얼은 시간 제한이 없고, 고른 효과는 연습용입니다)', W / 2, 606, 20, '#ffe9a0', 'center'); text('실전에서는 웨이브를 클리어할 때마다 이 화면이 나오며, 10초 안에 고르지 않으면 하나가 자동 선택됩니다', W / 2, 640, 14, '#cfd3e6', 'center', false); return; }
-  text(Math.ceil(left) + '초 후 자동으로 선택됩니다  (직접 고르면 바로 진행)', W / 2, 606, urg ? 24 : 20, urg ? '#ff9a8a' : '#ffe9a0', 'center');
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(W / 2 - 230, 566, 460, 12); ctx.fillStyle = urg ? COLORS.dangerText : COLORS.gold; ctx.fillRect(W / 2 - 229, 567, 458 * fr, 10);
+  if (upg.tut) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(W / 2 - 230, 566, 460, 12); text('카드 하나를 눌러 보세요  (튜토리얼은 시간 제한이 없고, 고른 효과는 연습용입니다)', W / 2, 606, 20, COLORS.goldText, 'center'); text('실전에서는 웨이브를 클리어할 때마다 이 화면이 나오며, 10초 안에 고르지 않으면 하나가 자동 선택됩니다', W / 2, 640, 14, COLORS.silver, 'center', false); return; }
+  text(Math.ceil(left) + '초 후 자동으로 선택됩니다  (직접 고르면 바로 진행)', W / 2, 606, urg ? 24 : 20, urg ? '#ff9a8a' : COLORS.goldText, 'center');
 }
 function wrapText(str, cx, y, maxW, size, col) {   // 가운데 정렬 두 줄 줄바꿈
   ctx.font = '500 ' + size + 'px ' + FONT; let line = '', ly = y;
@@ -193,7 +193,7 @@ function drawRunSummary() {   // 로그라이크 모드 상단: 지금까지 고
 // ===================================================================
 const SAVE_KEY = 'sgb_save_v1', MAX_ACC = 5, MAX_LV = 30;
 let SAVE = { accounts: [], last: null }, ACC = null;
-function loadSave() { try { const j = JSON.parse(localStorage.getItem(SAVE_KEY)); if (j && Array.isArray(j.accounts)) { SAVE = j; for (const a of SAVE.accounts) { const h = a.heroes || (a.heroes = {}); if (h.lubu2) { const x = h.lubu || { lv: 1, xp: 0 }, y = h.lubu2; h.lubu = (y.lv > x.lv || (y.lv === x.lv && y.xp > x.xp)) ? y : x; delete h.lubu2; } } } } catch (_) { } }
+function loadSave() { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); const j = JSON.parse(raw); if (j && Array.isArray(j.accounts)) { SAVE = j; for (const a of SAVE.accounts) { const h = a.heroes || (a.heroes = {}); if (h.lubu2) { const x = h.lubu || { lv: 1, xp: 0 }, y = h.lubu2; h.lubu = (y.lv > x.lv || (y.lv === x.lv && y.xp > x.xp)) ? y : x; delete h.lubu2; } } } } catch (_) { saveRescue(raw); } saveBootSnap(); }   // 읽기 실패 → 깨진 원본 보관 + 지난 실행 사본으로 복구 (97-backup.js)
 function saveSave() { try { SAVE.last = ACC ? ACC.id : SAVE.last; localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (_) { } }
 function newAcc(name) { const a = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name, created: Date.now(), runs: 0, wins: 0, heroes: {} }; for (const id of HERO_IDS) a.heroes[id] = { lv: 1, xp: 0 }; return a; }
 function heroRec(acc, id) { id = pcId(id); return acc.heroes[id] || (acc.heroes[id] = { lv: 1, xp: 0 }); }
@@ -340,25 +340,25 @@ function settleRun(res) {
 function drawDropPanel() {   // 레이드 정산: 획득한 장비 (화면 위쪽)
   if (!RAID || !RS.done) return; const dr = RS.drops || [], w = 600, x = W / 2 - w / 2, y = 92, h = 46 + Math.max(1, dr.length) * 26;
   ctx.fillStyle = 'rgba(10,12,20,.88)'; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(255,211,77,.7)'; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
-  text('획득 장비', x + 16, y + 26, 16, '#ffd34d', 'left'); text('장비는 레이드 모드에서만 얻을 수 있습니다  ·  장수 정보에서 장착', x + w - 14, y + 26, 11.5, '#9aa3b8', 'right', false);
-  if (!dr.length) { text('이번에는 획득한 장비가 없습니다 (보스를 많이 깎을수록 획득 확률 증가)', x + 16, y + 56, 13, '#aab3c8', 'left', false); return; }
+  text('획득 장비', x + 16, y + 26, 16, COLORS.gold, 'left'); text('장비는 레이드 모드에서만 얻을 수 있습니다  ·  장수 정보에서 장착', x + w - 14, y + 26, 11.5, '#9aa3b8', 'right', false);
+  if (!dr.length) { text('이번에는 획득한 장비가 없습니다 (보스를 많이 깎을수록 획득 확률 증가)', x + 16, y + 56, 13, COLORS.silverDim, 'left', false); return; }
   dr.forEach((it, i) => { const yy = y + 52 + i * 26; text('[' + EQ_SLOTS[it.slot] + ']', x + 16, yy + 12, 13, '#9ad4ff', 'left'); text(it.name, x + 84, yy + 12, 15, EQ_RAR[it.rar].c, 'left'); text(EQ_RAR[it.rar].n, x + 262, yy + 12, 12, EQ_RAR[it.rar].c, 'left', false); text(eqStatText(it), x + 320, yy + 12, 12.5, '#e6e9f5', 'left', false); });
 }
 function drawXpSummary() {   // 승패 화면: 이번 판 경험치 · 레벨업 · 성장 변화
   if (!RS.summary) return; const bx = W / 2 - 380, bw = 760;
   let hh = 24; for (const r of RS.summary) hh += 26 + (r.changes ? 16 : 0); const y = Math.min(556, H - 6 - hh);
   ctx.fillStyle = 'rgba(10,12,20,.86)'; ctx.fillRect(bx, y, bw, hh); ctx.strokeStyle = 'rgba(212,167,58,.7)'; ctx.lineWidth = 1.5; ctx.strokeRect(bx, y, bw, hh);
-  text('획득 경험치  ·  ' + (ACC ? ACC.name : ''), bx + 12, y + 17, 13, '#ffd34d', 'left');
+  text('획득 경험치  ·  ' + (ACC ? ACC.name : ''), bx + 12, y + 17, 13, COLORS.gold, 'left');
   let yy = y + 24;
   for (const r of RS.summary) {
     const up = r.after > r.before;
-    text(PC_NAME[r.hero], bx + 12, yy + 18, 15, '#fff', 'left'); text('+' + r.gain + ' XP', bx + 220, yy + 18, 15, '#9dff9d', 'left');
-    text('Lv ' + r.before + (up ? '  →  Lv ' + r.after : ''), bx + 380, yy + 18, 15, up ? '#ffe14a' : '#cfd3e6', 'left'); if (up) text('LEVEL UP!', bx + 600, yy + 18, 14, '#ffd34d', 'left');
+    text(PC_NAME[r.hero], bx + 12, yy + 18, 15, '#fff', 'left'); text('+' + r.gain + ' XP', bx + 220, yy + 18, 15, COLORS.goodAlt, 'left');
+    text('Lv ' + r.before + (up ? '  →  Lv ' + r.after : ''), bx + 380, yy + 18, 15, up ? '#ffe14a' : COLORS.silver, 'left'); if (up) text('LEVEL UP!', bx + 600, yy + 18, 14, COLORS.gold, 'left');
     yy += 26;
     if (r.changes) {   // 성장 변화: 오른 능력치 + 새로 해금된 고유 성장 효과
       let line = (r.changes.length ? '성장 변화  ' + r.changes.join('  ·  ') : '') + (r.perks && r.perks.length ? (r.changes.length ? '    ' : '') + '★ 해금 ' + r.perks.join(' / ') : (r.changes.length ? '' : r.next));
       ctx.font = '500 11px ' + FONT; while (line.length > 8 && ctx.measureText(line).width > bw - 36) line = line.slice(0, -2);
-      text(line, bx + 24, yy + 11, 11, r.perks && r.perks.length ? '#ffe9a0' : '#cfeed6', 'left', false); yy += 16;
+      text(line, bx + 24, yy + 11, 11, r.perks && r.perks.length ? COLORS.goldText : '#cfeed6', 'left', false); yy += 16;
     }
   }
 }
@@ -382,6 +382,7 @@ function accountClick(x, y) {
     if (inRect(x, y, ACCSEL_BTN)) { accPopup = true; sfx('skill'); return; }
     return;
   }
+  if (backupClick(x, y)) return;   // 백업 내보내기·가져오기 (97-backup.js)
   if (inRect(x, y, POP_CLOSE) || !inRect(x, y, POP)) { accPopup = false; return; }
   for (let i = 0; i < MAX_ACC; i++) {
     const a = SAVE.accounts[i];
@@ -402,15 +403,15 @@ let loginBg = null; const loginFx = { embers: [], clouds: null };
 function loginRng(seed) { let v = seed; return () => { v = (v * 16807) % 2147483647; return v / 2147483647; }; }
 function buildLoginBg() {
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), R = loginRng(77);
-  const sky = g.createLinearGradient(0, 0, 0, 470); sky.addColorStop(0, '#080b24'); sky.addColorStop(0.45, '#2b1a42'); sky.addColorStop(0.78, '#8c3a48'); sky.addColorStop(1, '#e58a4a'); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  const sky = g.createLinearGradient(0, 0, 0, 470); sky.addColorStop(0, COLORS.duskTop); sky.addColorStop(0.45, COLORS.duskMid); sky.addColorStop(0.78, COLORS.duskLow); sky.addColorStop(1, COLORS.duskGlow); g.fillStyle = sky; g.fillRect(0, 0, W, H);
   for (let i = 0; i < 140; i++) { g.globalAlpha = 0.25 + R() * 0.6; g.fillStyle = '#fff'; const sz = R() < 0.1 ? 2 : 1; g.fillRect(R() * W, R() * 260, sz, sz); } g.globalAlpha = 1;
   const mg = g.createRadialGradient(930, 165, 20, 930, 165, 260); mg.addColorStop(0, 'rgba(255,240,200,.55)'); mg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = mg; g.fillRect(560, 0, 720, 460);
-  g.fillStyle = '#f6edcf'; g.beginPath(); g.arc(930, 165, 66, 0, TAU); g.fill(); g.fillStyle = 'rgba(190,170,130,.35)'; for (const [dx, dy, r] of [[-20, -10, 14], [18, 14, 10], [-6, 30, 8], [26, -22, 7]]) { g.beginPath(); g.arc(930 + dx, 165 + dy, r, 0, TAU); g.fill(); }
+  g.fillStyle = COLORS.moon; g.beginPath(); g.arc(930, 165, 66, 0, TAU); g.fill(); g.fillStyle = 'rgba(190,170,130,.35)'; for (const [dx, dy, r] of [[-20, -10, 14], [18, 14, 10], [-6, 30, 8], [26, -22, 7]]) { g.beginPath(); g.arc(930 + dx, 165 + dy, r, 0, TAU); g.fill(); }
   const ridge = (base, amp, col, seed, jag) => { const r = loginRng(seed), ph = [r() * 6, r() * 6, r() * 6]; g.fillStyle = col; g.beginPath(); g.moveTo(0, H); for (let x = 0; x <= W; x += 8) { const y = base - amp * (0.55 * Math.sin(x * 0.006 + ph[0]) + 0.3 * Math.sin(x * 0.015 + ph[1]) + 0.15 * Math.sin(x * 0.04 + ph[2])) - (jag ? Math.abs(Math.sin(x * 0.09 + ph[1])) * jag : 0); g.lineTo(x, y); } g.lineTo(W, H); g.closePath(); g.fill(); };
   ridge(430, 70, '#4a2a4a', 11, 14); ridge(480, 60, '#2d1d3d', 23, 10);
   // 멀리 보이는 성벽과 망루
   g.fillStyle = '#241833'; g.fillRect(150, 440, 260, 30); for (let x = 150; x < 410; x += 20) g.fillRect(x, 432, 12, 10); g.fillRect(250, 392, 56, 78); g.beginPath(); g.moveTo(240, 394); g.lineTo(278, 366); g.lineTo(316, 394); g.closePath(); g.fill(); g.fillRect(268, 410, 20, 24);
-  ridge(540, 50, '#1a1228', 37, 8);
+  ridge(540, 50, COLORS.inkViolet, 37, 8);
   // 야영 천막
   g.fillStyle = '#120c1e'; for (const [x, y, w, h] of [[520, 560, 90, 46], [640, 566, 74, 38], [1010, 556, 100, 50], [900, 568, 70, 34], [400, 572, 80, 40]]) { g.beginPath(); g.moveTo(x - w / 2, y); g.lineTo(x, y - h); g.lineTo(x + w / 2, y); g.closePath(); g.fill(); g.fillRect(x - 1, y - h - 12, 2, 12); }
   // 오른쪽 언덕 위의 장수 (기마 실루엣 + 방천화극)
@@ -441,7 +442,7 @@ function drawLoginScene() {
   for (const c of loginFx.clouds) { c.x += c.sp / 60; if (c.x > W + 200) c.x = -c.w - 100; const gr = ctx.createRadialGradient(c.x + c.w / 2, c.y, 4, c.x + c.w / 2, c.y, c.w / 2); gr.addColorStop(0, 'rgba(255,200,170,.22)'); gr.addColorStop(1, 'rgba(255,200,170,0)'); ctx.fillStyle = gr; ctx.save(); ctx.translate(c.x + c.w / 2, c.y); ctx.scale(1, 0.22); ctx.translate(-(c.x + c.w / 2), -c.y); ctx.fillRect(c.x, c.y - c.w / 2, c.w, c.w); ctx.restore(); }
   // 깃발 (바람에 펄럭임)
   for (const [x, y, ph, ch, col] of LOGIN_BANNERS) {
-    ctx.strokeStyle = '#0c0814'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y + 120); ctx.lineTo(x, y); ctx.stroke();
+    ctx.strokeStyle = COLORS.outline; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y + 120); ctx.lineTo(x, y); ctx.stroke();
     const wv = k => Math.sin(T * 3.2 + ph + k * 0.7) * (3 + k * 1.6); ctx.fillStyle = col; ctx.globalAlpha = 0.92; ctx.beginPath(); ctx.moveTo(x, y + 4);
     for (let k = 0; k <= 5; k++) ctx.lineTo(x + k * 9 + 4, y + 4 + wv(k)); for (let k = 5; k >= 0; k--) ctx.lineTo(x + k * 9 + 4, y + 52 + wv(k)); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(255,240,200,.85)'; ctx.font = '700 22px ' + FONT; ctx.textAlign = 'center'; ctx.fillText(ch, x + 26, y + 36 + wv(3) * 0.5); ctx.textAlign = 'left';
@@ -461,15 +462,15 @@ function drawLoginScene() {
 function drawLoginBtn(r, label, sub, primary) {
   const pul = primary ? 0.5 + 0.5 * Math.sin(T * 2.4) : 0;
   ctx.fillStyle = primary ? 'rgba(120,28,22,.88)' : 'rgba(14,12,26,.82)'; ctx.fillRect(r.x, r.y, r.w, r.h);
-  ctx.strokeStyle = primary ? '#ffd34d' : 'rgba(255,255,255,.55)'; ctx.lineWidth = primary ? 3 : 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
-  if (primary) { ctx.save(); ctx.globalAlpha = 0.25 + 0.25 * pul; ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 6; ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8); ctx.restore(); }
-  text(label, r.x + r.w / 2, r.y + (sub ? r.h / 2 - 2 : r.h / 2 + 9), primary ? 28 : 22, primary ? '#ffe9a0' : '#fff', 'center');
+  ctx.strokeStyle = primary ? COLORS.gold : 'rgba(255,255,255,.55)'; ctx.lineWidth = primary ? 3 : 2; ctx.strokeRect(r.x, r.y, r.w, r.h);
+  if (primary) { ctx.save(); ctx.globalAlpha = 0.25 + 0.25 * pul; ctx.strokeStyle = COLORS.goldText; ctx.lineWidth = 6; ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8); ctx.restore(); }
+  text(label, r.x + r.w / 2, r.y + (sub ? r.h / 2 - 2 : r.h / 2 + 9), primary ? 28 : 22, primary ? COLORS.goldText : '#fff', 'center');
   if (sub) text(sub, r.x + r.w / 2, r.y + r.h - 12, 13, 'rgba(255,255,255,.75)', 'center', false);
 }
 function drawAccount() {
   drawLoginScene();
   // 로고
-  ctx.save(); ctx.shadowColor = 'rgba(255,170,60,.8)'; ctx.shadowBlur = 28; text('三國 猛將傳', W / 2, 190, 96, '#ffd34d', 'center'); ctx.restore();
+  ctx.save(); ctx.shadowColor = 'rgba(255,170,60,.8)'; ctx.shadowBlur = 28; text('三國 猛將傳', W / 2, 190, 96, COLORS.gold, 'center'); ctx.restore();
   text('삼국 맹장전', W / 2, 244, 30, '#fff', 'center');
   text('천하의 맹장들과 함께 웨이브를 돌파하고 보스를 쓰러뜨려라', W / 2, 288, 17, '#ffe9c8', 'center', false);
   const last = ACC && SAVE.accounts.includes(ACC) ? ACC : null, tot = last ? HERO_IDS.reduce((t, id) => t + heroRec(last, id).lv, 0) : 0;
@@ -480,22 +481,22 @@ function drawAccount() {
 }
 function drawAccPopup() {
   ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(14,12,26,.97)'; ctx.fillRect(POP.x, POP.y, POP.w, POP.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(POP.x, POP.y, POP.w, POP.h);
+  ctx.fillStyle = 'rgba(14,12,26,.97)'; ctx.fillRect(POP.x, POP.y, POP.w, POP.h); ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 3; ctx.strokeRect(POP.x, POP.y, POP.w, POP.h);
   ctx.strokeStyle = 'rgba(255,211,77,.35)'; ctx.lineWidth = 1; ctx.strokeRect(POP.x + 8, POP.y + 8, POP.w - 16, POP.h - 16);
-  text('계정 선택', POP.x + POP.w / 2, POP.y + 48, 30, '#ffe9a0', 'center');
-  text('계정마다 영웅 6명의 레벨·성장 기록이 따로 저장됩니다  ·  계정을 누르거나 1~5 키  ·  Esc 닫기', POP.x + POP.w / 2, POP.y + 76, 14, "#cfd3e6", "center", false);
+  text('계정 선택', POP.x + POP.w / 2, POP.y + 48, 30, COLORS.goldText, 'center'); drawBackupBtns();
+  text('계정마다 영웅 6명의 레벨·성장 기록이 따로 저장됩니다  ·  계정을 누르거나 1~5 키  ·  Esc 닫기', POP.x + POP.w / 2, POP.y + 76, 14, COLORS.silver, "center", false);
   const cb = POP_CLOSE; ctx.fillStyle = 'rgba(40,16,16,.9)'; ctx.fillRect(cb.x, cb.y, cb.w, cb.h); ctx.strokeStyle = '#ff9a8a'; ctx.lineWidth = 2; ctx.strokeRect(cb.x, cb.y, cb.w, cb.h); text('✕', cb.x + cb.w / 2, cb.y + 25, 20, '#ff9a8a', 'center');
   for (let i = 0; i < MAX_ACC; i++) {
     const r = accRect(i), a = SAVE.accounts[i], cur = a && ACC === a;
     ctx.fillStyle = a ? (cur ? 'rgba(60,44,12,.85)' : 'rgba(24,26,42,.92)') : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = cur ? '#ffd34d' : a ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.22)'; ctx.lineWidth = cur ? 3 : 1.5; if (!a) ctx.setLineDash([8, 6]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
-    text(String(i + 1), r.x + 22, r.y + r.h / 2 + 7, 20, '#ffd34d', 'center');
-    if (!a) { text('+  새 계정 만들기', r.x + r.w / 2, r.y + r.h / 2 + 7, 20, '#cfd3e6', 'center'); continue; }
-    text(a.name + (cur ? '   (마지막 접속)' : ''), r.x + 46, r.y + 30, 22, cur ? '#ffe9a0' : '#fff', 'left');
+    ctx.strokeStyle = cur ? COLORS.gold : a ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.22)'; ctx.lineWidth = cur ? 3 : 1.5; if (!a) ctx.setLineDash([8, 6]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
+    text(String(i + 1), r.x + 22, r.y + r.h / 2 + 7, 20, COLORS.gold, 'center');
+    if (!a) { text('+  새 계정 만들기', r.x + r.w / 2, r.y + r.h / 2 + 7, 20, COLORS.silver, 'center'); continue; }
+    text(a.name + (cur ? '   (마지막 접속)' : ''), r.x + 46, r.y + 30, 22, cur ? COLORS.goldText : '#fff', 'left');
     const tot = HERO_IDS.reduce((t, id) => t + heroRec(a, id).lv, 0);
     text('영웅 총 레벨 ' + tot + '  ·  플레이 ' + a.runs + '회  ·  승리 ' + a.wins + '회  ·  최고 ' + (a.best || 0) + '층', r.x + 46, r.y + 56, 13, '#9aa3b8', 'left', false);
     HERO_IDS.forEach((id, k) => { const px = r.x + 330 + k * 0, hx = r.x + r.w - 214 - 12 - (HERO_IDS.length - k) * 26; ctx.save(); ctx.beginPath(); ctx.arc(hx + 11, r.y + r.h / 2, 11, 0, TAU); ctx.clip(); ctx.translate(hx + 11, r.y + r.h / 2 + 3); ctx.scale(0.36, 0.36); drawPortraitIcon(HEROES[id], 0, 0); ctx.restore(); });
-    for (const [bb, label, col] of [[accBtnRen(i), '이름 변경', '#9ad4ff'], [accBtnDel(i), '삭제', '#ff9a8a']]) { ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(bb.x, bb.y, bb.w, bb.h); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(bb.x, bb.y, bb.w, bb.h); text(label, bb.x + bb.w / 2, bb.y + 23, 14, col, 'center', false); }
+    for (const [bb, label, col] of [[accBtnRen(i), '이름 변경', '#9ad4ff'], [accBtnDel(i), '삭제', '#ff9a8a']]) { ctx.fillStyle = COLORS.panel90; ctx.fillRect(bb.x, bb.y, bb.w, bb.h); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(bb.x, bb.y, bb.w, bb.h); text(label, bb.x + bb.w / 2, bb.y + 23, 14, col, 'center', false); }
   }
 }
 

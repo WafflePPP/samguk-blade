@@ -17,7 +17,7 @@ function drawButton(b) {
   g.addColorStop(0, b.id === 's3' && ready ? '#ffe28a' : '#4a5066'); g.addColorStop(1, b.id === 's3' && ready ? '#d4811f' : '#1d2030');
   ctx.fillStyle = g; circle(b.x, b.y, b.r * (pressed ? 0.94 : 1));
   if (b.id === 'auto') { ctx.fillStyle = auto ? '#3a9a5a' : '#2a2e40'; circle(b.x, b.y, b.r); }
-  ctx.lineWidth = 3; ctx.strokeStyle = ready ? (b.id === 's3' ? '#fff3b0' : '#ffd34d') : '#555a70'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.stroke();
+  ctx.lineWidth = 3; ctx.strokeStyle = ready ? (b.id === 's3' ? '#fff3b0' : COLORS.gold) : '#555a70'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.stroke();
   if (b.id === 's3' && ready) { ctx.strokeStyle = `rgba(255,243,176,${0.5 + 0.5 * Math.sin(T * 8)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, TAU); ctx.stroke(); }
   if (frac > 0 && b.id !== 'auto') { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.arc(b.x, b.y, b.r - 2, -Math.PI / 2, -Math.PI / 2 + TAU * frac); ctx.closePath(); ctx.fill(); }
   ctx.restore();
@@ -26,14 +26,14 @@ function drawButton(b) {
     const nc = HERO.comboLen || 3;
     for (let i = 0; i < nc; i++) {
       const x = b.x + (i - (nc - 1) / 2) * 26, y = b.y - b.r - 12;
-      ctx.fillStyle = i < cur ? (i === 2 ? '#ff9a3a' : '#ffd34d') : 'rgba(255,255,255,.25)'; circle(x, y, i === 2 ? 9 : 7);
+      ctx.fillStyle = i < cur ? (i === 2 ? '#ff9a3a' : COLORS.gold) : 'rgba(255,255,255,.25)'; circle(x, y, i === 2 ? 9 : 7);
       ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, i === 2 ? 9 : 7, 0, TAU); ctx.stroke();
     }
   }
   text(b.label, b.x, b.y + (b.id === 'attack' ? 7 : 4), b.id === 'attack' ? 28 : b.id === 'auto' ? 22 : Math.round(clamp(b.r * 0.36, 12, 19)), '#fff', 'center');
-  if (b.key && b.id !== 'auto') text(b.key, b.x + b.r * 0.62 * (b.id === 'dash' ? -1 : 1), b.y - b.r * 0.62, 13, '#ffd34d', 'center', true);
+  if (b.key && b.id !== 'auto') text(b.key, b.x + b.r * 0.62 * (b.id === 'dash' ? -1 : 1), b.y - b.r * 0.62, 13, COLORS.gold, 'center', true);
   if (b.id === 's1' || b.id === 's2' || b.id === 'dash') { if (P.cd[b.id] > 0) text(P.cd[b.id].toFixed(1), b.x, b.y - b.r - 5, 16, '#fff', 'center'); }
-  if (b.id === 's3' && !ready) text(((100 - P.rage) / 100 * ULT_CD / (1 + RUN.rage + META.rage)).toFixed(1), b.x, b.y - b.r - 5, 16, '#ffd34d', 'center');
+  if (b.id === 's3' && !ready) text(((100 - P.rage) / 100 * ULT_CD / (1 + RUN.rage + META.rage)).toFixed(1), b.x, b.y - b.r - 5, 16, COLORS.gold, 'center');
 }
 // HUD 의 둥근 초상 아이콘
 function drawPortraitIcon(h, x, y) {
@@ -68,32 +68,32 @@ function drawTagButtons() {
   if (state !== 'play' || mode === 'duel') return;
   const hot = ['Z', 'X', 'C'];
   if (TEAM.length < 2) return;   // 혼자 출전하면 태그 없음
-  text('TAG', 54, tagBtnPos(0).y - TAG_BTN_R - 10, 15, '#ffd34d', 'center');
+  text('TAG', 54, tagBtnPos(0).y - TAG_BTN_R - 10, 15, COLORS.gold, 'center');
   TEAM.forEach((id, i) => {
     const h = heroDef(id), b = tagBtnPos(i), cur = id === HERO.pc, cd = P.tagCd;
-    ctx.save(); ctx.globalAlpha = 0.78; ctx.fillStyle = 'rgba(10,12,20,.85)'; circle(b.x, b.y, TAG_BTN_R);
+    ctx.save(); ctx.globalAlpha = 0.78; ctx.fillStyle = COLORS.panel85; circle(b.x, b.y, TAG_BTN_R);
     ctx.save(); ctx.beginPath(); ctx.arc(b.x, b.y, TAG_BTN_R - 2, 0, TAU); ctx.clip(); ctx.translate(b.x, b.y + 5); ctx.scale(1.1, 1.1); drawPortraitIcon(h, 0, 0); ctx.restore();
     if (!cur && cd > 0) { ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.arc(b.x, b.y, TAG_BTN_R - 2, -Math.PI / 2, -Math.PI / 2 + TAU * (cd / TAG_CD)); ctx.closePath(); ctx.fill(); }
-    ctx.lineWidth = cur ? 5 : 3.5; ctx.strokeStyle = cur ? '#ffd34d' : (cd > 0 ? '#555a70' : '#cfe8ff'); ctx.beginPath(); ctx.arc(b.x, b.y, TAG_BTN_R, 0, TAU); ctx.stroke(); ctx.restore();
+    ctx.lineWidth = cur ? 5 : 3.5; ctx.strokeStyle = cur ? COLORS.gold : (cd > 0 ? '#555a70' : '#cfe8ff'); ctx.beginPath(); ctx.arc(b.x, b.y, TAG_BTN_R, 0, TAU); ctx.stroke(); ctx.restore();
     const hpv = cur ? P.hp : P.hpStore[id], fr = clamp(hpv / heroMaxHp(id), 0, 1), down = hpv <= 0;
     if (down) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.65)'; circle(b.x, b.y, TAG_BTN_R - 2); ctx.restore(); text('불능', b.x, b.y + 6, 17, '#ff7a7a', 'center'); }
-    text(PC_TAG[id], b.x, b.y + TAG_BTN_R + 17, 15, cur ? '#ffe9a0' : down ? '#888' : '#fff', 'center');
+    text(PC_TAG[id], b.x, b.y + TAG_BTN_R + 17, 15, cur ? COLORS.goldText : down ? '#888' : '#fff', 'center');
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(b.x - 32, b.y + TAG_BTN_R + 23, 64, 9); ctx.fillStyle = fr > 0.5 ? '#4fd36a' : fr > 0.25 ? '#f0b030' : '#ff3a3a'; ctx.fillRect(b.x - 31, b.y + TAG_BTN_R + 24, 62 * fr, 7);   // 영웅별 생명력
-    if (!IS_TOUCH) text(hot[i], b.x - TAG_BTN_R + 4, b.y - TAG_BTN_R + 11, 14, '#ffd34d', 'center', true);
+    if (!IS_TOUCH) text(hot[i], b.x - TAG_BTN_R + 4, b.y - TAG_BTN_R + 11, 14, COLORS.gold, 'center', true);
     if (!cur && cd > 0) text(cd.toFixed(1), b.x, b.y + 6, 18, '#fff', 'center');
   });
 }
 function drawHUD() {
   if (mode === 'duel') { if (NET.on) drawNetHUD(); else drawDuelHUD(); } else if (RAID) { if (NET.on) drawRaidNetHUD(); else drawRaidHUD(); } else {
   // ===== 영웅 정보 (컴팩트: 가려지는 면적 최소화) =====
-  ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(10, 10, 262, 50); ctx.strokeStyle = 'rgba(212,167,58,.8)'; ctx.lineWidth = 1.5; ctx.strokeRect(10, 10, 262, 50);
+  ctx.fillStyle = COLORS.panel50; ctx.fillRect(10, 10, 262, 50); ctx.strokeStyle = 'rgba(212,167,58,.8)'; ctx.lineWidth = 1.5; ctx.strokeRect(10, 10, 262, 50);
   ctx.save(); ctx.translate(34, 35); ctx.scale(0.62, 0.62); ctx.beginPath(); ctx.arc(0, 0, 30, 0, TAU); ctx.clip(); drawPortraitIcon(HERO, 0, 0); ctx.restore();
-  text(HERO.name + (ACC && mode === 'yeonui' ? '   Lv ' + heroLv(HERO.pc) : ''), 60, 25, 14, '#ffe9a0');
+  text(HERO.name + (ACC && mode === 'yeonui' ? '   Lv ' + heroLv(HERO.pc) : ''), 60, 25, 14, COLORS.goldText);
   ctx.fillStyle = '#300'; ctx.fillRect(60, 30, 204, 13); ctx.fillStyle = P.hp / P.maxhp > .3 ? '#d83a3a' : '#ff2a2a'; ctx.fillRect(60, 30, 204 * P.hp / P.maxhp, 13);
   ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.strokeRect(60, 30, 204, 13);
   text(`${Math.ceil(P.hp)} / ${P.maxhp}`, 162, 41, 10, '#fff', 'center');
   drawDebuffIcons(P, 278, 12);
-  ctx.fillStyle = '#222'; ctx.fillRect(60, 47, 204, 6); ctx.fillStyle = P.rage >= 100 ? '#ffd34d' : '#e0902a'; ctx.fillRect(60, 47, 204 * P.rage / 100, 6); ctx.strokeStyle = '#000'; ctx.strokeRect(60, 47, 204, 6);
+  ctx.fillStyle = '#222'; ctx.fillRect(60, 47, 204, 6); ctx.fillStyle = P.rage >= 100 ? COLORS.gold : '#e0902a'; ctx.fillRect(60, 47, 204 * P.rage / 100, 6); ctx.strokeStyle = '#000'; ctx.strokeRect(60, 47, 204, 6);
 
   }
   // ===== 버프 칸 (위에서부터 쌓임) =====
@@ -101,7 +101,7 @@ function drawHUD() {
   let chipY = mode === 'duel' ? 182 : RAID ? 160 : 66;   // 비무장은 HUD 목록이 22px 아래로 내려가 있음
   const chip = (col, label, t, dur, showTime = true, icon) => {   // icon = 버프 id(문자열) 또는 디버프 { k: 'stun' | 'hurt' | 'slow' | 'resist', n }
     const cw = 262, rgb = col.replace('#', '').match(/../g).map(h => parseInt(h, 16)).join(',');
-    ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(10, chipY, cw, 21); ctx.fillStyle = col + '4d'; ctx.fillRect(10, chipY, cw * clamp(t / dur, 0, 1), 21);
+    ctx.fillStyle = COLORS.panel50; ctx.fillRect(10, chipY, cw, 21); ctx.fillStyle = col + '4d'; ctx.fillRect(10, chipY, cw * clamp(t / dur, 0, 1), 21);
     ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(10, chipY, cw, 21);
     if (icon) drawIconItems([typeof icon === 'string' ? { k: 'buff', id: icon, rgb, t } : { ...icon, t }], 10, chipY, true); else { ctx.fillStyle = col; circle(21, chipY + 10, 4); }
     text(fitStr(label, cw - 76, 12), 36, chipY + 15, 12, '#fff'); if (showTime) text(t.toFixed(1) + 's', 10 + cw - 6, chipY + 15, 12, '#fff', 'right');
@@ -119,18 +119,18 @@ function drawHUD() {
   if (HERO.postUltAtk && P.postUltT > 0) chip('#ff9a4a', '공격력 +' + pc(HERO.postUltAtk - 1) + '% (' + HERO.skills.s3 + ')', P.postUltT, HERO.postUltDur, true, 'postAtk');
   if (HERO.postUltAspd && P.postUltT > 0) chip('#9fdcff', '공속 +' + pc(HERO.postUltAspd - 1) + '% (' + HERO.skills.s3 + ')', P.postUltT, HERO.postUltDur, true, 'spd');
   if (HERO.aspdBuff && P.aspdT > 0) chip('#9fdcff', '공속 +' + pc(HERO.aspdBuff.mult - 1) + '% (3단 공격)', P.aspdT, HERO.aspdBuff.dur, true, 'aspd');
-  if (HERO.comboBuff && P.comboBuffT > 0) chip('#ffd34d', '공격력 +' + pc(HERO.comboBuff.atk - 1) + '% (3단 공격)', P.comboBuffT, HERO.comboBuff.dur, true, 'atk');
+  if (HERO.comboBuff && P.comboBuffT > 0) chip(COLORS.gold, '공격력 +' + pc(HERO.comboBuff.atk - 1) + '% (3단 공격)', P.comboBuffT, HERO.comboBuff.dur, true, 'atk');
   if (HERO.runBonus && P.runBuffT > 0) chip('#7fd0ff', '이동속도 +' + pc(HERO.runBonus - 1) + '% (질주)', P.runBuffT, HERO.runDur, true, 'run');
   if (P.floorT > 0) chip('#ffcd5a', '불사 보호 · 생명력 1 밑으로 내려가지 않음 (전투당 1회)', P.floorT, HEROES.dian.undy.floor, true, 'floor');
-  if (P.undyT > 0 && HERO.undy) chip('#ff5a4a', '불사 · 공격 +' + pc(HERO.undy.atk - 1) + '% · 흡혈 ' + pc(HERO.undy.ls) + '% (' + HERO.skills.s3 + ')', P.undyT, HERO.undy.dur, true, 'undy');
+  if (P.undyT > 0 && HERO.undy) chip(COLORS.foe, '불사 · 공격 +' + pc(HERO.undy.atk - 1) + '% · 흡혈 ' + pc(HERO.undy.ls) + '% (' + HERO.skills.s3 + ')', P.undyT, HERO.undy.dur, true, 'undy');
   if (P.blessT > 0) chip('#ff9ac8', '공격력 +' + pc(BLESS_ATK) + '% · 방어력 +' + pc(BLESS_DEF) + '% (월하 축복)', P.blessT, BLESS_DUR, true, 'bless');
   if (comboTier() > 0) chip('#ff9a3a', '공속·피해 +' + pc(comboPct()) + '% (' + P.hits + ' HIT)', P.hitsT, 3, false, 'hit');   // HIT 누적 효과: 3초 안에 적중하면 갱신 (막대 = 남은 유지 시간)
 
   // 로그라이크 강화 효과: HIT 효과처럼 어떤 영웅으로 싸우든(태그로 바꿔도) 공통으로 적용 — 2열로 모아서 표시
-  if (mode !== 'duel') { const ks = Object.keys(UPG).filter(k => RUN[k] > 0); if (ks.length) { text('강화 효과 · 전 영웅 공통', 12, chipY + 9, 10, '#ffd9a0', 'left', true, false); chipY += 13; ks.forEach((k, i) => { const x = 10 + (i % 2) * 121, y = chipY + Math.floor(i / 2) * 19; ctx.fillStyle = 'rgba(10,12,20,.5)'; ctx.fillRect(x, y, 119, 17); ctx.strokeStyle = '#d8a03a'; ctx.lineWidth = 1.2; ctx.strokeRect(x, y, 119, 17); text(UPG_SHORT[k] + ' ' + UPG[k].f(RUN[k]), x + 5, y + 13, 10, '#fff', 'left', false, false); }); chipY += Math.ceil(ks.length / 2) * 19 + 4; } }
+  if (mode !== 'duel') { const ks = Object.keys(UPG).filter(k => RUN[k] > 0); if (ks.length) { text('강화 효과 · 전 영웅 공통', 12, chipY + 9, 10, '#ffd9a0', 'left', true, false); chipY += 13; ks.forEach((k, i) => { const x = 10 + (i % 2) * 121, y = chipY + Math.floor(i / 2) * 19; ctx.fillStyle = COLORS.panel50; ctx.fillRect(x, y, 119, 17); ctx.strokeStyle = '#d8a03a'; ctx.lineWidth = 1.2; ctx.strokeRect(x, y, 119, 17); text(UPG_SHORT[k] + ' ' + UPG[k].f(RUN[k]), x + 5, y + 13, 10, '#fff', 'left', false, false); }); chipY += Math.ceil(ks.length / 2) * 19 + 4; } }
 
   // ===== 웨이브 / 처치 / 웨이브·로비 버튼 =====
-  if (!(mode === 'yeonui' && state === 'play')) { const r = lobbyBtnRect(); ctx.fillStyle = 'rgba(10,12,20,.55)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(mode === 'yeonui' && state === 'play' ? '나가기' : '로비', r.x + r.w / 2, r.y + r.h / 2 + 5, 13, '#ffe9a0', 'center'); }   // 로비 버튼 (보스 버튼 옆) — 로그라이크 전투 중에는 '나가기'(경험치 정산)
+  if (!(mode === 'yeonui' && state === 'play')) { const r = lobbyBtnRect(); ctx.fillStyle = 'rgba(10,12,20,.55)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); text(mode === 'yeonui' && state === 'play' ? '나가기' : '로비', r.x + r.w / 2, r.y + r.h / 2 + 5, 13, COLORS.goldText, 'center'); }   // 로비 버튼 (보스 버튼 옆) — 로그라이크 전투 중에는 '나가기'(경험치 정산)
   if (mode === 'yeonui' && state === 'play') drawPauseButton();
   // ===== 보스 체력바 (얇게) =====
   const boss = enemies.find(e => e.boss);
@@ -140,7 +140,7 @@ function drawHUD() {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
     ctx.fillStyle = '#4a1010'; ctx.fillRect(bx, by, bw, bh); ctx.fillStyle = '#d82a2a'; ctx.fillRect(bx, by, bw * boss.hp / boss.maxhp, bh);
     ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(bx, by, bw * boss.hp / boss.maxhp, 4);
-    ctx.strokeStyle = '#d4a73a'; ctx.lineWidth = 1.5; ctx.strokeRect(bx, by, bw, bh);
+    ctx.strokeStyle = COLORS.goldTrim; ctx.lineWidth = 1.5; ctx.strokeRect(bx, by, bw, bh);
     ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(bx + bw * 0.5 - 1, by, 2, bh);   // 50% = 2페이즈 경계
     if (boss.d.mb) { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const f of [1 / 3, 2 / 3]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 몬스터 보스: 3단계 경계
     if (boss.d.zhao) { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const f of [0.25, 0.75]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }
@@ -160,14 +160,14 @@ function drawHUD() {
   drawTagButtons();
   if (!IS_TOUCH) text(`WASD 이동 · J/클릭 공격 · K ${HERO.skills.s1} · L ${HERO.skills.s2} · ; ${HERO.skills.s3} · Space 회피 · ${mode === 'duel' ? 'Q 조작 변경' : RAID ? (NET.on ? '온라인 협동' : 'Q 조작 변경') : 'Z/X/C 태그'} · T 오토`, 12, H - 8, 12, 'rgba(255,255,255,.7)', 'left', false);
   else if (clock < 12 && !joy) text('◀ 왼쪽 화면을 누르고 드래그해서 이동', 100, H - 40, 14, 'rgba(255,255,255,.8)', 'left', false);
-  if (auto) text(RAID ? (IS_TOUCH ? 'AUTO 전투 중 — 조이스틱을 움직이면 해제' : 'AUTO 전투 중 — 이동 입력 시 해제') : IS_TOUCH ? 'AUTO 전투 중 — 조이스틱을 움직이면 해제 · 생명력 10% 이하 자동 태그' : 'AUTO 전투 중 — 이동 입력 시 해제 · 생명력 10% 이하 자동 태그', W / 2, H - 44, 14, '#7dff9a', 'center');
+  if (auto) text(RAID ? (IS_TOUCH ? 'AUTO 전투 중 — 조이스틱을 움직이면 해제' : 'AUTO 전투 중 — 이동 입력 시 해제') : IS_TOUCH ? 'AUTO 전투 중 — 조이스틱을 움직이면 해제 · 생명력 10% 이하 자동 태그' : 'AUTO 전투 중 — 이동 입력 시 해제 · 생명력 10% 이하 자동 태그', W / 2, H - 44, 14, COLORS.good, 'center');
   if (reinforceT > 0 && state === 'play') text(reinforceMsg, W / 2, 168, 26, `rgba(255,214,120,${Math.min(1, reinforceT * 2)})`, 'center');
   // 웨이브 배너
   if (bannerT > 0 && state === 'play') {
     const a = clamp(Math.min(bannerT, 2.6 - bannerT) * 3, 0, 1);
     const boss = !!curWave().bossWave;
     ctx.globalAlpha = a; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 230, W, 132);
-    text(boss ? 'WARNING' : `WAVE ${waveIdx + 1}`, W / 2, 280, 28, boss ? '#ff5a5a' : '#ffd34d', 'center');
+    text(boss ? 'WARNING' : `WAVE ${waveIdx + 1}`, W / 2, 280, 28, boss ? '#ff5a5a' : COLORS.gold, 'center');
     text(curWave().name, W / 2, 322, 40, '#fff', 'center');
     if (!boss) text('위험도 ' + '★'.repeat(1 + Math.floor(waveIdx / 10)) + '☆'.repeat(4 - Math.floor(waveIdx / 10)), W / 2, 352, 16, '#ffb27a', 'center');   // 계단식 난이도 표시
     ctx.globalAlpha = 1;
@@ -178,9 +178,9 @@ function drawHUD() {
 function drawOverlay(title, sub, col) {
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H);
   text(title, W / 2, 300, 84, col, 'center'); text(sub, W / 2, 360, 24, '#fff', 'center');
-  if (!NET.on) text(`처치 ${kills}  ·  최대 콤보 ${P.bestHits}  ·  시간 ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`, W / 2, 410, 20, '#cfd3e6', 'center', false);
+  if (!NET.on) text(`처치 ${kills}  ·  최대 콤보 ${P.bestHits}  ·  시간 ${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, '0')}`, W / 2, 410, 20, COLORS.silver, 'center', false);
   if (!IS_TOUCH) text('R / Enter : ' + (NET.on ? '대기실로' : '다시 시작') + '    ·    C : 로비', W / 2, 470, 16, '#9aa3b8', 'center', false);
-  for (const [b, label, col] of [[OVERLAY_RETRY, NET.on ? '대기실로' : '다시 시작', '#7dff9a'], [OVERLAY_BTN, '로비', '#ffd34d']]) { ctx.fillStyle = 'rgba(10,12,20,.85)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(label, b.x + b.w / 2, b.y + 31, 22, col, 'center'); }
+  for (const [b, label, col] of [[OVERLAY_RETRY, NET.on ? '대기실로' : '다시 시작', COLORS.good], [OVERLAY_BTN, '로비', COLORS.gold]]) { ctx.fillStyle = COLORS.panel85; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(label, b.x + b.w / 2, b.y + 31, 22, col, 'center'); }
   drawCopyBtn(OVERLAY_COPY, '결과 복사', 'last');
 }
 // 시작 화면의 영웅 초상 (카드 안, 발 위치 기준 x, y)

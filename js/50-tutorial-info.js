@@ -58,16 +58,16 @@ const tutBtnRect = i => ({ x: W / 2 - 140, y: 408 + i * 44, w: 280, h: 36 });   
 function drawTutorial() {
   if (!TUT || state !== 'play') return; const s = TUT.steps[TUT.i]; if (!s) return;
   const big = !!s.ok, pw = 900, px = W / 2 - pw / 2, py = 86, ph = big ? 270 : 92;
-  ctx.save(); ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(px, py, pw, ph); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2.5; ctx.strokeRect(px, py, pw, ph);
-  text('튜토리얼  ' + (TUT.i + 1) + ' / ' + TUT.steps.length, px + 16, py + 22, 14, '#ffd34d', 'left');
+  ctx.save(); ctx.fillStyle = COLORS.panel90; ctx.fillRect(px, py, pw, ph); ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 2.5; ctx.strokeRect(px, py, pw, ph);
+  text('튜토리얼  ' + (TUT.i + 1) + ' / ' + TUT.steps.length, px + 16, py + 22, 14, COLORS.gold, 'left');
   const b = TUT_SKIP; ctx.fillStyle = 'rgba(40,20,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#ff9a8a'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text('건너뛰기' + (IS_TOUCH ? '' : ' (Esc)'), b.x + b.w / 2, b.y + 18, 13, '#ffb4a8', 'center');
   text(s.t(), W / 2, py + 54, big ? 26 : 24, '#fff', 'center');
   if (!big) {
-    text(fitStr(s.h() || '', pw - 40, 13), W / 2, py + 80, 13, '#cfd3e6', 'center', false);
+    text(fitStr(s.h() || '', pw - 40, 13), W / 2, py + 80, 13, COLORS.silver, 'center', false);
     if (s.n > 1) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(px + 16, py + ph - 8, pw - 32, 5); ctx.fillStyle = '#4fd36a'; ctx.fillRect(px + 16, py + ph - 8, (pw - 32) * clamp(TUT.prog / s.n, 0, 1), 5); }
   } else {
     s.lines().forEach((ln, k) => text(fitStr('•  ' + ln, pw - 60, 15), px + 30, py + 100 + k * 34, 15, '#dfe3f5', 'left', false));
-    const o = TUT_OK; ctx.fillStyle = 'rgba(30,60,30,.95)'; ctx.fillRect(o.x, o.y, o.w, o.h); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 2.5; ctx.strokeRect(o.x, o.y, o.w, o.h); text('시작하기' + (IS_TOUCH ? '' : ' (Enter)'), o.x + o.w / 2, o.y + 27, 20, '#9dff9d', 'center');
+    const o = TUT_OK; ctx.fillStyle = 'rgba(30,60,30,.95)'; ctx.fillRect(o.x, o.y, o.w, o.h); ctx.strokeStyle = COLORS.good; ctx.lineWidth = 2.5; ctx.strokeRect(o.x, o.y, o.w, o.h); text('시작하기' + (IS_TOUCH ? '' : ' (Enter)'), o.x + o.w / 2, o.y + 27, 20, COLORS.goodAlt, 'center');
   }
   // 눌러야 할 버튼 강조
   let hx = null, hy = null, hr = 40;
@@ -75,7 +75,7 @@ function drawTutorial() {
   else if (s.btn === 'tag' && TEAM.length > 1) { const q = tagBtnPos(1); hx = q.x; hy = q.y; hr = TAG_BTN_R + 10; }
   else if (s.btn === 'swap' && (duel || RAID)) { hx = DUEL_ROW.x + 100; hy = DUEL_ROW.y + DUEL_ROW.step + 19; hr = 34; }
   if (hx != null && TUT.fade <= 0) { const k = 0.5 + 0.5 * Math.sin(T * 8); ctx.strokeStyle = `rgba(255,243,120,${0.5 + 0.5 * k})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(hx, hy, hr + k * 8, 0, TAU); ctx.stroke(); text('▼ 여기', hx, hy - hr - 14, 15, '#ffe14a', 'center', true); }
-  if (TUT.fade > 0) { text('✔ 완료!', W / 2, py + ph + 36, 30, '#7dff9a', 'center'); }
+  if (TUT.fade > 0) { text('✔ 완료!', W / 2, py + ph + 36, 30, COLORS.good, 'center'); }
   ctx.restore();
 }
 // ===== 장수 정보 페이지 (로비 > 장수 정보): PC 별 능력치 · 스킬 · 고유 성장 단계를 한눈에 보고, 레벨을 바꿔 가며 성장 결과를 미리 본다 =====
@@ -90,35 +90,35 @@ const EQP = { x: W / 2 - 340, y: 100, w: 680, h: 500 }, EQP_ROWS = 7, EQP_ROW = 
 const eqList = slot => { const d = eqData(ACC); return d ? d.inv.filter(it => it.slot === slot).sort((a, b) => b.rar - a.rar || eqScore(b) - eqScore(a)) : []; };
 function drawEquipTab(R, id) {
   const worn = eqWornIds(id), tot = equipFlat(id), d = eqData(ACC);
-  text('장비 3종 착용  (눌러서 변경)', R.x + 16, R.y + 56, 13, '#ffd34d', 'left');
+  text('장비 3종 착용  (눌러서 변경)', R.x + 16, R.y + 56, 13, COLORS.gold, 'left');
   for (let i = 0; i < 3; i++) {
     const r = EQ_ROW(i), it = worn[i] != null ? eqItem(worn[i]) : null, rc = it ? EQ_RAR[it.rar].c : '#6c7288';
-    ctx.fillStyle = it ? 'rgba(30,24,44,.92)' : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = rc; ctx.lineWidth = it ? 2 : 1.5; if (!it) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
+    ctx.fillStyle = it ? COLORS.panelHi92 : 'rgba(255,255,255,.04)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = rc; ctx.lineWidth = it ? 2 : 1.5; if (!it) ctx.setLineDash([6, 5]); ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.setLineDash([]);
     text(EQ_SLOTS[i], r.x + 12, r.y + 20, 12, '#9ad4ff', 'left');
     if (it) { text(it.name, r.x + 12, r.y + 44, 17, rc, 'left'); text(EQ_RAR[it.rar].n, r.x + r.w - 12, r.y + 20, 12, rc, 'right'); text(fitStr(eqStatText(it), r.w - 24, 12.5), r.x + 12, r.y + 64, 12.5, '#e6e9f5', 'left', false); }
-    else text('비어 있음  —  눌러서 장착', r.x + 12, r.y + 50, 14, '#8a90a6', 'left', false);
+    else text('비어 있음  —  눌러서 장착', r.x + 12, r.y + 50, 14, COLORS.silverOff, 'left', false);
   }
   const yy = EQ_ROW(3).y + 4;
-  text('장비 효과 합계', R.x + 16, yy + 6, 13, '#ffd34d', 'left');
-  text('체력 +' + tot.hp + '   ·   공격력 +' + +tot.atk.toFixed(1) + '   ·   방어력 +' + +tot.def.toFixed(1), R.x + 16, yy + 28, 14, tot.hp + tot.atk + tot.def > 0 ? '#9dff9d' : '#8a90a6', 'left', false);
+  text('장비 효과 합계', R.x + 16, yy + 6, 13, COLORS.gold, 'left');
+  text('체력 +' + tot.hp + '   ·   공격력 +' + +tot.atk.toFixed(1) + '   ·   방어력 +' + +tot.def.toFixed(1), R.x + 16, yy + 28, 14, tot.hp + tot.atk + tot.def > 0 ? COLORS.goodAlt : COLORS.silverOff, 'left', false);
   text('보유 장비 ' + (d ? d.inv.length : 0) + ' / ' + EQ_MAX + '  ·  장비는 레이드 모드에서만 획득', R.x + 16, yy + 50, 11.5, '#9aa3b8', 'left', false);
   text('온라인 대전에서는 장비가 적용되지 않습니다', R.x + 16, yy + 68, 11, '#7a8196', 'left', false);
 }
 function drawEqPicker() {
   if (!eqPick) return; const slot = eqPick.slot, list = eqList(slot), pages = Math.max(1, Math.ceil(list.length / EQP_ROWS)), id = infoPc(), cur = eqWornIds(id)[slot];
   eqPick.page = clamp(eqPick.page, 0, pages - 1);
-  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = 'rgba(14,10,26,.97)'; ctx.fillRect(EQP.x, EQP.y, EQP.w, EQP.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.strokeRect(EQP.x, EQP.y, EQP.w, EQP.h);
-  text(EQ_SLOTS[slot] + ' 선택  ·  ' + PC_NAME[id], EQP.x + 20, EQP.y + 40, 24, '#ffe9a0', 'left'); text('아이템을 누르면 장착합니다 (다른 영웅이 착용 중이면 옮겨 옵니다)', EQP.x + 20, EQP.y + 60, 12, '#9aa3b8', 'left', false);
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = COLORS.panelModal; ctx.fillRect(EQP.x, EQP.y, EQP.w, EQP.h); ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 3; ctx.strokeRect(EQP.x, EQP.y, EQP.w, EQP.h);
+  text(EQ_SLOTS[slot] + ' 선택  ·  ' + PC_NAME[id], EQP.x + 20, EQP.y + 40, 24, COLORS.goldText, 'left'); text('아이템을 누르면 장착합니다 (다른 영웅이 착용 중이면 옮겨 옵니다)', EQP.x + 20, EQP.y + 60, 12, '#9aa3b8', 'left', false);
   list.slice(eqPick.page * EQP_ROWS, eqPick.page * EQP_ROWS + EQP_ROWS).forEach((it, i) => {
     const r = EQP_ROW(i), rc = EQ_RAR[it.rar].c, wr = eqWearer(it.id), mine = cur === it.id;
-    ctx.fillStyle = mine ? 'rgba(60,44,16,.9)' : 'rgba(30,24,44,.9)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = mine ? '#ffd34d' : rc; ctx.lineWidth = mine ? 2.5 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.fillStyle = rc; ctx.fillRect(r.x, r.y, 6, r.h);
+    ctx.fillStyle = mine ? 'rgba(60,44,16,.9)' : COLORS.panelHi90; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = mine ? COLORS.gold : rc; ctx.lineWidth = mine ? 2.5 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.fillStyle = rc; ctx.fillRect(r.x, r.y, 6, r.h);
     text(it.name, r.x + 18, r.y + 29, 17, rc, 'left'); text(EQ_RAR[it.rar].n, r.x + 200, r.y + 29, 12, rc, 'left', false); text(fitStr(eqStatText(it), 300, 13), r.x + 262, r.y + 29, 13, '#e6e9f5', 'left', false);
-    if (mine) text('착용 중', r.x + r.w - 12, r.y + 29, 13, '#ffd34d', 'right'); else if (wr) text(PC_NAME[wr] + ' 착용', r.x + r.w - 12, r.y + 29, 12.5, '#9ad4ff', 'right', false);
+    if (mine) text('착용 중', r.x + r.w - 12, r.y + 29, 13, COLORS.gold, 'right'); else if (wr) text(PC_NAME[wr] + ' 착용', r.x + r.w - 12, r.y + 29, 12.5, '#9ad4ff', 'right', false);
   });
-  if (!list.length) text('보유한 ' + EQ_SLOTS[slot] + '이(가) 없습니다  —  레이드 모드에서 획득하세요', EQP.x + EQP.w / 2, EQP.y + 220, 16, '#aab3c8', 'center', false);
-  const btn = (b, label, col, dis) => { ctx.globalAlpha = dis ? 0.4 : 1; ctx.fillStyle = 'rgba(10,12,20,.92)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text(label, b.x + b.w / 2, b.y + 24, 15, col, 'center'); ctx.globalAlpha = 1; };
-  btn(EQP_PREV, '◀ 이전', '#9ad4ff', eqPick.page <= 0); btn(EQP_NEXT, '다음 ▶', '#9ad4ff', eqPick.page >= pages - 1); text((eqPick.page + 1) + ' / ' + pages, EQP.x + 240, EQP.y + EQP.h - 28, 13, '#cfd3e6', 'left', false);
-  btn(EQP_OFF, '해제', '#ff9a8a', cur == null); btn(EQP_CLOSE, '닫기', '#cfd3e6', false);
+  if (!list.length) text('보유한 ' + EQ_SLOTS[slot] + '이(가) 없습니다  —  레이드 모드에서 획득하세요', EQP.x + EQP.w / 2, EQP.y + 220, 16, COLORS.silverDim, 'center', false);
+  const btn = (b, label, col, dis) => { ctx.globalAlpha = dis ? 0.4 : 1; ctx.fillStyle = COLORS.panel92; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); text(label, b.x + b.w / 2, b.y + 24, 15, col, 'center'); ctx.globalAlpha = 1; };
+  btn(EQP_PREV, '◀ 이전', '#9ad4ff', eqPick.page <= 0); btn(EQP_NEXT, '다음 ▶', '#9ad4ff', eqPick.page >= pages - 1); text((eqPick.page + 1) + ' / ' + pages, EQP.x + 240, EQP.y + EQP.h - 28, 13, COLORS.silver, 'left', false);
+  btn(EQP_OFF, '해제', '#ff9a8a', cur == null); btn(EQP_CLOSE, '닫기', COLORS.silver, false);
 }
 function eqPickClick(x, y) {
   const slot = eqPick.slot, list = eqList(slot), pages = Math.max(1, Math.ceil(list.length / EQP_ROWS)), id = infoPc();
@@ -161,14 +161,14 @@ function infoBuffLines(id, lv) {   // 조건부 버프 (미리보기 레벨의 �
 function infoRows(id, m) { const sv = mode; mode = m; applyGrowth(m); try { return heroSkillRows(id); } finally { mode = sv; } }   // 모드(로그라이크 / 비무장)별 스킬 수치
 function drawInfo() {
   drawLoginScene(); ctx.fillStyle = 'rgba(6,4,14,.78)'; ctx.fillRect(0, 0, W, H);
-  text('장수 정보', W / 2, 54, 36, '#ffd34d', 'center');
-  text('능력치 · 스킬 · 고유 능력 · 영웅 성장  —  ← → 장수 선택  ·  ↑ ↓ 레벨 미리보기 (PageUp / PageDown ±5)', W / 2, 76, 13, '#cfd3e6', 'center', false);
+  text('장수 정보', W / 2, 54, 36, COLORS.gold, 'center');
+  text('능력치 · 스킬 · 고유 능력 · 영웅 성장  —  ← → 장수 선택  ·  ↑ ↓ 레벨 미리보기 (PageUp / PageDown ±5)', W / 2, 76, 13, COLORS.silver, 'center', false);
   const id = infoPc(), g = GROWTH[id], rec = ACC ? heroRec(ACC, id) : { lv: 1, xp: 0 }, curLv = rec.lv;
   HERO_IDS.forEach((pid, i) => {   // 장수 탭
     const r = infoTab(i), on = i === infoSel, lvp = ACC ? heroLv(pid) : 1;
-    ctx.fillStyle = on ? 'rgba(40,34,18,.95)' : 'rgba(10,12,20,.85)'; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = on ? '#ffd34d' : 'rgba(255,255,255,.3)'; ctx.lineWidth = on ? 3 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = on ? 'rgba(40,34,18,.95)' : COLORS.panel85; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = on ? COLORS.gold : 'rgba(255,255,255,.3)'; ctx.lineWidth = on ? 3 : 1.5; ctx.strokeRect(r.x, r.y, r.w, r.h);
     ctx.save(); ctx.beginPath(); ctx.arc(r.x + 26, r.y + 23, 18, 0, TAU); ctx.clip(); ctx.translate(r.x + 26, r.y + 27); ctx.scale(0.6, 0.6); drawPortraitIcon(HEROES[pid], 0, 0); ctx.restore();
-    text(PC_NAME[pid], r.x + 54, r.y + 29, 18, on ? '#ffe9a0' : '#cfd3e6', 'left'); text('Lv ' + lvp, r.x + r.w - 12, r.y + 29, 15, lvp >= MAX_LV ? '#ffd34d' : '#9dff9d', 'right');
+    text(PC_NAME[pid], r.x + 54, r.y + 29, 18, on ? COLORS.goldText : COLORS.silver, 'left'); text('Lv ' + lvp, r.x + r.w - 12, r.y + 29, 15, lvp >= MAX_LV ? COLORS.gold : COLORS.goodAlt, 'right');
   });
   // 미리보기 레벨의 성장 수치를 실제 값에 적용한 채로 그린다 (로그라이크 / 비무장 각각)
   const old = rec.lv; rec.lv = infoLv; applyGrowth('yeonui');
@@ -176,51 +176,51 @@ function drawInfo() {
     const rowsP = infoRows(id, 'yeonui'), rowsD = infoRows(id, 'duel'); applyGrowth('yeonui');
     // ---- 왼쪽: 프로필 + 능력치 + 성장 진행 ----
     const L = { x: 40, y: 142, w: 344, h: 514 }; ctx.fillStyle = 'rgba(12,14,24,.92)'; ctx.fillRect(L.x, L.y, L.w, L.h); ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 2; ctx.strokeRect(L.x, L.y, L.w, L.h);
-    ctx.save(); ctx.beginPath(); ctx.arc(104, 214, 46, 0, TAU); ctx.clip(); ctx.translate(104, 214 + 6); ctx.scale(1.55, 1.55); drawPortraitIcon(HEROES[id], 0, 0); ctx.restore(); ctx.strokeStyle = '#d4a73a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(104, 214, 46, 0, TAU); ctx.stroke();
-    text(PC_NAME[id], 166, 200, 28, '#ffe9a0', 'left'); text(fitStr(g.theme, 200, 13), 166, 224, 13, '#ffb27a', 'left', false);
-    text('현재 Lv ' + curLv + (curLv >= MAX_LV ? ' (최대)' : '  ·  ' + rec.xp + ' / ' + xpNeed(curLv) + ' XP'), 166, 246, 13, '#cfd3e6', 'left', false);
+    ctx.save(); ctx.beginPath(); ctx.arc(104, 214, 46, 0, TAU); ctx.clip(); ctx.translate(104, 214 + 6); ctx.scale(1.55, 1.55); drawPortraitIcon(HEROES[id], 0, 0); ctx.restore(); ctx.strokeStyle = COLORS.goldTrim; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(104, 214, 46, 0, TAU); ctx.stroke();
+    text(PC_NAME[id], 166, 200, 28, COLORS.goldText, 'left'); text(fitStr(g.theme, 200, 13), 166, 224, 13, '#ffb27a', 'left', false);
+    text('현재 Lv ' + curLv + (curLv >= MAX_LV ? ' (최대)' : '  ·  ' + rec.xp + ' / ' + xpNeed(curLv) + ' XP'), 166, 246, 13, COLORS.silver, 'left', false);
     ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(166, 254, 200, 8); ctx.fillStyle = '#4fd36a'; ctx.fillRect(167, 255, 198 * (curLv >= MAX_LV ? 1 : rec.xp / xpNeed(curLv)), 6);
-    text('성장 미리보기  (실제 레벨은 바뀌지 않습니다)', 56, 296, 13, '#ffd34d', 'left');
-    const C = INFO_CTL; for (const [k, lab] of [['m5', '-5'], ['m1', '◀'], ['p1', '▶'], ['p5', '+5'], ['cur', '현재']]) { const b = C[k]; ctx.fillStyle = 'rgba(10,12,20,.9)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#9ad4ff'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(lab, b.x + b.w / 2, b.y + 21, 14, '#9ad4ff', 'center'); }
-    const bx = C.box; ctx.fillStyle = 'rgba(40,34,18,.95)'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2; ctx.strokeRect(bx.x, bx.y, bx.w, bx.h); text('Lv ' + infoLv, bx.x + bx.w / 2, bx.y + 22, 17, infoLv >= MAX_LV ? '#ffd34d' : '#fff', 'center');
+    text('성장 미리보기  (실제 레벨은 바뀌지 않습니다)', 56, 296, 13, COLORS.gold, 'left');
+    const C = INFO_CTL; for (const [k, lab] of [['m5', '-5'], ['m1', '◀'], ['p1', '▶'], ['p5', '+5'], ['cur', '현재']]) { const b = C[k]; ctx.fillStyle = COLORS.panel90; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#9ad4ff'; ctx.lineWidth = 1.5; ctx.strokeRect(b.x, b.y, b.w, b.h); text(lab, b.x + b.w / 2, b.y + 21, 14, '#9ad4ff', 'center'); }
+    const bx = C.box; ctx.fillStyle = 'rgba(40,34,18,.95)'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); ctx.strokeStyle = COLORS.gold; ctx.lineWidth = 2; ctx.strokeRect(bx.x, bx.y, bx.w, bx.h); text('Lv ' + infoLv, bx.x + bx.w / 2, bx.y + 22, 17, infoLv >= MAX_LV ? COLORS.gold : '#fff', 'center');
     const m = flatOf(id, infoLv), eq = equipFlat(id), bs = { hp: HERO_STATS.hp, atk: HERO_STATS.atk, def: 0 };
-    text('능력치', 56, 362, 14, '#ffd34d', 'left'); text('로그라이크·레이드', 262, 362, 12, '#ffb27a', 'right', false); text('비무장', 366, 362, 12, '#9ad4ff', 'right', false);
+    text('능력치', 56, 362, 14, COLORS.gold, 'left'); text('로그라이크·레이드', 262, 362, 12, '#ffb27a', 'right', false); text('비무장', 366, 362, 12, '#9ad4ff', 'right', false);
     FLAT_KEYS.forEach((k, j) => {
       const dv = k === 'hp' ? DUEL_HP + (m.hp + eq.hp) * DUEL_HP / HERO_STATS.hp : bs[k] + m[k] + eq[k], v = bs[k] + m[k] + eq[k], f = n => k === 'hp' ? fmtI(n) : +n.toFixed(1), yy = 388 + j * 26;
-      text(FLAT_NAME[k], 56, yy, 15, '#fff', 'left', false); text(f(v), 262, yy, 16, m[k] + eq[k] > 0 ? '#9dff9d' : '#fff', 'right', false); text(f(dv), 366, yy, 16, m[k] + eq[k] > 0 ? '#9dff9d' : '#fff', 'right', false);
-      text('기본 ' + (k === 'hp' ? fmtI(bs[k]) : bs[k]) + ' ' + fmtFlat(k, m[k]) + (eq[k] > 0 ? '  장비 ' + fmtFlat(k, eq[k]) : '') + (k === 'hp' ? '   (비무장은 체력 기준 6,000)' : k === 'def' ? '   (받는 피해 -' + (100 - 100 / (1 + m.def / 100)).toFixed(1) + '%)' : ''), 56, yy + 13, 10.5, '#8a90a6', 'left', false);
+      text(FLAT_NAME[k], 56, yy, 15, '#fff', 'left', false); text(f(v), 262, yy, 16, m[k] + eq[k] > 0 ? COLORS.goodAlt : '#fff', 'right', false); text(f(dv), 366, yy, 16, m[k] + eq[k] > 0 ? COLORS.goodAlt : '#fff', 'right', false);
+      text('기본 ' + (k === 'hp' ? fmtI(bs[k]) : bs[k]) + ' ' + fmtFlat(k, m[k]) + (eq[k] > 0 ? '  장비 ' + fmtFlat(k, eq[k]) : '') + (k === 'hp' ? '   (비무장은 체력 기준 6,000)' : k === 'def' ? '   (받는 피해 -' + (100 - 100 / (1 + m.def / 100)).toFixed(1) + '%)' : ''), 56, yy + 13, 10.5, COLORS.silverOff, 'left', false);
     });
-    text('성장하지 않는 능력치 (두 모드 공통)', 56, 496, 13, '#cfd3e6', 'left');
-    [['치명타 확률 / 피해', Math.round(CRIT_BASE * 100) + '%  /  x' + CRIT_BASE_DMG], ['이동속도', String(HERO_STATS.speed)], ['회피율 / 적중', PC_EVA + '%  /  ' + PC_ACC], ['회피 쿨타임 · 무적 · 거리 (모든 모드)', DASH_CD_PVE + '초 · ' + DASH_INV_PVE + '초 · +' + Math.round((DASH_DIST_PVE - 1) * 100) + '%'], ].forEach(([k, v], j) => { text(k, 56, 518 + j * 20, 13, '#aab3c8', 'left', false); text(v, 366, 518 + j * 20, 13, '#fff', 'right', false); });
+    text('성장하지 않는 능력치 (두 모드 공통)', 56, 496, 13, COLORS.silver, 'left');
+    [['치명타 확률 / 피해', Math.round(CRIT_BASE * 100) + '%  /  x' + CRIT_BASE_DMG], ['이동속도', String(HERO_STATS.speed)], ['회피율 / 적중', PC_EVA + '%  /  ' + PC_ACC], ['회피 쿨타임 · 무적 · 거리 (모든 모드)', DASH_CD_PVE + '초 · ' + DASH_INV_PVE + '초 · +' + Math.round((DASH_DIST_PVE - 1) * 100) + '%'], ].forEach(([k, v], j) => { text(k, 56, 518 + j * 20, 13, COLORS.silverDim, 'left', false); text(v, 366, 518 + j * 20, 13, '#fff', 'right', false); });
     const nt = g.tiers.find(t => t.lv > infoLv);
-    text(fitStr(nt ? '다음 성장 단계  Lv ' + nt.lv + ' [' + nt.name + ']' : '고유 성장 단계를 모두 해금', L.w - 32, 12), 56, 628, 12, nt ? '#9dff9d' : '#ffd34d', 'left', false);
+    text(fitStr(nt ? '다음 성장 단계  Lv ' + nt.lv + ' [' + nt.name + ']' : '고유 성장 단계를 모두 해금', L.w - 32, 12), 56, 628, 12, nt ? COLORS.goodAlt : COLORS.gold, 'left', false);
     text('경험치: 로그라이크·레이드에서 획득 (판 종료 시 정산)', 56, 646, 11, '#7a8196', 'left', false);
     // ---- 가운데: 스킬 (로그라이크 / 비무장) ----
     const M = { x: 400, y: 142, w: 450, h: 514 }; ctx.fillStyle = 'rgba(12,14,24,.92)'; ctx.fillRect(M.x, M.y, M.w, M.h); ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 2; ctx.strokeRect(M.x, M.y, M.w, M.h);
-    text('스킬  (Lv ' + infoLv + ' 성장 반영)', M.x + 16, M.y + 28, 16, '#ffd34d', 'left'); text('로그라이크·레이드 / 비무장 수치', M.x + M.w - 16, M.y + 28, 12, '#aab3c8', 'right', false);
+    text('스킬  (Lv ' + infoLv + ' 성장 반영)', M.x + 16, M.y + 28, 16, COLORS.gold, 'left'); text('로그라이크·레이드 / 비무장 수치', M.x + M.w - 16, M.y + 28, 12, COLORS.silverDim, 'right', false);
     rowsP.forEach((row, j) => {
       const yy = M.y + 54 + j * 64, rd = rowsD[j] || row;
-      text(fitStr(row.n, M.w - 32, 14), M.x + 16, yy, 14, j === 3 ? '#ffd34d' : '#ffe9a0', 'left');
+      text(fitStr(row.n, M.w - 32, 14), M.x + 16, yy, 14, j === 3 ? COLORS.gold : COLORS.goldText, 'left');
       text(fitStr('로그라이크·레이드  ' + row.c1, M.w - 32, 12), M.x + 16, yy + 16, 12, '#fff', 'left', false);
       text(fitStr('비무장  ' + rd.c1, M.w - 32, 12), M.x + 16, yy + 31, 12, '#9ad4ff', 'left', false);
       text(fitStr(row.c2, M.w - 32, 11.5), M.x + 16, yy + 46, 11.5, '#ffb27a', 'left', false);
     });
-    text('조건부 버프 · 고유 능력', M.x + 16, M.y + 322, 15, '#ffd34d', 'left');
+    text('조건부 버프 · 고유 능력', M.x + 16, M.y + 322, 15, COLORS.gold, 'left');
     infoBuffLines(id, infoLv).forEach((ln, j) => text(fitStr('•  ' + ln, M.w - 32, 12.5), M.x + 16, M.y + 344 + j * 20, 12.5, '#dfe3f5', 'left', false));
     const HH = id === 'lubu' ? [HEROES.lubu, HEROES.lubu2] : [HEROES[id]];
-    text('스킬 설명', M.x + 16, M.y + 470, 14, '#ffd34d', 'left');
-    HH.forEach((h, hi) => text(fitStr((id === 'lubu' ? (hi ? '하마  ' : '상마  ') : '') + h.info.map(r => r[0] + ' ' + r[1]).join('  ·  '), M.w - 32, 11.5), M.x + 16, M.y + 490 + hi * 18, 11.5, '#aab3c8', 'left', false));
+    text('스킬 설명', M.x + 16, M.y + 470, 14, COLORS.gold, 'left');
+    HH.forEach((h, hi) => text(fitStr((id === 'lubu' ? (hi ? '하마  ' : '상마  ') : '') + h.info.map(r => r[0] + ' ' + r[1]).join('  ·  '), M.w - 32, 11.5), M.x + 16, M.y + 490 + hi * 18, 11.5, COLORS.silverDim, 'left', false));
     // ---- 오른쪽: 영웅 성장 (고유 성장 단계) ----
     const R = { x: 866, y: 142, w: 374, h: 514 }; ctx.fillStyle = 'rgba(12,14,24,.92)'; ctx.fillRect(R.x, R.y, R.w, R.h); ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 2; ctx.strokeRect(R.x, R.y, R.w, R.h);
-    ['영웅 성장', '장비'].forEach((nm, i) => { const t = INFO_RTAB(i), on = infoTabR === i; ctx.fillStyle = on ? 'rgba(212,167,58,.9)' : 'rgba(30,24,44,.9)'; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeStyle = on ? '#ffd34d' : 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(t.x, t.y, t.w, t.h); text(nm, t.x + t.w / 2, t.y + 20, 15, on ? '#2a1c06' : '#cfd3e6', 'center'); });
-    if (infoTabR === 0) text(fitStr('Lv ' + infoLv + ' 누적: 체력 +' + m.hp + ' · 공격력 +' + m.atk + ' · 방어력 +' + m.def + ' · 스킬 성장 ' + g.tiers.filter(t => infoLv >= t.lv && (t.fx.dmg || t.fx.hits || t.fx.buff)).length + '개', R.w - 32, 11.5), R.x + 16, R.y + 46, 11.5, '#9dff9d', 'left', false);
+    ['영웅 성장', '장비'].forEach((nm, i) => { const t = INFO_RTAB(i), on = infoTabR === i; ctx.fillStyle = on ? 'rgba(212,167,58,.9)' : COLORS.panelHi90; ctx.fillRect(t.x, t.y, t.w, t.h); ctx.strokeStyle = on ? COLORS.gold : 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(t.x, t.y, t.w, t.h); text(nm, t.x + t.w / 2, t.y + 20, 15, on ? '#2a1c06' : COLORS.silver, 'center'); });
+    if (infoTabR === 0) text(fitStr('Lv ' + infoLv + ' 누적: 체력 +' + m.hp + ' · 공격력 +' + m.atk + ' · 방어력 +' + m.def + ' · 스킬 성장 ' + g.tiers.filter(t => infoLv >= t.lv && (t.fx.dmg || t.fx.hits || t.fx.buff)).length + '개', R.w - 32, 11.5), R.x + 16, R.y + 46, 11.5, COLORS.goodAlt, 'left', false);
     if (infoTabR === 0) g.tiers.forEach((t, j) => {
       const yy = R.y + 56 + j * 64, on = infoLv >= t.lv, cur = curLv >= t.lv, skill = !!(t.fx.dmg || t.fx.hits || t.fx.buff), stat = !!(t.fx.hp || t.fx.atk || t.fx.def);
       ctx.fillStyle = on ? 'rgba(60,200,90,.14)' : 'rgba(255,255,255,.04)'; ctx.fillRect(R.x + 10, yy, R.w - 20, 58); ctx.strokeStyle = on ? '#4fd36a' : 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; ctx.strokeRect(R.x + 10, yy, R.w - 20, 58);
-      text('Lv ' + t.lv, R.x + 20, yy + 17, 13, on ? '#9dff9d' : '#7a8196', 'left'); text(t.name, R.x + 74, yy + 17, 14, on ? '#fff' : '#8a90a6', 'left');
-      text((stat ? '능력치 ' : '') + (skill ? '스킬' : ''), R.x + R.w - 20, yy + 17, 11, on ? '#ffd34d' : '#6c7288', 'right');
+      text('Lv ' + t.lv, R.x + 20, yy + 17, 13, on ? COLORS.goodAlt : '#7a8196', 'left'); text(t.name, R.x + 74, yy + 17, 14, on ? '#fff' : COLORS.silverOff, 'left');
+      text((stat ? '능력치 ' : '') + (skill ? '스킬' : ''), R.x + R.w - 20, yy + 17, 11, on ? COLORS.gold : '#6c7288', 'right');
       const parts = fxText(id, t.fx, '\n').split('\n'); parts.slice(0, 3).forEach((p, k) => text(fitStr(p, R.w - 40, 10.5), R.x + 20, yy + 31 + k * 12, 10.5, on ? '#cfeed6' : '#6c7288', 'left', false));
-      if (cur) text('✔ 달성', R.x + R.w - 20, yy + 53, 10.5, '#7dff9a', 'right', false);
+      if (cur) text('✔ 달성', R.x + R.w - 20, yy + 53, 10.5, COLORS.good, 'right', false);
     });
     if (infoTabR === 1) drawEquipTab(R, id);
   } finally { rec.lv = old; applyGrowth('yeonui'); mode = 'yeonui'; }

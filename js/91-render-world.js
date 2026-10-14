@@ -158,9 +158,9 @@ function drawBody(x, y, r, face, o) {
   const wp = o.weapon;
   if (o.flag) {   // 비무장 팀 깃발: 몸 뒤(왼쪽)에 꽂은 깃대와 제비꼬리 깃 — 같은 영웅끼리 맞붙어도 팀이 읽힘
     const px = x - r * 0.95, py0 = by + r * 0.8, py1 = hy - r * 1.2, fw = r * 0.9, fh = r * 1.1, wv = Math.sin(T * 3 + x * 0.01) * r * 0.08;
-    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0c0814'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, py0); ctx.lineTo(px, py1); ctx.stroke();
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = COLORS.outline; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px, py0); ctx.lineTo(px, py1); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(px, py1); ctx.lineTo(px + fw, py1 + wv); ctx.lineTo(px + fw * 0.76, py1 + fh * 0.5 + wv); ctx.lineTo(px + fw, py1 + fh + wv); ctx.lineTo(px, py1 + fh); ctx.closePath(); ctx.fillStyle = o.flag; ctx.fill();
-    ctx.fillStyle = '#d4a73a'; ctx.fillRect(px, py1, fw * 0.96, fh * 0.25); ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+    ctx.fillStyle = COLORS.goldTrim; ctx.fillRect(px, py1, fw * 0.96, fh * 0.25); ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
   }
   if (wp && sy < 0) drawWeapon(wp.kind, x + cx * r * 0.3 + (wp.dx || 0), by + r * 0.2 + (wp.dy || 0), wp.ang, wp.len, r);
   if (o.longHair) { ctx.fillStyle = f ? '#fff' : '#1e1624'; ctx.beginPath(); ctx.ellipse(x - cx * r * 0.1, hy + r * 1.0, r * 0.72, r * 1.45, 0, 0, TAU); ctx.fill(); }   // 길게 늘어뜨린 머리 (몸 뒤)
@@ -369,17 +369,17 @@ function drawTopInfo(boss) {
   const segs = [];
   segs.push({ k: 'txt', t: RAID ? '레이드' : '로그라이크 W' + (waveIdx + 1) + '/' + WAVES.length, f: '700 14px ' + FONT, c: '#fff' });
   if (boss) {
-    segs.push({ k: 'sep' }); segs.push({ k: 'txt', t: boss.d.name, f: '700 15px ' + FONT, c: '#ffe9a0' });
+    segs.push({ k: 'sep' }); segs.push({ k: 'txt', t: boss.d.name, f: '700 15px ' + FONT, c: COLORS.goldText });
   }
   segs.push({ k: 'sep' });
   const w = curWave(), mm = Math.floor(clock / 60), ss = String(Math.floor(clock % 60)).padStart(2, '0');
-  segs.push({ k: 'txt', t: '처치 ' + kills + (w.bossWave ? '' : '  ·  남은 적 ' + (enemies.length + waveLeft())) + '  ·  ' + mm + ':' + ss, f: '600 12px ' + FONT, c: '#cfd3e6' });
+  segs.push({ k: 'txt', t: '처치 ' + kills + (w.bossWave ? '' : '  ·  남은 적 ' + (enemies.length + waveLeft())) + '  ·  ' + mm + ':' + ss, f: '600 12px ' + FONT, c: COLORS.silver });
   ctx.save(); const gap = 8, h = 18, y = 13;
   for (const sg of segs) { ctx.font = sg.k === 'pill' ? '600 11px ' + FONT : sg.f || '12px ' + FONT; sg.w = sg.k === 'sep' ? 1 : ctx.measureText(sg.t).width + (sg.k === 'pill' ? 12 : 0); }
   const tot = segs.reduce((a, g) => a + g.w, 0) + gap * (segs.length - 1); let x = W / 2 - tot / 2;
   ctx.textBaseline = 'alphabetic';
   for (const sg of segs) {
-    if (sg.k === 'sep') { ctx.fillStyle = 'rgba(255,211,77,.55)'; ctx.fillRect(x, y + 1, 1, h - 2); }
+    if (sg.k === 'sep') { ctx.fillStyle = COLORS.goldGlow55; ctx.fillRect(x, y + 1, 1, h - 2); }
     else if (sg.k === 'pill') { ctx.fillStyle = 'rgba(10,12,20,.78)'; ctx.fillRect(x, y, sg.w, h); ctx.strokeStyle = 'rgba(' + sg.c + ',.85)'; ctx.lineWidth = 1.2; ctx.strokeRect(x + 0.5, y + 0.5, sg.w - 1, h - 1); ctx.font = '600 11px ' + FONT; ctx.fillStyle = 'rgb(' + sg.c + ')'; ctx.textAlign = 'center'; ctx.fillText(sg.t, x + sg.w / 2, y + 13); ctx.textAlign = 'left'; }
     else { ctx.font = sg.f; ctx.textAlign = 'left'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(sg.t, x, y + 14); ctx.fillStyle = sg.c; ctx.fillText(sg.t, x, y + 14); }
     x += sg.w + gap;
@@ -507,7 +507,7 @@ function drawPlayerMiniBars() {
   ctx.save(); if (state === 'lose') ctx.globalAlpha = 0.6;
   ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x - 1, y - 1, w + 2, 9);
   ctx.fillStyle = '#3a1010'; ctx.fillRect(x, y, w, 7);
-  ctx.fillStyle = mode === 'duel' ? (hp >= 0.33 ? '#4fb0ff' : (Math.floor(T / 0.25) % 2 ? '#ffd23c' : '#9a7416')) : hp > 0.5 ? '#4fd36a' : hp > 0.25 ? '#f0b030' : '#ff3a3a'; ctx.fillRect(x, y, w * hp, 7);
+  ctx.fillStyle = mode === 'duel' ? (hp >= 0.33 ? COLORS.ally : (Math.floor(T / 0.25) % 2 ? '#ffd23c' : '#9a7416')) : hp > 0.5 ? '#4fd36a' : hp > 0.25 ? '#f0b030' : '#ff3a3a'; ctx.fillRect(x, y, w * hp, 7);
   ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fillRect(x, y, w * hp, 2);
   ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(x - 1, y + 9, w + 2, 7);
   ctx.fillStyle = HERO.ult.barBg; ctx.fillRect(x, y + 10, w, 5);
@@ -565,7 +565,7 @@ function drawWorld() {
       if (P.act && (P.act.type === 'ult' || P.act.invul)) { ctx.fillStyle = `rgba(${HERO.ult.rgb},.25)`; circle(P.x, P.y - 20, 60 + Math.sin(T * 30) * 6); if (P.act.invul && P.act.type !== 'zult') for (let k = 0; k < 10; k++) { const an = T * 7 + k * TAU / 10; ctx.fillStyle = `rgba(255,${120 + (k % 3) * 45},50,.55)`; circle(P.x + Math.cos(an) * 46, P.y - 14 + Math.sin(an) * 30 - 8 * Math.abs(Math.sin(T * 12 + k)), 9 - (k % 3) * 2); } }
       const pdm = mode === 'duel', pr = HERO.mounted ? MOUNT_R : P.r; if (pdm) drawTeamRing(P.x, P.y, pr, true);   // 비무장: 아군 팀 링 + 바깥에 초록 선택원
       ctx.strokeStyle = '#3cff3c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(P.x, P.y + 6, pdm ? pr * 2.4 : P.r * 1.9, pdm ? pr * 1.15 : P.r * 0.9, 0, 0, TAU); ctx.stroke();   // SC1 식 선택 원 (조작 중인 영웅)
-      const pst = playerStyle(null, P.face); if (pdm) pst.flag = '#4fb0ff';
+      const pst = playerStyle(null, P.face); if (pdm) pst.flag = COLORS.ally;
       drawPlayerUnit(P.x, P.y, P.face, pst, 0, pcDashing(P.act)); ctx.globalAlpha = 1; drawBuffAura(P.x, P.y, bR, bl, 1); if (pdm) drawPcMark();
       if (P.act && P.act.type === 'stun') { ctx.fillStyle = '#ffe14a'; for (let i = 0; i < 3; i++) { const a = T * 6 + i * 2.1; circle(P.x + Math.cos(a) * P.r * 0.9, P.y - P.r * 3.4 - (HERO.mounted ? 22 : 0) + Math.sin(a) * 4, 3.5); } }
     } else {
