@@ -22,8 +22,8 @@ function openRaidMenu() { state = 'raidMenu'; mode = 'yeonui'; raidMsgT = 0; app
 function raidMenuPick(online) { pickOnline = online; openRaidBoss(); sfx('skill'); }
 // 레이드 보스 선택 (지금은 여포 봉선만 열려 있음)
 const RAID_BOSSES = [
-  { id: 'raidBoss', name: '여포 봉선', sub: '기마 → 하마 · 8단계', open: true, art: 'lubu', desc: ['체력이 줄수록 8단계로 강해지고 기마에서 하마로 변하는 보스', '3·6단계에서 부하 소환 · 하마 후 회전 폭풍 · 전쟁의 함성 · 최후의 광폭', '고유 능력: 상태 이상 저항 (경직·스턴·둔화가 거듭될수록 지속시간 감소)'] },
-  { id: 'dianBoss', name: '전위 악래', sub: '불사의 광기 · 5단계', open: true, art: 'dian', desc: ['쌍철극 3연 베기 · 쌍극 투척 · 지축 강타 · 충격 돌진으로 몰아붙이는 근접 보스', '포효하면 6초간 광폭(피해 +30%)이 되고, 체력 20% 미만에서 30초간 쓰러지지 않는 불사 보호', '고유 능력: 상태 이상 저항 (경직·스턴·둔화가 거듭될수록 지속시간 감소)'] },
+  { id: 'raidBoss', name: '여포 봉선', sub: '기마 → 하마 · 8단계', open: true, art: 'lubu', desc: ['체력이 줄수록 8단계로 강해지고 기마에서 하마로 변하는 보스', '3·6단계에서 부하 소환 · 하마 후 회전 폭풍 · 전쟁의 함성 · 최후의 광폭', '고유 능력: 상태 이상 저항 (경직·스턴·둔화가 거듭될수록 지속시간 감소)', '정밀 회피·스킬·궁극기로 그로기 게이지를 채우면 보스가 기절하고 받는 피해 x1.5'] },
+  { id: 'dianBoss', name: '전위 악래', sub: '불사의 광기 · 5단계', open: true, art: 'dian', desc: ['쌍철극 3연 베기 · 쌍극 투척 · 지축 강타 · 충격 돌진으로 몰아붙이는 근접 보스', '포효하면 6초간 광폭(피해 +30%)이 되고, 체력 20% 미만에서 30초간 쓰러지지 않는 불사 보호', '고유 능력: 상태 이상 저항 (경직·스턴·둔화가 거듭될수록 지속시간 감소)', '정밀 회피·스킬·궁극기로 그로기 게이지를 채우면 보스가 기절하고 받는 피해 x1.5'] },
   { name: '관우 운장', sub: '준비 중', open: false }];
 const RAID_CFG = { raidBoss: { hp: RAID_HP_SCALE, dmg: RAID_DMGMUL, name: '여포 봉선' }, dianBoss: { hp: DIAN_HP_SCALE, dmg: DIAN_DMGMUL, name: '전위 악래' } };
 let raidBossId = 'raidBoss';   // 선택한 레이드 보스

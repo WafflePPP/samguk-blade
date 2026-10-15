@@ -95,7 +95,7 @@ const NET_CUR_KEYS = ['kind', 'windup', 'r', 'half', 'len', 'w', 'off', 'n', 'st
 function netCurOut(c) { const o = {}; for (const k of NET_CUR_KEYS) { const v = c[k]; if (typeof v === 'number') o[k] = nq(v); else if (typeof v === 'boolean' || typeof v === 'string') o[k] = v; } if (Array.isArray(c.shifts)) o.shifts = c.shifts.map(nq); return o; }
 function netEnemyFull(e) {
   const sw = e.swing, c = e.cur;
-  return { ty: e.type, x: r1(e.x), y: r1(e.y), fc: r2(e.face), hp: Math.round(e.hp), mh: Math.round(e.maxhp), st: e.state, t: r2(e.t), mt: e.mounted ? 1 : 0, lf: Math.round(e.lift || 0), fl: e.flash > 0 ? 1 : 0, ar: e.armor ? 1 : 0, sp: e.spawnT > 0 ? r1(e.spawnT) : 0, wk: r1(e.walk), r: e.r, p2: e.phase2 ? 1 : 0, rg: q4(e.rageT || 0), ft: q4(e.floorT || 0), sl: q4(e.slowT || 0), sg: e.stage || 0, ln: e.lean || 1, dn: e.drN || 0, dT: q4(e.drT || 0), dB: q4(e.drBusy || 0), ut: e.ultT != null ? r2(e.ultT) : -1, sw: sw ? [r2(sw.t), r2(sw.half), Math.round(sw.r)] : 0,
+  return { ty: e.type, x: r1(e.x), y: r1(e.y), fc: r2(e.face), hp: Math.round(e.hp), mh: Math.round(e.maxhp), st: e.state, t: r2(e.t), mt: e.mounted ? 1 : 0, lf: Math.round(e.lift || 0), fl: e.flash > 0 ? 1 : 0, ar: e.armor ? 1 : 0, sp: e.spawnT > 0 ? r1(e.spawnT) : 0, wk: r1(e.walk), r: e.r, p2: e.phase2 ? 1 : 0, rg: q4(e.rageT || 0), ft: q4(e.floorT || 0), sl: q4(e.slowT || 0), sg: e.stage || 0, ln: e.lean || 1, gg: Math.round(e.gg || 0), gs: e.gk === 'g' ? r1(e.gT) : e.gk === 'i' ? -r1(e.gT) : 0, dn: e.drN || 0, dT: q4(e.drT || 0), dB: q4(e.drBusy || 0), ut: e.ultT != null ? r2(e.ultT) : -1, sw: sw ? [r2(sw.t), r2(sw.half), Math.round(sw.r)] : 0,
     cu: c && (e.state === 'wind' || (e.boss && (e.state === 'pause' || e.state === 'recover' || e.state === 'dash'))) ? JSON.stringify(netCurOut(c)) : 0 };
 }
 function netEnemyDelta(e) { const full = netEnemyFull(e), prev = NET.eLast[e.nid] || {}, d = { i: e.nid }; for (const k in full) if (full[k] !== prev[k]) d[k] = full[k]; NET.eLast[e.nid] = full; return d; }
@@ -110,7 +110,7 @@ function netRaidHostPost(rdt) {
   let nsp = 0, nfx = 0; for (const e of fx) if (!NET.fxSeen.has(e)) { NET.fxSeen.add(e); if (e.k === 'spark') { if (nsp++ >= 6) continue; } else if (nfx++ >= 40) continue; o.fx.push(netEv(e)); }
   for (const e of dts) if (!NET.dtSeen.has(e)) { NET.dtSeen.add(e); if (o.dt.length < 16) o.dt.push(netEv(e)); }
   for (const it of items) if (o.it.length < 8) o.it.push([it.kind === 'bun' ? 0 : 1, Math.round(it.x), Math.round(it.y), r1(it.life)]);
-  if (state !== 'play') o.rs = { d: RS.dmg, b: RS.boss, k: RS.kills };
+  if (state !== 'play') o.rs = { d: RS.dmg, b: RS.boss, k: RS.kills, g: RS.groggy || 0 };
   o.sx = NET.sfxQ.splice(0).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4);
   netSend(o);
 }
@@ -121,7 +121,7 @@ function netGuestEnemies(A, B, u, el) {
     let o = NET.emap.get(s.i); if (!o) { o = makeEnemy(s.ty, s.x, s.y); o.nid = s.i; NET.emap.set(s.i, o); }
     seen.add(s.i);
     const s2 = B ? B.d.e.find(q => q.i === s.i) : null;
-    o.hp = s.hp; o.maxhp = s.mh; o.state = s.st; o.mounted = !!s.mt; o.lift = s.lf; o.flash = s.fl ? 0.1 : 0; o.armor = !!s.ar; o.spawnT = s.sp; o.walk = s.wk; o.r = s.r; o.phase2 = !!s.p2; o.rageT = s.rg; o.floorT = s.ft; o.slowT = s.sl; o.stage = s.sg; o.lean = s.ln; o.drN = s.dn; o.drT = s.dT; o.drBusy = s.dB; o.ultT = s.ut >= 0 ? s.ut + el : null; o.dead = false;
+    o.hp = s.hp; o.maxhp = s.mh; o.state = s.st; o.mounted = !!s.mt; o.lift = s.lf; o.flash = s.fl ? 0.1 : 0; o.armor = !!s.ar; o.spawnT = s.sp; o.walk = s.wk; o.r = s.r; o.phase2 = !!s.p2; o.rageT = s.rg; o.floorT = s.ft; o.slowT = s.sl; o.stage = s.sg; o.lean = s.ln; o.drN = s.dn; o.drT = s.dT; o.drBusy = s.dB; { const gk = s.gs > 0 ? 'g' : s.gs < 0 ? 'i' : null; if (gk === 'g' && o.gk !== 'g') o.gD = s.gs; o.gg = s.gg || 0; o.gk = gk; o.gT = Math.abs(s.gs || 0); } o.ultT = s.ut >= 0 ? s.ut + el : null; o.dead = false;
     o.swing = s.sw ? { t: s.sw[0] + el, half: s.sw[1], r: s.sw[2] } : null;
     o.t = s.st === 'stun' || s.st === 'hit' ? Math.max(0, s.t - el) : s.t + el;
     if (o._cs !== s.cu) { o._cs = s.cu; o.cur = s.cu ? JSON.parse(s.cu) : null; }
@@ -153,7 +153,7 @@ function netRaidGuestStep(rdt) {
     items = d.it.map(a => ({ kind: a[0] ? 'wine' : 'bun', x: a[1], y: a[2], life: a[3], t: T }));
   }
   const ed = NET.lastEnd;
-  if (ed && state === 'play' && S[S.length - 1].d.st !== 'play') { if (ed.rs) { RS.dmg = ed.rs.d || {}; RS.boss = ed.rs.b || 0; RS.kills = ed.rs.k || 0; } state = ed.st; winT = 0; }
+  if (ed && state === 'play' && S[S.length - 1].d.st !== 'play') { if (ed.rs) { RS.dmg = ed.rs.d || {}; RS.boss = ed.rs.b || 0; RS.kills = ed.rs.k || 0; RS.groggy = ed.rs.g || 0; } state = ed.st; winT = 0; }
   for (const p of projectiles) { p.x += p.vx * rdt; p.y += p.vy * rdt; }
   for (const it of items) it.t = T;
   if (state === 'play') { bannerT = Math.max(0, bannerT - rdt); reinforceT = Math.max(0, reinforceT - rdt); } else winT += rdt;

@@ -473,6 +473,7 @@ const RAID_HUMAN_TAKEN = 1.0;   // 온라인 레이드: 사람이 조작하는 P
 function foeHurt(e, u, dmg, stunT) {
   if (u === P) { hurtPlayer(dmg, e, false, stunT); return; }
   if (u.dead) return; const hum = !!u.human && !netAuto(u);
+  if (u.invT > 0) { if (u.dgT > 0) ggPrecise(e, u, hum); return; }   // 대시 무적 (hitEnemy 도 invT 면 바로 반환) — 보스 공격이면 정밀 회피
   if (hum && u.bgT > 0) return;   // 보스에게 맞은 경직·스턴 시간 동안은 연계 공격이 겹쳐 맞지 않음
   const ok = hitEnemy(u, dmg * (hum ? RAID_HUMAN_TAKEN : RAID_ALLY_TAKEN), { ai: true, from: e, kb: 260, stun: stunT || 0, nocrit: true, rec: 1.5 });
   if (hum && ok) u.bgT = Math.max(u.bgT || 0, 0.5, stunT || 0);
@@ -536,7 +537,8 @@ function resolveAttack(e) {
   e.state = 'recover'; e.t = 0;
 }
 // 2페이즈 진입: 여포가 적토마에서 내림 (말은 달아나고, 잠시 자세를 가다듬은 뒤 도보 패턴으로 전환)
-function raidStageUp(e, st) {   // 레이드 보스 단계 상승: 포효(공격 기회) + 알림. 3단계(62%)·6단계(37%)에서 부하 소환
+function raidStageUp(e, st) {
+  ggReset(e);   // 레이드 보스 단계 상승: 포효(공격 기회) + 알림. 3단계(62%)·6단계(37%)에서 부하 소환
   ring(e.x, e.y, 300, 0.6, '#ff6a4a', 14); ring(e.x, e.y, 170, 0.45, '#fff', 8); sparks(e.x, e.y - 30, 36, '#ffcf70', 700, 0.8); doShake(14); flashT = Math.max(flashT, 0.15); sfx('boom');
   if (st !== 4) { e.cur = { recover: 1.0, cd: 0.4 }; e.state = 'recover'; e.t = 0; e.lift = 0; reinforceMsg = '여포의 기세가 오른다!  (' + (st + 1) + '/8단계)'; reinforceT = 3; }   // 4단계(하마)는 내리는 연출이 따로 있음
   if (st === 2 || st === 5) raidAdds(e, st);
@@ -572,7 +574,7 @@ function updateEnemies(dt) {
     if (e.d.dian) {   // 보스 전위: 단계 상승 알림 · 광폭 · 최후 단계의 불사 보호(30초, 전투당 1회)
       const ds = dStage(e); if (e.dst == null) e.dst = ds;
       else if (ds > e.dst) {
-        e.dst = ds; ring(e.x, e.y, 260, 0.5, '#ff7a4a', 12); ring(e.x, e.y, 150, 0.4, '#fff', 8); sparks(e.x, e.y - 30, 34, '#ffb27a', 650, 0.7); doShake(13); flashT = Math.max(flashT, 0.15); sfx('boom');
+        e.dst = ds; ggReset(e); ring(e.x, e.y, 260, 0.5, '#ff7a4a', 12); ring(e.x, e.y, 150, 0.4, '#fff', 8); sparks(e.x, e.y - 30, 34, '#ffb27a', 650, 0.7); doShake(13); flashT = Math.max(flashT, 0.15); sfx('boom');
         reinforceMsg = '전위의 광기가 오른다!  (' + (ds + 1) + '/5단계)'; reinforceT = 3; e.cur = { recover: 0.9, cd: 0.4 }; e.state = 'recover'; e.t = 0;
         if (ds === 4 && !e.floorUsed) { e.floorUsed = true; e.floorT = 30; reinforceMsg = '전위가 불사의 광기에 사로잡혔다!  30초간 쓰러지지 않는다'; }
       }
@@ -584,6 +586,7 @@ function updateEnemies(dt) {
       if (e.stage == null) e.stage = st;
       else if (st > e.stage) { e.stage = st; if (e.d.raid) raidStageUp(e, st); else if (st !== 3) { ring(e.x, e.y, 240, 0.5, '#ff6a4a', 12); ring(e.x, e.y, 140, 0.4, '#fff', 8); sparks(e.x, e.y - 30, 30, '#ffcf70', 600, 0.7); doShake(12); flashT = Math.max(flashT, 0.15); sfx('boom'); reinforceMsg = '여포의 기세가 오른다!  (' + (st + 1) + '/6단계)'; reinforceT = 3; } }
     }
+    if (isRB(e)) ggTick(e, dt);
     e.x += e.kx * dt; e.y += e.ky * dt; const kf = Math.exp(-9 * dt); e.kx *= kf; e.ky *= kf;
     const PT = tgtOf(e), d = dist(e, PT), toP = angTo(e, PT), sp = e.speed * (e.rageT > 0 ? 1.2 : 1) * (e.boss ? (e.mounted ? 1.5 : 1.25) : 1) * (e.slowT > 0 ? (e.boss ? 0.75 : 0.55) : 1);
     e.atkCd -= dt; if (e.slowT > 0) e.slowT -= dt; drTick(e, dt);

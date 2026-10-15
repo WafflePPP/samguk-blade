@@ -28,7 +28,7 @@ function recordRun(st) {
     const rogue = mode === 'yeonui' && !RAID, raid = !!RAID, onl = !!NET.on;
     const res = st === 'win' ? 'win' : RS.exited ? 'exit' : (mode === 'duel' && duel && duel.title === 'DRAW') ? 'draw' : 'lose';
     const r = { ver: GAME_VER, t: new Date().toISOString().slice(0, 16), mode: rogue ? 'rogue' : raid ? 'raid' : 'duel', auto: RS.usedAuto ? 1 : 0, result: res };
-    if (raid) r.boss = raidBossId;
+    if (raid) { r.boss = raidBossId; r.groggy = RS.groggy || 0; }
     r.online = onl ? { role: NET.role, n: raid ? (NET.pl ? NET.pl.length : 1) : 2 } : 0;
     r.heroes = rogue ? TEAM.slice() : raid ? (onl && NET.pl ? NET.pl.map(p => p.hero) : RAID_HEROES.slice()) : (duel && duel.order ? duel.order.slice() : (duelLast || []).slice());
     r.main = onl && raid && NET.myHero ? NET.myHero : (HERO && HERO.pc) || r.heroes[0];
@@ -59,6 +59,7 @@ function runLine(r) {
     f.push('레이드 ' + (TYPES[r.boss] ? TYPES[r.boss].short : r.boss), r.heroes.map(hn).join('·'));
     if (r.wave) f.push('단계' + r.wave.stage);
     f.push(fmtT(r.time), res); if (r.cause) f.push('사망:' + r.cause);
+    if (r.groggy != null) f.push('그로기 ' + r.groggy + '회');
     f.push('처치 ' + r.kills, '피해 ' + Object.keys(r.dmg).map(k => hn(k) + ' ' + r.dmg[k]).join(' '), auto, onl);
   } else {
     f.push('비무장', r.heroes.map(hn).join('·') + ' vs ' + ((r.foe && r.foe.heroes) || []).map(hn).join('·'), res + (r.foe && r.foe.end === 'time' ? '(시간종료)' : r.foe && r.foe.end === 'abort' ? '(상대 이탈)' : ''), fmtT(r.time));

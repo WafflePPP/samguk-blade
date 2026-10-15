@@ -331,7 +331,7 @@ function smartDashAngle() {
   return bestA;
 }
 function startDash(m) {
-  P.cd.dash = dashCdNow(); P.inv = dashInvNow();
+  P.cd.dash = dashCdNow(); P.inv = P.dgT = dashInvNow();
   let dx = m.mx, dy = m.my; const l = Math.hypot(dx, dy);
   if (l > 0.2) { P.face = Math.atan2(dy, dx); } else { P.face = smartDashAngle(); }
   P.act = { type: 'dash', t: 0, dur: 0.22 }; sfx('dash');
@@ -347,7 +347,7 @@ function updatePlayer(dt) {
   p.rage = Math.min(100, p.rage + dt / ULT_CD * 100 * (1 + RUN.rage + META.rage));   // 궁극기 쿨타임
   for (const id of TEAM) if (id !== HERO.pc && p.hpStore[id] > 0) p.hpStore[id] = Math.min(heroMaxHp(id), p.hpStore[id] + heroMaxHp(id) * BENCH_REGEN * dt);   // 대기 중인 영웅은 천천히 회복 (전투 불능이면 회복 안 함)
   for (const id in p.cdStore) { const st = p.cdStore[id]; st.s1 = Math.max(0, st.s1 - dt); st.s2 = Math.max(0, st.s2 - dt); } for (const k in p.s2Store) p.s2Store[k] = Math.max(0, p.s2Store[k] - dt);   // 대기 중인 영웅의 스킬 쿨타임도 흐름
-  p.inv = Math.max(0, p.inv - dt); p.flash = Math.max(0, p.flash - dt); p.comboT = Math.max(0, p.comboT - dt);
+  p.inv = Math.max(0, p.inv - dt); p.dgT = Math.max(0, (p.dgT || 0) - dt); p.flash = Math.max(0, p.flash - dt); p.comboT = Math.max(0, p.comboT - dt);
   if (p.hitsT > 0) { p.hitsT -= dt; if (p.hitsT <= 0) { p.hits = 0; p.hitTier = 0; } }
   if (p.freeze > 0) { p.freeze -= dt; return; }   // 역경직: 적중 직후 플레이어만 잠깐 정지
   let m = manualMove();

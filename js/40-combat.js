@@ -94,6 +94,7 @@ function recHeal(src, tgt, v) { if (!duel || !duel.stats || !(v > 0)) return; st
 function hurtPlayer(dmg, src, bossHit, stunT, rec, kb) {
   if (TUT) return;   // 튜토리얼 중에는 무적
   const a = P.act;
+  if (P.inv > 0 && P.dgT > 0 && !P.dead && src && src.boss && state === 'play') ggPrecise(src, P, true);   // 대시 무적으로 보스 공격을 피한 순간 (그로기 게이지)
   if (P.inv > 0 || P.dead || (a && (a.type === 'ult' || a.invul)) || state !== 'play') return;
   if (!stunT && !rollHit(src, P)) { dmgText(P.x, P.y - 60, '회피!', '#7fd0ff', 24); sparks(P.x, P.y - 20, 6, '#7fd0ff', 220, 0.3); return; }   // 회피율: 공격이 빗나감
   dmg = Math.max(1, Math.round(dmg / defMul())); if (mode === 'duel') recStat(src, P, Math.min(dmg, Math.max(0, P.hp))); P.hp -= dmg; RS.last = { type: src && src.type, hero: src && src.hero, boss: !!(src && src.boss) }; if (P.floorT > 0 && P.hp < 1) P.hp = 1; P.flash = 0.18;   // 불사: 생명력 1 밑으로 내려가지 않음 (죽지 않음)
@@ -193,9 +194,9 @@ function hitEnemy(e, dmg, o = {}) {
   if (!o.stun && !rollHit(o.ai ? (o.by || null) : P, e)) { dmgText(e.x, e.y - e.r * 2.6, 'MISS', '#aab3c8', 20); sparks(e.x, e.y - e.r, 4, '#aab3c8', 180, 0.25); return false; }   // 적중률: 공격이 빗나감 (스턴 공격은 항상 적중)
   const crit = !o.nocrit && Math.random() < 0.2 + (o.ai ? (o.by && o.by.meta ? o.by.meta.crit : 0) : (RUN.crit + META.crit));
   const gm = (e.d && e.d.guard && o.from && !o.stun && !o.ai && angDiff(e.face, angTo(e, o.from)) < 1.0) ? e.d.guard : 1;   // 방패병·방패 장군: 정면 막기
-  const d = Math.round(gm * dmg * (o.ai ? (o.by ? fAtkMul(o.by) : 1) : comboMul() * atkBuffMul()) * (crit ? 1.8 + (o.ai ? (o.by && o.by.meta ? o.by.meta.critDmg : 0) : (RUN.critDmg + META.critDmg)) : 1) / (e.fighter ? fDef(e) : 1) * rand(0.92, 1.08));
+  const d = Math.round(gm * dmg * (o.ai ? (o.by ? fAtkMul(o.by) : 1) : comboMul() * atkBuffMul()) * (crit ? 1.8 + (o.ai ? (o.by && o.by.meta ? o.by.meta.critDmg : 0) : (RUN.critDmg + META.critDmg)) : 1) / (e.fighter ? fDef(e) : 1) * rand(0.92, 1.08) * (e.gk === 'g' ? GROGGY.dmg : 1));
   if (mode === 'duel' && e.fighter) recStat(o.ai ? o.by : P, e, Math.min(d, Math.max(0, e.hp)));
-  e.hp -= d; if (e.floorT > 0 && e.hp < 1) e.hp = 1; e.flash = 0.1; if (e.fighter) { e.hitT = 0.42; e.hitMag = d >= 100 ? 1.35 : 1; e.hitAng = o.from ? angTo(o.from, e) : 0; }
+  e.hp -= d; if (e.floorT > 0 && e.hp < 1) e.hp = 1; if (isRB(e)) ggFromHit(e, o); e.flash = 0.1; if (e.fighter) { e.hitT = 0.42; e.hitMag = d >= 100 ? 1.35 : 1; e.hitAng = o.from ? angTo(o.from, e) : 0; }
   const ang = o.from ? angTo(o.from, e) : 0, kb = (o.kb || 0) * (e.armor ? 0.25 : 1);
   e.kx += Math.cos(ang) * kb; e.ky += Math.sin(ang) * kb;
   // 기절(stun): 궁극기 전용. 별 표시, 길게 행동 불가. 슈퍼아머(보스)여도 스턴은 항상 적용됨 (슈퍼아머는 일반 타격의 피격 경직만 막음).

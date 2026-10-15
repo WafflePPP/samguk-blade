@@ -164,7 +164,7 @@ function humanFighter(f, dt, tgt) {   // 사람이 조종하는 파이터: AI �
   if (tgt && dist(f, tgt) < 560) f.face = angTo(f, tgt); else if (ml > 0.2) f.face = Math.atan2(inp.my, inp.mx);
   if (has('dash') && f.dashCd <= 0) {
     eat('dash'); const dg = ml > 0.2 ? Math.atan2(inp.my, inp.mx) : tgt ? angTo(tgt, f) : f.face + Math.PI;
-    f.dashCd = dashCdNow(); f.invT = dashInvNow(); f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: dashSpeedNow(), ang: dg }] }, null); sfx('dash'); runAct(f, dt); return;
+    f.dashCd = dashCdNow(); f.invT = f.dgT = dashInvNow(); f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: dashSpeedNow(), ang: dg }] }, null); sfx('dash'); runAct(f, dt); return;
   }
   if (has('s3') && f.rage >= 100) { eat('s3'); f.rage = 0; beginAct(f, sk.ult, tgt); sfx('skill'); return; }
   if (has('s2') && f.cd.s2 <= 0) { eat('s2'); f.cd.s2 = CD.s2 * (Hf.s2cdMul || 1) * (1 - f.meta.cd); beginAct(f, sk.s2, tgt); return; }

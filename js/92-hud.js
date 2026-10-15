@@ -141,6 +141,7 @@ function drawHUD() {
     ctx.fillStyle = '#4a1010'; ctx.fillRect(bx, by, bw, bh); ctx.fillStyle = '#d82a2a'; ctx.fillRect(bx, by, bw * boss.hp / boss.maxhp, bh);
     ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(bx, by, bw * boss.hp / boss.maxhp, 4);
     ctx.strokeStyle = COLORS.goldTrim; ctx.lineWidth = 1.5; ctx.strokeRect(bx, by, bw, bh);
+    if (isRB(boss)) drawGroggyBar(boss, bx, by + bh + 4, bw);
     ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(bx + bw * 0.5 - 1, by, 2, bh);   // 50% = 2페이즈 경계
     if (boss.d.mb) { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const f of [1 / 3, 2 / 3]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }   // 몬스터 보스: 3단계 경계
     if (boss.d.zhao) { ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const f of [0.25, 0.75]) ctx.fillRect(bx + bw * f - 1, by, 2, bh); }

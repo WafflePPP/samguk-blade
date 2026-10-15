@@ -297,12 +297,12 @@ function updateFighter(f, dt) {
   if (f.hitsT > 0) { f.hitsT -= dt; if (f.hitsT <= 0) { f.hits = 0; f.hitTier = 0; } }   // 3초간 적중이 없으면 HIT 초기화
   if (f.runT > 0) f.runT = (f.moving || (f.act && f.act.def.name === 'rush')) ? Hf.runDur : Math.max(0, f.runT - dt);   // 질주: 이동 중이거나 돌격 중이면 지속시간 갱신
   f.moving = false;
-  f.lungeT = Math.max(0, (f.lungeT || 0) - dt); f.hitT = Math.max(0, f.hitT - dt); f.flash = Math.max(0, f.flash - dt); f.invT = Math.max(0, f.invT - dt); f.rage = Math.min(100, f.rage + dt / ULT_CD * 100 * (1 + f.meta.rage)); f.cd.s1 = Math.max(0, f.cd.s1 - dt); f.cd.s2 = Math.max(0, f.cd.s2 - dt); for (const k in f.s2Store) f.s2Store[k] = Math.max(0, f.s2Store[k] - dt); f.dashCd = Math.max(0, f.dashCd - dt); if (f.slowT > 0) f.slowT -= dt; drTick(f, dt); f.atkCd -= dt; f.comboT -= dt;
+  f.lungeT = Math.max(0, (f.lungeT || 0) - dt); f.hitT = Math.max(0, f.hitT - dt); f.flash = Math.max(0, f.flash - dt); f.invT = Math.max(0, f.invT - dt); f.dgT = Math.max(0, (f.dgT || 0) - dt); f.rage = Math.min(100, f.rage + dt / ULT_CD * 100 * (1 + f.meta.rage)); f.cd.s1 = Math.max(0, f.cd.s1 - dt); f.cd.s2 = Math.max(0, f.cd.s2 - dt); for (const k in f.s2Store) f.s2Store[k] = Math.max(0, f.s2Store[k] - dt); f.dashCd = Math.max(0, f.dashCd - dt); if (f.slowT > 0) f.slowT -= dt; drTick(f, dt); f.atkCd -= dt; f.comboT -= dt;
   f.x += f.kx * dt; f.y += f.ky * dt; const kf = Math.exp(-9 * dt); f.kx *= kf; f.ky *= kf;
   if (f.freeze > 0) { f.freeze -= dt; arenaClamp(f); return; }
   if ((!f.human || netAuto(f)) && f.state !== 'stun' && f.dashCd <= 0 && !(f.act && (f.act.def.invul || f.act.def.name === 'ult' || f.act.def.name === 'dodge'))) {   // 자동 회피 (AUTO 플레이어와 동일 규칙)
     const dg = RAID ? raidDodgeDir(f) : dodgeDir(f);
-    if (dg != null) { f.dashCd = dashCdNow(); f.invT = dashInvNow(); f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: dashSpeedNow(), ang: dg }] }, null); runAct(f, dt); arenaClamp(f); return; }
+    if (dg != null) { f.dashCd = dashCdNow(); f.invT = f.dgT = dashInvNow(); f.act = null; f.armor = false; beginAct(f, { name: 'dodge', dur: 0.26, ev: [{ t0: 0, t1: 0.22, fx: 'move', v: dashSpeedNow(), ang: dg }] }, null); runAct(f, dt); arenaClamp(f); return; }
   }
   if (f.state === 'hit' || f.state === 'stun') { if (f.act) { f.act = null; f.armor = false; } f.t -= dt; if (f.t <= 0) { f.state = 'move'; f.atkCd = Math.max(f.atkCd, 0.25); } arenaClamp(f); return; }
   const tgt = nearestOpp(f); if (!tgt) return;

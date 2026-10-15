@@ -39,8 +39,8 @@ const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if
 // 온라인 대전 상태 (자세한 구현은 '온라인 대전' 블록)
 const NET = { on: false, role: null, ws: null, open: false, code: '', status: '', peerHero: null, hero: 'guan', inMatch: false, paired: false, url: 'ws://localhost:8787', snaps: [], sendT: 0, inT: 0, sfxQ: [], fxSeen: new WeakSet(), dtSeen: new WeakSet(), me: null, opp: null, lastEnd: null, lastNew: null, aborted: false, lastSt: '' };
 // 서버 주소: 직접 입력한 주소(sgb_net_url_manual)가 있으면 그것, 없으면 배포 페이지의 server.json 에 적힌 주소 (95-online.js 에서 불러옴). 개발용 localhost 에서는 로컬 중계 서버.
-const GAME_VER = '0.2.0+20261014';   // 게임 버전 '의미버전+빌드날짜' — 의미버전은 수동(기능 추가=가운데, 수정=마지막), 날짜는 tools/release.sh 가 자동 갱신. 로그인·로비·판 기록·오류 보고에 표시. NET_VER 와 별개
-const NET_VER = 1;   // 온라인 규칙 버전: 파티원끼리 같아야 시작할 수 있다 (온라인 동기화 형식이 바뀌면 올림)
+const GAME_VER = '0.3.0+20261015';   // 게임 버전 '의미버전+빌드날짜' — 의미버전은 수동(기능 추가=가운데, 수정=마지막), 날짜는 tools/release.sh 가 자동 갱신. 로그인·로비·판 기록·오류 보고에 표시. NET_VER 와 별개
+const NET_VER = 2;   // 온라인 규칙 버전: 파티원끼리 같아야 시작할 수 있다 (온라인 동기화 형식이 바뀌면 올림)
 const NET_DEV = /^(localhost|127\.0\.0\.1|192\.168\.|10\.)/.test(location.hostname);
 try { const m = localStorage.getItem('sgb_net_url_manual'); NET.urlManual = !!m; if (m) NET.url = m; else if (!NET_DEV) NET.url = ''; } catch (_) { if (!NET_DEV) NET.url = ''; }
 
